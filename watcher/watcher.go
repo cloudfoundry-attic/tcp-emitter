@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 )
@@ -12,17 +13,20 @@ import (
 type Watcher struct {
 	receptorClient receptor.Client
 	clock          clock.Clock
+	eventHandler   routing_table.EventHandler
 	logger         lager.Logger
 }
 
 func NewWatcher(
 	receptorClient receptor.Client,
 	clock clock.Clock,
+	eventHandler routing_table.EventHandler,
 	logger lager.Logger,
 ) *Watcher {
 	return &Watcher{
 		receptorClient: receptorClient,
 		clock:          clock,
+		eventHandler:   eventHandler,
 		logger:         logger.Session("watcher"),
 	}
 }
@@ -102,82 +106,18 @@ func (watcher *Watcher) Run(signals <-chan os.Signal, ready chan<- struct{}) err
 func (watcher *Watcher) handleEvent(logger lager.Logger, event receptor.Event) {
 	switch event := event.(type) {
 	case receptor.DesiredLRPCreatedEvent:
-		watcher.handleDesiredCreate(logger, event.DesiredLRPResponse)
+		watcher.eventHandler.HandleDesiredCreate(event.DesiredLRPResponse)
 	case receptor.DesiredLRPChangedEvent:
-		watcher.handleDesiredUpdate(logger, event.Before, event.After)
+		watcher.eventHandler.HandleDesiredUpdate(event.Before, event.After)
 	case receptor.DesiredLRPRemovedEvent:
-		watcher.handleDesiredDelete(logger, event.DesiredLRPResponse)
+		watcher.eventHandler.HandleDesiredDelete(event.DesiredLRPResponse)
 	case receptor.ActualLRPCreatedEvent:
-		watcher.handleActualCreate(logger, event.ActualLRPResponse)
+		watcher.eventHandler.HandleActualCreate(event.ActualLRPResponse)
 	case receptor.ActualLRPChangedEvent:
-		watcher.handleActualUpdate(logger, event.Before, event.After)
+		watcher.eventHandler.HandleActualUpdate(event.Before, event.After)
 	case receptor.ActualLRPRemovedEvent:
-		watcher.handleActualDelete(logger, event.ActualLRPResponse)
+		watcher.eventHandler.HandleActualDelete(event.ActualLRPResponse)
 	default:
 		logger.Info("did-not-handle-unrecognizable-event", lager.Data{"event-type": event.EventType()})
-	}
-}
-
-func (watcher *Watcher) handleDesiredCreate(logger lager.Logger, desiredLRP receptor.DesiredLRPResponse) {
-	logger = logger.Session("handle-desired-create", desiredLRPData(desiredLRP))
-	logger.Debug("starting")
-	defer logger.Debug("complete")
-}
-
-func (watcher *Watcher) handleDesiredUpdate(logger lager.Logger, before, after receptor.DesiredLRPResponse) {
-	logger = logger.Session("handling-desired-update", lager.Data{
-		"before": desiredLRPData(before),
-		"after":  desiredLRPData(after),
-	})
-	logger.Debug("starting")
-	defer logger.Debug("complete")
-}
-
-func (watcher *Watcher) handleDesiredDelete(logger lager.Logger, desiredLRP receptor.DesiredLRPResponse) {
-	logger = logger.Session("handling-desired-delete", desiredLRPData(desiredLRP))
-	logger.Debug("starting")
-	defer logger.Debug("complete")
-}
-
-func (watcher *Watcher) handleActualCreate(logger lager.Logger, actualLRP receptor.ActualLRPResponse) {
-	logger = logger.Session("handling-actual-create", actualLRPData(actualLRP))
-	logger.Debug("starting")
-	defer logger.Debug("complete")
-}
-
-func (watcher *Watcher) handleActualUpdate(logger lager.Logger, before, after receptor.ActualLRPResponse) {
-	logger = logger.Session("handling-actual-update", lager.Data{
-		"before": actualLRPData(before),
-		"after":  actualLRPData(after),
-	})
-	logger.Debug("starting")
-	defer logger.Debug("complete")
-
-}
-
-func (watcher *Watcher) handleActualDelete(logger lager.Logger, actualLRP receptor.ActualLRPResponse) {
-	logger = logger.Session("handling-actual-delete", actualLRPData(actualLRP))
-	logger.Debug("starting")
-	defer logger.Debug("complete")
-}
-
-func desiredLRPData(lrp receptor.DesiredLRPResponse) lager.Data {
-	return lager.Data{
-		"process-guid": lrp.ProcessGuid,
-		"routes":       lrp.Routes,
-		"ports":        lrp.Ports,
-	}
-}
-
-func actualLRPData(lrp receptor.ActualLRPResponse) lager.Data {
-	return lager.Data{
-		"process-guid":  lrp.ProcessGuid,
-		"index":         lrp.Index,
-		"domain":        lrp.Domain,
-		"instance-guid": lrp.InstanceGuid,
-		"cell-id":       lrp.CellID,
-		"address":       lrp.Address,
-		"ports":         lrp.Ports,
-		"evacuating":    lrp.Evacuating,
 	}
 }

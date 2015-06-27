@@ -9,6 +9,7 @@ import (
 	"github.com/cloudfoundry-incubator/cf-lager"
 	"github.com/cloudfoundry-incubator/cf_http"
 	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
 	"github.com/cloudfoundry/dropsonde"
 	"github.com/pivotal-golang/clock"
@@ -48,8 +49,11 @@ func main() {
 	initializeDropsonde(logger)
 
 	receptorClient := receptor.NewClient(*diegoAPIURL)
+	emitter := routing_table.NewEmitter(logger)
+	routingTable := routing_table.NewTable(logger, nil)
+	eventHandler := routing_table.NewEventHandler(logger, routingTable, emitter)
 	watcher := ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
-		return watcher.NewWatcher(receptorClient, clock, logger).Run(signals, ready)
+		return watcher.NewWatcher(receptorClient, clock, eventHandler, logger).Run(signals, ready)
 	})
 
 	members := grouper.Members{
