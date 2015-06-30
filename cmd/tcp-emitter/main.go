@@ -25,6 +25,12 @@ var diegoAPIURL = flag.String(
 	"URL of diego API",
 )
 
+var tcpRouterAPIURL = flag.String(
+	"tcpRouterAPIURL",
+	"",
+	"URL of TCP Router API",
+)
+
 var communicationTimeout = flag.Duration(
 	"communicationTimeout",
 	10*time.Second,
@@ -49,7 +55,7 @@ func main() {
 	initializeDropsonde(logger)
 
 	receptorClient := receptor.NewClient(*diegoAPIURL)
-	emitter := routing_table.NewEmitter(logger)
+	emitter := routing_table.NewEmitter(logger, *tcpRouterAPIURL)
 	routingTable := routing_table.NewTable(logger, nil)
 	eventHandler := routing_table.NewEventHandler(logger, routingTable, emitter)
 	watcher := ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
