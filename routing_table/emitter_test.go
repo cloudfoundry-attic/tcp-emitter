@@ -34,7 +34,7 @@ var _ = Describe("Emitter", func() {
 		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
 
 		routableEndpoints1 := routing_table.NewRoutableEndpoints(
-			extenralEndpointInfo1, endpoints1, logGuid, modificationTag)
+			routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, modificationTag)
 
 		routingEvents = routing_table.RoutingEvents{
 			routing_table.RoutingEvent{
@@ -109,7 +109,7 @@ var _ = Describe("Emitter", func() {
 			extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(0)
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(
-				extenralEndpointInfo1, endpoints1, logGuid, modificationTag)
+				routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, modificationTag)
 
 			routingEvents = routing_table.RoutingEvents{
 				routing_table.RoutingEvent{

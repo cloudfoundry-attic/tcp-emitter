@@ -51,12 +51,19 @@ var _ = Describe("MappingRequestBuilder", func() {
 		routingKey2 = routing_table.NewRoutingKey("process-guid-2", 5222)
 
 		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
+
 		extenralEndpointInfo2 := routing_table.NewExternalEndpointInfo(61001)
+		extenralEndpointInfo3 := routing_table.NewExternalEndpointInfo(61002)
+		endpointInfo1 := routing_table.ExternalEndpointInfos{extenralEndpointInfo1}
+		endpointInfo2 := routing_table.ExternalEndpointInfos{
+			extenralEndpointInfo2,
+			extenralEndpointInfo3,
+		}
 
 		routableEndpoints1 := routing_table.NewRoutableEndpoints(
-			extenralEndpointInfo1, endpoints1, logGuid, modificationTag)
+			endpointInfo1, endpoints1, logGuid, modificationTag)
 		routableEndpoints2 := routing_table.NewRoutableEndpoints(
-			extenralEndpointInfo2, endpoints2, logGuid, modificationTag)
+			endpointInfo2, endpoints2, logGuid, modificationTag)
 
 		routingEvents = routing_table.RoutingEvents{
 			routing_table.RoutingEvent{
@@ -86,7 +93,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 	Context("with valid routing events", func() {
 		It("returns valid mapping requests ", func() {
 			mappingRequests := routing_table.BuildMappingRequests(routingEvents)
-			Expect(mappingRequests).Should(HaveLen(2))
+			Expect(mappingRequests).Should(HaveLen(3))
 			mappingRequestMap := make(map[uint16]cf_tcp_router.BackendHostInfos)
 			for _, mappingRequest := range mappingRequests {
 				mappingRequestMap[mappingRequest.ExternalPort] = mappingRequest.Backends
@@ -99,13 +106,19 @@ var _ = Describe("MappingRequestBuilder", func() {
 				cf_tcp_router.NewBackendHostInfo("some-ip-3", 62005),
 				cf_tcp_router.NewBackendHostInfo("some-ip-4", 62006),
 			})
+			verifyMappingRequest(mappingRequestMap, 61002, cf_tcp_router.BackendHostInfos{
+				cf_tcp_router.NewBackendHostInfo("some-ip-3", 62005),
+				cf_tcp_router.NewBackendHostInfo("some-ip-4", 62006),
+			})
 		})
 	})
 
 	Context("with an invalid external port in routing event", func() {
 		It("returns an empty mapping request", func() {
 
-			extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(0)
+			extenralEndpointInfo1 := routing_table.ExternalEndpointInfos{
+				routing_table.NewExternalEndpointInfo(0),
+			}
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(
 				extenralEndpointInfo1, endpoints1, logGuid, modificationTag)
@@ -121,11 +134,38 @@ var _ = Describe("MappingRequestBuilder", func() {
 			mappingRequests := routing_table.BuildMappingRequests(routingEvents)
 			Expect(mappingRequests).Should(HaveLen(0))
 		})
+
+		Context("and multiple external ports", func() {
+			It("only disregards the invalid external port", func() {
+				extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(0)
+				extenralEndpointInfo2 := routing_table.NewExternalEndpointInfo(61000)
+				externalInfo := []routing_table.ExternalEndpointInfo{
+					extenralEndpointInfo1,
+					extenralEndpointInfo2,
+				}
+
+				routableEndpoints1 := routing_table.NewRoutableEndpoints(
+					externalInfo, endpoints1, logGuid, modificationTag)
+
+				routingEvents = routing_table.RoutingEvents{
+					routing_table.RoutingEvent{
+						EventType: routing_table.RouteRegistrationEvent,
+						Key:       routingKey1,
+						Entry:     routableEndpoints1,
+					},
+				}
+
+				mappingRequests := routing_table.BuildMappingRequests(routingEvents)
+				Expect(mappingRequests).Should(HaveLen(1))
+			})
+		})
 	})
 
 	Context("with empty endpoints in routing event", func() {
 		It("returns an empty mapping request", func() {
-			extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
+			extenralEndpointInfo1 := routing_table.ExternalEndpointInfos{
+				routing_table.NewExternalEndpointInfo(0),
+			}
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(
 				extenralEndpointInfo1, nil, logGuid, modificationTag)
@@ -142,5 +182,4 @@ var _ = Describe("MappingRequestBuilder", func() {
 			Expect(mappingRequests).Should(HaveLen(0))
 		})
 	})
-
 })

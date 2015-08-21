@@ -66,8 +66,13 @@ func (emitter *tcpEmitter) logRoutingEvents(routingEvents RoutingEvents) {
 		for _, endpoint := range event.Entry.Endpoints {
 			endpoints = append(endpoints, endpoint)
 		}
+
+		ports := make([]uint16, 0)
+		for _, extEndpoint := range event.Entry.ExternalEndpoints {
+			ports = append(ports, extEndpoint.Port)
+		}
 		emitter.logger.Info("mapped-routes", lager.Data{
-			"external_port": event.Entry.ExternalEndpoint.Port,
-			"backends":      endpoints})
+			"external_ports": ports,
+			"backends":       endpoints})
 	}
 }

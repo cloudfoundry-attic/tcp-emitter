@@ -45,6 +45,8 @@ type ExternalEndpointInfo struct {
 	Port uint16
 }
 
+type ExternalEndpointInfos []ExternalEndpointInfo
+
 func NewExternalEndpointInfo(port uint16) ExternalEndpointInfo {
 	return ExternalEndpointInfo{
 		Port: port,
@@ -52,18 +54,18 @@ func NewExternalEndpointInfo(port uint16) ExternalEndpointInfo {
 }
 
 type RoutableEndpoints struct {
-	ExternalEndpoint ExternalEndpointInfo
-	Endpoints        map[EndpointKey]Endpoint
-	LogGuid          string
-	ModificationTag  receptor.ModificationTag
+	ExternalEndpoints ExternalEndpointInfos
+	Endpoints         map[EndpointKey]Endpoint
+	LogGuid           string
+	ModificationTag   receptor.ModificationTag
 }
 
 func (entry RoutableEndpoints) copy() RoutableEndpoints {
 	clone := RoutableEndpoints{
-		ExternalEndpoint: entry.ExternalEndpoint,
-		Endpoints:        map[EndpointKey]Endpoint{},
-		LogGuid:          entry.LogGuid,
-		ModificationTag:  entry.ModificationTag,
+		ExternalEndpoints: entry.ExternalEndpoints,
+		Endpoints:         map[EndpointKey]Endpoint{},
+		LogGuid:           entry.LogGuid,
+		ModificationTag:   entry.ModificationTag,
 	}
 
 	for k, v := range entry.Endpoints {
@@ -74,15 +76,15 @@ func (entry RoutableEndpoints) copy() RoutableEndpoints {
 }
 
 func NewRoutableEndpoints(
-	externalEndPoint ExternalEndpointInfo,
+	externalEndPoint ExternalEndpointInfos,
 	endpoints map[EndpointKey]Endpoint,
 	logGuid string,
 	modificationTag receptor.ModificationTag) RoutableEndpoints {
 	return RoutableEndpoints{
-		ExternalEndpoint: externalEndPoint,
-		Endpoints:        endpoints,
-		LogGuid:          logGuid,
-		ModificationTag:  modificationTag,
+		ExternalEndpoints: externalEndPoint,
+		Endpoints:         endpoints,
+		LogGuid:           logGuid,
+		ModificationTag:   modificationTag,
 	}
 }
 

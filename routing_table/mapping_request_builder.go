@@ -9,23 +9,28 @@ func BuildMappingRequests(routingEvents RoutingEvents) cf_tcp_router.MappingRequ
 	for _, routingEvent := range routingEvents {
 		mappingRequest := mapRoutingEvent(routingEvent)
 		if mappingRequest != nil {
-			mappingRequests = append(mappingRequests, *mappingRequest)
+			mappingRequests = append(mappingRequests, (*mappingRequest)...)
 		}
 	}
 	return mappingRequests
 }
 
-func mapRoutingEvent(routingEvent RoutingEvent) *cf_tcp_router.MappingRequest {
-	if routingEvent.Entry.ExternalEndpoint.Port == 0 {
-		return nil
-	}
+func mapRoutingEvent(routingEvent RoutingEvent) *cf_tcp_router.MappingRequests {
 	if len(routingEvent.Entry.Endpoints) == 0 {
 		return nil
 	}
-	backends := cf_tcp_router.BackendHostInfos{}
-	for _, endpoint := range routingEvent.Entry.Endpoints {
-		backends = append(backends, cf_tcp_router.NewBackendHostInfo(endpoint.Host, endpoint.Port))
+
+	mappingRequests := cf_tcp_router.MappingRequests{}
+	for _, externalEndpoint := range routingEvent.Entry.ExternalEndpoints {
+		if externalEndpoint.Port == 0 {
+			continue
+		}
+
+		backends := cf_tcp_router.BackendHostInfos{}
+		for _, endpoint := range routingEvent.Entry.Endpoints {
+			backends = append(backends, cf_tcp_router.NewBackendHostInfo(endpoint.Host, endpoint.Port))
+		}
+		mappingRequests = append(mappingRequests, cf_tcp_router.NewMappingRequest(externalEndpoint.Port, backends))
 	}
-	mappingRequest := cf_tcp_router.NewMappingRequest(routingEvent.Entry.ExternalEndpoint.Port, backends)
-	return &mappingRequest
+	return &mappingRequests
 }
