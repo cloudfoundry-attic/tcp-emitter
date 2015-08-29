@@ -41,6 +41,12 @@ type FakeEventHandler struct {
 	handleActualDeleteArgsForCall []struct {
 		actualLRP receptor.ActualLRPResponse
 	}
+	HandleSyncStub        func() routing_table.RoutingTable
+	handleSyncMutex       sync.RWMutex
+	handleSyncArgsForCall []struct{}
+	handleSyncReturns struct {
+		result1 routing_table.RoutingTable
+	}
 }
 
 func (fake *FakeEventHandler) HandleDesiredCreate(desiredLRP receptor.DesiredLRPResponse) {
@@ -181,6 +187,30 @@ func (fake *FakeEventHandler) HandleActualDeleteArgsForCall(i int) receptor.Actu
 	fake.handleActualDeleteMutex.RLock()
 	defer fake.handleActualDeleteMutex.RUnlock()
 	return fake.handleActualDeleteArgsForCall[i].actualLRP
+}
+
+func (fake *FakeEventHandler) HandleSync() routing_table.RoutingTable {
+	fake.handleSyncMutex.Lock()
+	fake.handleSyncArgsForCall = append(fake.handleSyncArgsForCall, struct{}{})
+	fake.handleSyncMutex.Unlock()
+	if fake.HandleSyncStub != nil {
+		return fake.HandleSyncStub()
+	} else {
+		return fake.handleSyncReturns.result1
+	}
+}
+
+func (fake *FakeEventHandler) HandleSyncCallCount() int {
+	fake.handleSyncMutex.RLock()
+	defer fake.handleSyncMutex.RUnlock()
+	return len(fake.handleSyncArgsForCall)
+}
+
+func (fake *FakeEventHandler) HandleSyncReturns(result1 routing_table.RoutingTable) {
+	fake.HandleSyncStub = nil
+	fake.handleSyncReturns = struct {
+		result1 routing_table.RoutingTable
+	}{result1}
 }
 
 var _ routing_table.EventHandler = new(FakeEventHandler)

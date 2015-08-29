@@ -63,6 +63,7 @@ var _ = Describe("Watcher", func() {
 		process        ifrit.Process
 		eventChannel   chan receptor.Event
 		errorChannel   chan error
+		syncChannel    chan struct{}
 	)
 
 	BeforeEach(func() {
@@ -73,7 +74,8 @@ var _ = Describe("Watcher", func() {
 		clock = fakeclock.NewFakeClock(time.Now())
 
 		receptorClient.SubscribeToEventsReturns(eventSource, nil)
-		testWatcher = watcher.NewWatcher(receptorClient, clock, eventHandler, logger)
+		syncChannel = make(chan struct{})
+		testWatcher = watcher.NewWatcher(receptorClient, clock, eventHandler, syncChannel, logger)
 
 		eventChannel = make(chan receptor.Event)
 		errorChannel = make(chan error)
@@ -211,6 +213,16 @@ var _ = Describe("Watcher", func() {
 		})
 	})
 
+	Context("handle Sync Event", func() {
+		JustBeforeEach(func() {
+			syncChannel <- struct{}{}
+		})
+
+		It("calls eventHandler HandleSync", func() {
+			Eventually(eventHandler.HandleSyncCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+		})
+	})
+
 	Context("when eventSource returns error", func() {
 		JustBeforeEach(func() {
 			Eventually(receptorClient.SubscribeToEventsCallCount).Should(Equal(1))
@@ -240,7 +252,7 @@ var _ = Describe("Watcher", func() {
 				return eventSource, nil
 			}
 
-			testWatcher = watcher.NewWatcher(receptorClient, clock, eventHandler, logger)
+			testWatcher = watcher.NewWatcher(receptorClient, clock, eventHandler, syncChannel, logger)
 		})
 
 		JustBeforeEach(func() {

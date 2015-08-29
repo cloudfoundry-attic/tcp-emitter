@@ -13,6 +13,7 @@ type EventHandler interface {
 	HandleActualCreate(actualLRP receptor.ActualLRPResponse)
 	HandleActualUpdate(before, after receptor.ActualLRPResponse)
 	HandleActualDelete(actualLRP receptor.ActualLRPResponse)
+	HandleSync() RoutingTable
 }
 
 type eventHandler struct {
@@ -107,6 +108,13 @@ func (handler *eventHandler) HandleActualDelete(actualLRP receptor.ActualLRPResp
 	if actualLRP.State == receptor.ActualLRPStateRunning {
 		handler.removeAndEmit(actualLRP)
 	}
+}
+
+func (handler *eventHandler) HandleSync() RoutingTable {
+	logger := handler.logger.Session("handle-sync")
+	logger.Debug("starting")
+	defer logger.Debug("complete")
+	return NewTable(handler.logger, make(map[RoutingKey]RoutableEndpoints))
 }
 
 func desiredLRPData(lrp receptor.DesiredLRPResponse) lager.Data {
