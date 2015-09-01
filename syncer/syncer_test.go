@@ -15,34 +15,33 @@ import (
 )
 
 var _ = Describe("Syncer", func() {
+	var (
+		syncerRunner *syncer.Syncer
+		syncChannel  chan struct{}
+		clock        *fakeclock.FakeClock
+		syncInterval time.Duration
+		logger       lager.Logger
+		process      ifrit.Process
+	)
+
+	BeforeEach(func() {
+		syncChannel = make(chan struct{})
+		clock = fakeclock.NewFakeClock(time.Now())
+		syncInterval = 1 * time.Second
+		logger = lagertest.NewTestLogger("test")
+		syncerRunner = syncer.New(clock, syncInterval, syncChannel, logger)
+	})
+
+	AfterEach(func() {
+		process.Signal(os.Interrupt)
+		Eventually(process.Wait()).Should(Receive(BeNil()))
+		close(syncChannel)
+	})
 
 	Context("on a specified interval", func() {
 
-		var (
-			syncerRunner *syncer.Syncer
-			syncChannel  chan struct{}
-			clock        *fakeclock.FakeClock
-			syncInterval time.Duration
-			logger       lager.Logger
-			process      ifrit.Process
-		)
-
-		BeforeEach(func() {
-			syncChannel = make(chan struct{})
-			clock = fakeclock.NewFakeClock(time.Now())
-			syncInterval = 1 * time.Second
-			logger = lagertest.NewTestLogger("test")
-			syncerRunner = syncer.New(clock, syncInterval, syncChannel, logger)
-			process = ifrit.Invoke(syncerRunner)
-		})
-
-		AfterEach(func() {
-			process.Signal(os.Interrupt)
-			Eventually(process.Wait()).Should(Receive(BeNil()))
-			close(syncChannel)
-		})
-
 		It("should sync", func() {
+			process = ifrit.Invoke(syncerRunner)
 			var t1 time.Time
 			var t2 time.Time
 
@@ -60,11 +59,31 @@ var _ = Describe("Syncer", func() {
 			select {
 			case <-syncChannel:
 				t2 = clock.Now()
-			case <-time.After(500 * time.Millisecond):
+			case <-time.After(2 * syncInterval):
 				Fail("did not receive a sync event")
 			}
 
 			Expect(t2.Sub(t1)).To(BeNumerically("~", syncInterval, 100*time.Millisecond))
+		})
+	})
+
+	Context("on startup", func() {
+		var (
+			watchChannel chan struct{}
+		)
+		BeforeEach(func() {
+			watchChannel = make(chan struct{})
+			go func() {
+				select {
+				case <-syncChannel:
+					watchChannel <- struct{}{}
+				}
+
+			}()
+		})
+		It("should sync", func() {
+			process = ifrit.Invoke(syncerRunner)
+			Eventually(watchChannel).Should(Receive())
 		})
 	})
 })

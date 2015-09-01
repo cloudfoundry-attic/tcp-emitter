@@ -72,6 +72,7 @@ func main() {
 	})
 
 	members := grouper.Members{
+		{"syncer", syncRunner},
 		{"watcher", watcher},
 	}
 
