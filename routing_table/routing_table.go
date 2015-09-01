@@ -17,6 +17,10 @@ type RoutingTable interface {
 
 	AddEndpoint(actualLRP receptor.ActualLRPResponse) RoutingEvents
 	RemoveEndpoint(actualLRP receptor.ActualLRPResponse) RoutingEvents
+
+	Swap(t RoutingTable) RoutingEvents
+
+	GetRoutingEvents() RoutingEvents
 }
 
 type routingTable struct {
@@ -34,6 +38,45 @@ func NewTable(logger lager.Logger, entries map[RoutingKey]RoutableEndpoints) Rou
 		Locker:  &sync.Mutex{},
 		logger:  logger,
 	}
+}
+
+func (table *routingTable) GetRoutingEvents() RoutingEvents {
+	routingEvents := RoutingEvents{}
+
+	table.Lock()
+	defer table.Unlock()
+	table.logger.Debug("get-routing-events", lager.Data{"count": len(table.entries)})
+
+	for key, entry := range table.entries {
+		//always register everything on sync
+		routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(table.logger, key, entry)...)
+	}
+
+	return routingEvents
+}
+
+func (table *routingTable) Swap(t RoutingTable) RoutingEvents {
+
+	routingEvents := RoutingEvents{}
+
+	newTable, ok := t.(*routingTable)
+	if !ok {
+		return routingEvents
+	}
+
+	table.Lock()
+	defer table.Unlock()
+
+	newEntries := newTable.entries
+	for key, newEntry := range newEntries {
+		//always register everything on sync
+		routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(table.logger, key, newEntry)...)
+	}
+	table.entries = newEntries
+
+	//TODO: We need to go over existing entries and generate unregistration messages
+
+	return routingEvents
 }
 
 func (table *routingTable) RouteCount() int {
@@ -215,6 +258,7 @@ func (table *routingTable) desiredLRPRegistrationEvents(logger lager.Logger, key
 
 	// We are replacing the whole mapping so just check if there exists any endpoints
 	if len(entry.Endpoints) > 0 {
+		logger.Debug("endpoints", lager.Data{"count": len(entry.Endpoints)})
 		return RoutingEvents{
 			RoutingEvent{
 				EventType: RouteRegistrationEvent,

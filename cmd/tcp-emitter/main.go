@@ -68,7 +68,7 @@ func main() {
 	syncChannel := make(chan struct{})
 	syncRunner := syncer.New(clock, *syncInterval, syncChannel, logger)
 	watcher := ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
-		return watcher.NewWatcher(receptorClient, clock, eventHandler, syncRunner, logger).Run(signals, ready)
+		return watcher.NewWatcher(receptorClient, clock, eventHandler, syncChannel, logger).Run(signals, ready)
 	})
 
 	members := grouper.Members{

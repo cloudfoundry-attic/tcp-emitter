@@ -9,207 +9,81 @@ import (
 )
 
 type FakeEventHandler struct {
-	HandleDesiredCreateStub        func(desiredLRP receptor.DesiredLRPResponse)
-	handleDesiredCreateMutex       sync.RWMutex
-	handleDesiredCreateArgsForCall []struct {
-		desiredLRP receptor.DesiredLRPResponse
+	HandleEventStub        func(event receptor.Event)
+	handleEventMutex       sync.RWMutex
+	handleEventArgsForCall []struct {
+		event receptor.Event
 	}
-	HandleDesiredUpdateStub        func(before, after receptor.DesiredLRPResponse)
-	handleDesiredUpdateMutex       sync.RWMutex
-	handleDesiredUpdateArgsForCall []struct {
-		before receptor.DesiredLRPResponse
-		after  receptor.DesiredLRPResponse
-	}
-	HandleDesiredDeleteStub        func(desiredLRP receptor.DesiredLRPResponse)
-	handleDesiredDeleteMutex       sync.RWMutex
-	handleDesiredDeleteArgsForCall []struct {
-		desiredLRP receptor.DesiredLRPResponse
-	}
-	HandleActualCreateStub        func(actualLRP receptor.ActualLRPResponse)
-	handleActualCreateMutex       sync.RWMutex
-	handleActualCreateArgsForCall []struct {
-		actualLRP receptor.ActualLRPResponse
-	}
-	HandleActualUpdateStub        func(before, after receptor.ActualLRPResponse)
-	handleActualUpdateMutex       sync.RWMutex
-	handleActualUpdateArgsForCall []struct {
-		before receptor.ActualLRPResponse
-		after  receptor.ActualLRPResponse
-	}
-	HandleActualDeleteStub        func(actualLRP receptor.ActualLRPResponse)
-	handleActualDeleteMutex       sync.RWMutex
-	handleActualDeleteArgsForCall []struct {
-		actualLRP receptor.ActualLRPResponse
-	}
-	HandleSyncStub        func() routing_table.RoutingTable
-	handleSyncMutex       sync.RWMutex
-	handleSyncArgsForCall []struct{}
-	handleSyncReturns struct {
-		result1 routing_table.RoutingTable
+	SyncStub        func()
+	syncMutex       sync.RWMutex
+	syncArgsForCall []struct{}
+	SyncingStub        func() bool
+	syncingMutex       sync.RWMutex
+	syncingArgsForCall []struct{}
+	syncingReturns struct {
+		result1 bool
 	}
 }
 
-func (fake *FakeEventHandler) HandleDesiredCreate(desiredLRP receptor.DesiredLRPResponse) {
-	fake.handleDesiredCreateMutex.Lock()
-	fake.handleDesiredCreateArgsForCall = append(fake.handleDesiredCreateArgsForCall, struct {
-		desiredLRP receptor.DesiredLRPResponse
-	}{desiredLRP})
-	fake.handleDesiredCreateMutex.Unlock()
-	if fake.HandleDesiredCreateStub != nil {
-		fake.HandleDesiredCreateStub(desiredLRP)
+func (fake *FakeEventHandler) HandleEvent(event receptor.Event) {
+	fake.handleEventMutex.Lock()
+	fake.handleEventArgsForCall = append(fake.handleEventArgsForCall, struct {
+		event receptor.Event
+	}{event})
+	fake.handleEventMutex.Unlock()
+	if fake.HandleEventStub != nil {
+		fake.HandleEventStub(event)
 	}
 }
 
-func (fake *FakeEventHandler) HandleDesiredCreateCallCount() int {
-	fake.handleDesiredCreateMutex.RLock()
-	defer fake.handleDesiredCreateMutex.RUnlock()
-	return len(fake.handleDesiredCreateArgsForCall)
+func (fake *FakeEventHandler) HandleEventCallCount() int {
+	fake.handleEventMutex.RLock()
+	defer fake.handleEventMutex.RUnlock()
+	return len(fake.handleEventArgsForCall)
 }
 
-func (fake *FakeEventHandler) HandleDesiredCreateArgsForCall(i int) receptor.DesiredLRPResponse {
-	fake.handleDesiredCreateMutex.RLock()
-	defer fake.handleDesiredCreateMutex.RUnlock()
-	return fake.handleDesiredCreateArgsForCall[i].desiredLRP
+func (fake *FakeEventHandler) HandleEventArgsForCall(i int) receptor.Event {
+	fake.handleEventMutex.RLock()
+	defer fake.handleEventMutex.RUnlock()
+	return fake.handleEventArgsForCall[i].event
 }
 
-func (fake *FakeEventHandler) HandleDesiredUpdate(before receptor.DesiredLRPResponse, after receptor.DesiredLRPResponse) {
-	fake.handleDesiredUpdateMutex.Lock()
-	fake.handleDesiredUpdateArgsForCall = append(fake.handleDesiredUpdateArgsForCall, struct {
-		before receptor.DesiredLRPResponse
-		after  receptor.DesiredLRPResponse
-	}{before, after})
-	fake.handleDesiredUpdateMutex.Unlock()
-	if fake.HandleDesiredUpdateStub != nil {
-		fake.HandleDesiredUpdateStub(before, after)
+func (fake *FakeEventHandler) Sync() {
+	fake.syncMutex.Lock()
+	fake.syncArgsForCall = append(fake.syncArgsForCall, struct{}{})
+	fake.syncMutex.Unlock()
+	if fake.SyncStub != nil {
+		fake.SyncStub()
 	}
 }
 
-func (fake *FakeEventHandler) HandleDesiredUpdateCallCount() int {
-	fake.handleDesiredUpdateMutex.RLock()
-	defer fake.handleDesiredUpdateMutex.RUnlock()
-	return len(fake.handleDesiredUpdateArgsForCall)
+func (fake *FakeEventHandler) SyncCallCount() int {
+	fake.syncMutex.RLock()
+	defer fake.syncMutex.RUnlock()
+	return len(fake.syncArgsForCall)
 }
 
-func (fake *FakeEventHandler) HandleDesiredUpdateArgsForCall(i int) (receptor.DesiredLRPResponse, receptor.DesiredLRPResponse) {
-	fake.handleDesiredUpdateMutex.RLock()
-	defer fake.handleDesiredUpdateMutex.RUnlock()
-	return fake.handleDesiredUpdateArgsForCall[i].before, fake.handleDesiredUpdateArgsForCall[i].after
-}
-
-func (fake *FakeEventHandler) HandleDesiredDelete(desiredLRP receptor.DesiredLRPResponse) {
-	fake.handleDesiredDeleteMutex.Lock()
-	fake.handleDesiredDeleteArgsForCall = append(fake.handleDesiredDeleteArgsForCall, struct {
-		desiredLRP receptor.DesiredLRPResponse
-	}{desiredLRP})
-	fake.handleDesiredDeleteMutex.Unlock()
-	if fake.HandleDesiredDeleteStub != nil {
-		fake.HandleDesiredDeleteStub(desiredLRP)
-	}
-}
-
-func (fake *FakeEventHandler) HandleDesiredDeleteCallCount() int {
-	fake.handleDesiredDeleteMutex.RLock()
-	defer fake.handleDesiredDeleteMutex.RUnlock()
-	return len(fake.handleDesiredDeleteArgsForCall)
-}
-
-func (fake *FakeEventHandler) HandleDesiredDeleteArgsForCall(i int) receptor.DesiredLRPResponse {
-	fake.handleDesiredDeleteMutex.RLock()
-	defer fake.handleDesiredDeleteMutex.RUnlock()
-	return fake.handleDesiredDeleteArgsForCall[i].desiredLRP
-}
-
-func (fake *FakeEventHandler) HandleActualCreate(actualLRP receptor.ActualLRPResponse) {
-	fake.handleActualCreateMutex.Lock()
-	fake.handleActualCreateArgsForCall = append(fake.handleActualCreateArgsForCall, struct {
-		actualLRP receptor.ActualLRPResponse
-	}{actualLRP})
-	fake.handleActualCreateMutex.Unlock()
-	if fake.HandleActualCreateStub != nil {
-		fake.HandleActualCreateStub(actualLRP)
-	}
-}
-
-func (fake *FakeEventHandler) HandleActualCreateCallCount() int {
-	fake.handleActualCreateMutex.RLock()
-	defer fake.handleActualCreateMutex.RUnlock()
-	return len(fake.handleActualCreateArgsForCall)
-}
-
-func (fake *FakeEventHandler) HandleActualCreateArgsForCall(i int) receptor.ActualLRPResponse {
-	fake.handleActualCreateMutex.RLock()
-	defer fake.handleActualCreateMutex.RUnlock()
-	return fake.handleActualCreateArgsForCall[i].actualLRP
-}
-
-func (fake *FakeEventHandler) HandleActualUpdate(before receptor.ActualLRPResponse, after receptor.ActualLRPResponse) {
-	fake.handleActualUpdateMutex.Lock()
-	fake.handleActualUpdateArgsForCall = append(fake.handleActualUpdateArgsForCall, struct {
-		before receptor.ActualLRPResponse
-		after  receptor.ActualLRPResponse
-	}{before, after})
-	fake.handleActualUpdateMutex.Unlock()
-	if fake.HandleActualUpdateStub != nil {
-		fake.HandleActualUpdateStub(before, after)
-	}
-}
-
-func (fake *FakeEventHandler) HandleActualUpdateCallCount() int {
-	fake.handleActualUpdateMutex.RLock()
-	defer fake.handleActualUpdateMutex.RUnlock()
-	return len(fake.handleActualUpdateArgsForCall)
-}
-
-func (fake *FakeEventHandler) HandleActualUpdateArgsForCall(i int) (receptor.ActualLRPResponse, receptor.ActualLRPResponse) {
-	fake.handleActualUpdateMutex.RLock()
-	defer fake.handleActualUpdateMutex.RUnlock()
-	return fake.handleActualUpdateArgsForCall[i].before, fake.handleActualUpdateArgsForCall[i].after
-}
-
-func (fake *FakeEventHandler) HandleActualDelete(actualLRP receptor.ActualLRPResponse) {
-	fake.handleActualDeleteMutex.Lock()
-	fake.handleActualDeleteArgsForCall = append(fake.handleActualDeleteArgsForCall, struct {
-		actualLRP receptor.ActualLRPResponse
-	}{actualLRP})
-	fake.handleActualDeleteMutex.Unlock()
-	if fake.HandleActualDeleteStub != nil {
-		fake.HandleActualDeleteStub(actualLRP)
-	}
-}
-
-func (fake *FakeEventHandler) HandleActualDeleteCallCount() int {
-	fake.handleActualDeleteMutex.RLock()
-	defer fake.handleActualDeleteMutex.RUnlock()
-	return len(fake.handleActualDeleteArgsForCall)
-}
-
-func (fake *FakeEventHandler) HandleActualDeleteArgsForCall(i int) receptor.ActualLRPResponse {
-	fake.handleActualDeleteMutex.RLock()
-	defer fake.handleActualDeleteMutex.RUnlock()
-	return fake.handleActualDeleteArgsForCall[i].actualLRP
-}
-
-func (fake *FakeEventHandler) HandleSync() routing_table.RoutingTable {
-	fake.handleSyncMutex.Lock()
-	fake.handleSyncArgsForCall = append(fake.handleSyncArgsForCall, struct{}{})
-	fake.handleSyncMutex.Unlock()
-	if fake.HandleSyncStub != nil {
-		return fake.HandleSyncStub()
+func (fake *FakeEventHandler) Syncing() bool {
+	fake.syncingMutex.Lock()
+	fake.syncingArgsForCall = append(fake.syncingArgsForCall, struct{}{})
+	fake.syncingMutex.Unlock()
+	if fake.SyncingStub != nil {
+		return fake.SyncingStub()
 	} else {
-		return fake.handleSyncReturns.result1
+		return fake.syncingReturns.result1
 	}
 }
 
-func (fake *FakeEventHandler) HandleSyncCallCount() int {
-	fake.handleSyncMutex.RLock()
-	defer fake.handleSyncMutex.RUnlock()
-	return len(fake.handleSyncArgsForCall)
+func (fake *FakeEventHandler) SyncingCallCount() int {
+	fake.syncingMutex.RLock()
+	defer fake.syncingMutex.RUnlock()
+	return len(fake.syncingArgsForCall)
 }
 
-func (fake *FakeEventHandler) HandleSyncReturns(result1 routing_table.RoutingTable) {
-	fake.HandleSyncStub = nil
-	fake.handleSyncReturns = struct {
-		result1 routing_table.RoutingTable
+func (fake *FakeEventHandler) SyncingReturns(result1 bool) {
+	fake.SyncingStub = nil
+	fake.syncingReturns = struct {
+		result1 bool
 	}{result1}
 }
 

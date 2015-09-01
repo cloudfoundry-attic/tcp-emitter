@@ -39,6 +39,20 @@ type FakeRoutingTable struct {
 	removeEndpointReturns struct {
 		result1 routing_table.RoutingEvents
 	}
+	SwapStub        func(t routing_table.RoutingTable) routing_table.RoutingEvents
+	swapMutex       sync.RWMutex
+	swapArgsForCall []struct {
+		t routing_table.RoutingTable
+	}
+	swapReturns struct {
+		result1 routing_table.RoutingEvents
+	}
+	GetRoutingEventsStub        func() routing_table.RoutingEvents
+	getRoutingEventsMutex       sync.RWMutex
+	getRoutingEventsArgsForCall []struct{}
+	getRoutingEventsReturns struct {
+		result1 routing_table.RoutingEvents
+	}
 }
 
 func (fake *FakeRoutingTable) RouteCount() int {
@@ -157,6 +171,62 @@ func (fake *FakeRoutingTable) RemoveEndpointArgsForCall(i int) receptor.ActualLR
 func (fake *FakeRoutingTable) RemoveEndpointReturns(result1 routing_table.RoutingEvents) {
 	fake.RemoveEndpointStub = nil
 	fake.removeEndpointReturns = struct {
+		result1 routing_table.RoutingEvents
+	}{result1}
+}
+
+func (fake *FakeRoutingTable) Swap(t routing_table.RoutingTable) routing_table.RoutingEvents {
+	fake.swapMutex.Lock()
+	fake.swapArgsForCall = append(fake.swapArgsForCall, struct {
+		t routing_table.RoutingTable
+	}{t})
+	fake.swapMutex.Unlock()
+	if fake.SwapStub != nil {
+		return fake.SwapStub(t)
+	} else {
+		return fake.swapReturns.result1
+	}
+}
+
+func (fake *FakeRoutingTable) SwapCallCount() int {
+	fake.swapMutex.RLock()
+	defer fake.swapMutex.RUnlock()
+	return len(fake.swapArgsForCall)
+}
+
+func (fake *FakeRoutingTable) SwapArgsForCall(i int) routing_table.RoutingTable {
+	fake.swapMutex.RLock()
+	defer fake.swapMutex.RUnlock()
+	return fake.swapArgsForCall[i].t
+}
+
+func (fake *FakeRoutingTable) SwapReturns(result1 routing_table.RoutingEvents) {
+	fake.SwapStub = nil
+	fake.swapReturns = struct {
+		result1 routing_table.RoutingEvents
+	}{result1}
+}
+
+func (fake *FakeRoutingTable) GetRoutingEvents() routing_table.RoutingEvents {
+	fake.getRoutingEventsMutex.Lock()
+	fake.getRoutingEventsArgsForCall = append(fake.getRoutingEventsArgsForCall, struct{}{})
+	fake.getRoutingEventsMutex.Unlock()
+	if fake.GetRoutingEventsStub != nil {
+		return fake.GetRoutingEventsStub()
+	} else {
+		return fake.getRoutingEventsReturns.result1
+	}
+}
+
+func (fake *FakeRoutingTable) GetRoutingEventsCallCount() int {
+	fake.getRoutingEventsMutex.RLock()
+	defer fake.getRoutingEventsMutex.RUnlock()
+	return len(fake.getRoutingEventsArgsForCall)
+}
+
+func (fake *FakeRoutingTable) GetRoutingEventsReturns(result1 routing_table.RoutingEvents) {
+	fake.GetRoutingEventsStub = nil
+	fake.getRoutingEventsReturns = struct {
 		result1 routing_table.RoutingEvents
 	}{result1}
 }

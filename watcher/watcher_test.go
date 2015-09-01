@@ -107,109 +107,93 @@ var _ = Describe("Watcher", func() {
 
 	Context("handle DesiredLRPCreatedEvent", func() {
 		var (
-			desiredLRP receptor.DesiredLRPResponse
+			event receptor.Event
 		)
 
 		JustBeforeEach(func() {
-			desiredLRP = getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
-			eventChannel <- receptor.NewDesiredLRPCreatedEvent(desiredLRP)
+			desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
+			event = receptor.NewDesiredLRPCreatedEvent(desiredLRP)
+			eventChannel <- event
 		})
 
-		It("calls eventHandler HandleDesiredCreate", func() {
-			Eventually(eventHandler.HandleDesiredCreateCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			lrp := eventHandler.HandleDesiredCreateArgsForCall(0)
-			Expect(lrp).Should(Equal(desiredLRP))
+		It("calls eventHandler HandleEvent", func() {
+			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			createEvent := eventHandler.HandleEventArgsForCall(0)
+			Expect(createEvent).Should(Equal(event))
 		})
 	})
 
 	Context("handle DesiredLRPChangedEvent", func() {
 		var (
-			beforeLRP receptor.DesiredLRPResponse
-			afterLRP  receptor.DesiredLRPResponse
+			event receptor.Event
 		)
 
 		JustBeforeEach(func() {
-			beforeLRP = getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
-			afterLRP = getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61001)
-			eventChannel <- receptor.NewDesiredLRPChangedEvent(beforeLRP, afterLRP)
+			beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
+			afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61001)
+			event = receptor.NewDesiredLRPChangedEvent(beforeLRP, afterLRP)
+			eventChannel <- event
 		})
 
-		It("calls eventHandler HandleDesiredUpdate", func() {
-			Eventually(eventHandler.HandleDesiredUpdateCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			before, after := eventHandler.HandleDesiredUpdateArgsForCall(0)
-			Expect(before).Should(Equal(beforeLRP))
-			Expect(after).Should(Equal(afterLRP))
+		It("calls eventHandler HandleEvent", func() {
+			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			changeEvent := eventHandler.HandleEventArgsForCall(0)
+			Expect(changeEvent).Should(Equal(event))
 		})
 	})
 
 	Context("handle DesiredLRPRemovedEvent", func() {
 		var (
-			desiredLRP receptor.DesiredLRPResponse
+			event receptor.Event
 		)
 
 		JustBeforeEach(func() {
-			desiredLRP = getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
-			eventChannel <- receptor.NewDesiredLRPRemovedEvent(desiredLRP)
+			desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
+			event = receptor.NewDesiredLRPRemovedEvent(desiredLRP)
+			eventChannel <- event
 		})
 
 		It("calls eventHandler HandleDesiredDelete", func() {
-			Eventually(eventHandler.HandleDesiredDeleteCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			lrp := eventHandler.HandleDesiredDeleteArgsForCall(0)
-			Expect(lrp).Should(Equal(desiredLRP))
+			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			deleteEvent := eventHandler.HandleEventArgsForCall(0)
+			Expect(deleteEvent).Should(Equal(event))
 		})
 	})
 
 	Context("handle ActualLRPCreatedEvent", func() {
 		var (
-			actualLRP receptor.ActualLRPResponse
+			event receptor.Event
 		)
 
 		JustBeforeEach(func() {
-			actualLRP = getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61000, 5222, false)
-			eventChannel <- receptor.NewActualLRPCreatedEvent(actualLRP)
+			actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61000, 5222, false)
+			event = receptor.NewActualLRPCreatedEvent(actualLRP)
+			eventChannel <- event
 		})
 
 		It("calls eventHandler HandleActualCreate", func() {
-			Eventually(eventHandler.HandleActualCreateCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			lrp := eventHandler.HandleActualCreateArgsForCall(0)
-			Expect(lrp).Should(Equal(actualLRP))
+			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			createEvent := eventHandler.HandleEventArgsForCall(0)
+			Expect(createEvent).Should(Equal(event))
 		})
 	})
 
 	Context("handle ActualLRPChangedEvent", func() {
 		var (
-			beforeLRP receptor.ActualLRPResponse
-			afterLRP  receptor.ActualLRPResponse
+			event receptor.Event
 		)
 
 		JustBeforeEach(func() {
-			beforeLRP = getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61000, 5222, false)
-			afterLRP = getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61001, 5222, false)
-			eventChannel <- receptor.NewActualLRPChangedEvent(beforeLRP, afterLRP)
+			beforeLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61000, 5222, false)
+			afterLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61001, 5222, false)
+			event = receptor.NewActualLRPChangedEvent(beforeLRP, afterLRP)
+			eventChannel <- event
 		})
 
 		It("calls eventHandler HandleActualUpdate", func() {
-			Eventually(eventHandler.HandleActualUpdateCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			before, after := eventHandler.HandleActualUpdateArgsForCall(0)
-			Expect(before).Should(Equal(beforeLRP))
-			Expect(after).Should(Equal(afterLRP))
-		})
-	})
-
-	Context("handle ActualLRPRemovedEvent", func() {
-		var (
-			actualLRP receptor.ActualLRPResponse
-		)
-
-		JustBeforeEach(func() {
-			actualLRP = getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61000, 5222, false)
-			eventChannel <- receptor.NewActualLRPRemovedEvent(actualLRP)
-		})
-
-		It("calls eventHandler HandleActualDelete", func() {
-			Eventually(eventHandler.HandleActualDeleteCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			lrp := eventHandler.HandleActualDeleteArgsForCall(0)
-			Expect(lrp).Should(Equal(actualLRP))
+			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			changeEvent := eventHandler.HandleEventArgsForCall(0)
+			Expect(changeEvent).Should(Equal(event))
 		})
 	})
 
@@ -219,7 +203,7 @@ var _ = Describe("Watcher", func() {
 		})
 
 		It("calls eventHandler HandleSync", func() {
-			Eventually(eventHandler.HandleSyncCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			Eventually(eventHandler.SyncCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
 		})
 	})
 
