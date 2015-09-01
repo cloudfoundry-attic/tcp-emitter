@@ -55,27 +55,27 @@ var _ = Describe("Watcher", func() {
 	}
 
 	var (
-		eventSource    *fake_receptor.FakeEventSource
-		receptorClient *fake_receptor.FakeClient
-		eventHandler   *fakes.FakeEventHandler
-		testWatcher    *watcher.Watcher
-		clock          *fakeclock.FakeClock
-		process        ifrit.Process
-		eventChannel   chan receptor.Event
-		errorChannel   chan error
-		syncChannel    chan struct{}
+		eventSource         *fake_receptor.FakeEventSource
+		receptorClient      *fake_receptor.FakeClient
+		routingTableHandler *fakes.FakeRoutingTableHandler
+		testWatcher         *watcher.Watcher
+		clock               *fakeclock.FakeClock
+		process             ifrit.Process
+		eventChannel        chan receptor.Event
+		errorChannel        chan error
+		syncChannel         chan struct{}
 	)
 
 	BeforeEach(func() {
 		eventSource = new(fake_receptor.FakeEventSource)
 		receptorClient = new(fake_receptor.FakeClient)
-		eventHandler = new(fakes.FakeEventHandler)
+		routingTableHandler = new(fakes.FakeRoutingTableHandler)
 
 		clock = fakeclock.NewFakeClock(time.Now())
 
 		receptorClient.SubscribeToEventsReturns(eventSource, nil)
 		syncChannel = make(chan struct{})
-		testWatcher = watcher.NewWatcher(receptorClient, clock, eventHandler, syncChannel, logger)
+		testWatcher = watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger)
 
 		eventChannel = make(chan receptor.Event)
 		errorChannel = make(chan error)
@@ -116,9 +116,9 @@ var _ = Describe("Watcher", func() {
 			eventChannel <- event
 		})
 
-		It("calls eventHandler HandleEvent", func() {
-			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			createEvent := eventHandler.HandleEventArgsForCall(0)
+		It("calls routingTableHandler HandleEvent", func() {
+			Eventually(routingTableHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			createEvent := routingTableHandler.HandleEventArgsForCall(0)
 			Expect(createEvent).Should(Equal(event))
 		})
 	})
@@ -135,9 +135,9 @@ var _ = Describe("Watcher", func() {
 			eventChannel <- event
 		})
 
-		It("calls eventHandler HandleEvent", func() {
-			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			changeEvent := eventHandler.HandleEventArgsForCall(0)
+		It("calls routingTableHandler HandleEvent", func() {
+			Eventually(routingTableHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			changeEvent := routingTableHandler.HandleEventArgsForCall(0)
 			Expect(changeEvent).Should(Equal(event))
 		})
 	})
@@ -153,9 +153,9 @@ var _ = Describe("Watcher", func() {
 			eventChannel <- event
 		})
 
-		It("calls eventHandler HandleDesiredDelete", func() {
-			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			deleteEvent := eventHandler.HandleEventArgsForCall(0)
+		It("calls routingTableHandler HandleDesiredDelete", func() {
+			Eventually(routingTableHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			deleteEvent := routingTableHandler.HandleEventArgsForCall(0)
 			Expect(deleteEvent).Should(Equal(event))
 		})
 	})
@@ -171,9 +171,9 @@ var _ = Describe("Watcher", func() {
 			eventChannel <- event
 		})
 
-		It("calls eventHandler HandleActualCreate", func() {
-			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			createEvent := eventHandler.HandleEventArgsForCall(0)
+		It("calls routingTableHandler HandleActualCreate", func() {
+			Eventually(routingTableHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			createEvent := routingTableHandler.HandleEventArgsForCall(0)
 			Expect(createEvent).Should(Equal(event))
 		})
 	})
@@ -190,9 +190,9 @@ var _ = Describe("Watcher", func() {
 			eventChannel <- event
 		})
 
-		It("calls eventHandler HandleActualUpdate", func() {
-			Eventually(eventHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
-			changeEvent := eventHandler.HandleEventArgsForCall(0)
+		It("calls routingTableHandler HandleActualUpdate", func() {
+			Eventually(routingTableHandler.HandleEventCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+			changeEvent := routingTableHandler.HandleEventArgsForCall(0)
 			Expect(changeEvent).Should(Equal(event))
 		})
 	})
@@ -202,8 +202,8 @@ var _ = Describe("Watcher", func() {
 			syncChannel <- struct{}{}
 		})
 
-		It("calls eventHandler HandleSync", func() {
-			Eventually(eventHandler.SyncCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
+		It("calls routingTableHandler HandleSync", func() {
+			Eventually(routingTableHandler.SyncCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(1))
 		})
 	})
 
@@ -236,7 +236,7 @@ var _ = Describe("Watcher", func() {
 				return eventSource, nil
 			}
 
-			testWatcher = watcher.NewWatcher(receptorClient, clock, eventHandler, syncChannel, logger)
+			testWatcher = watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger)
 		})
 
 		JustBeforeEach(func() {

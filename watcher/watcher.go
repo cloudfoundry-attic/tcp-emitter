@@ -11,11 +11,11 @@ import (
 )
 
 type Watcher struct {
-	receptorClient receptor.Client
-	clock          clock.Clock
-	eventHandler   routing_table.EventHandler
-	syncChannel    chan struct{}
-	logger         lager.Logger
+	receptorClient      receptor.Client
+	clock               clock.Clock
+	routingTableHandler routing_table.RoutingTableHandler
+	syncChannel         chan struct{}
+	logger              lager.Logger
 }
 
 type syncEndEvent struct {
@@ -26,16 +26,16 @@ type syncEndEvent struct {
 func NewWatcher(
 	receptorClient receptor.Client,
 	clock clock.Clock,
-	eventHandler routing_table.EventHandler,
+	routingTableHandler routing_table.RoutingTableHandler,
 	syncChannel chan struct{},
 	logger lager.Logger,
 ) *Watcher {
 	return &Watcher{
-		receptorClient: receptorClient,
-		clock:          clock,
-		eventHandler:   eventHandler,
-		syncChannel:    syncChannel,
-		logger:         logger.Session("watcher"),
+		receptorClient:      receptorClient,
+		clock:               clock,
+		routingTableHandler: routingTableHandler,
+		syncChannel:         syncChannel,
+		logger:              logger.Session("watcher"),
 	}
 }
 
@@ -88,10 +88,10 @@ func (watcher *Watcher) Run(signals <-chan os.Signal, ready chan<- struct{}) err
 	for {
 		select {
 		case event := <-eventChan:
-			watcher.eventHandler.HandleEvent(event)
+			watcher.routingTableHandler.HandleEvent(event)
 
 		case <-watcher.syncChannel:
-			watcher.eventHandler.Sync()
+			watcher.routingTableHandler.Sync()
 
 		case <-signals:
 			watcher.logger.Info("stopping")

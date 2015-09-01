@@ -64,11 +64,11 @@ func main() {
 	receptorClient := receptor.NewClient(*diegoAPIURL)
 	emitter := routing_table.NewEmitter(logger, *tcpRouterAPIURL)
 	routingTable := routing_table.NewTable(logger, nil)
-	eventHandler := routing_table.NewEventHandler(logger, routingTable, emitter)
+	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, receptorClient)
 	syncChannel := make(chan struct{})
 	syncRunner := syncer.New(clock, *syncInterval, syncChannel, logger)
 	watcher := ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
-		return watcher.NewWatcher(receptorClient, clock, eventHandler, syncChannel, logger).Run(signals, ready)
+		return watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger).Run(signals, ready)
 	})
 
 	members := grouper.Members{

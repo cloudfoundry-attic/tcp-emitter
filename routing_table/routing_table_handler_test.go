@@ -12,19 +12,19 @@ import (
 	"github.com/onsi/gomega/gbytes"
 )
 
-var _ = Describe("EventHandler", func() {
+var _ = Describe("RoutingTableHandler", func() {
 	var (
-		fakeRoutingTable   *fakes.FakeRoutingTable
-		fakeEmitter        *fakes.FakeEmitter
-		eventHandler       routing_table.EventHandler
-		fakeReceptorClient *fake_receptor.FakeClient
+		fakeRoutingTable    *fakes.FakeRoutingTable
+		fakeEmitter         *fakes.FakeEmitter
+		routingTableHandler routing_table.RoutingTableHandler
+		fakeReceptorClient  *fake_receptor.FakeClient
 	)
 
 	BeforeEach(func() {
 		fakeRoutingTable = new(fakes.FakeRoutingTable)
 		fakeEmitter = new(fakes.FakeEmitter)
 		fakeReceptorClient = new(fake_receptor.FakeClient)
-		eventHandler = routing_table.NewEventHandler(logger, fakeRoutingTable, fakeEmitter, fakeReceptorClient)
+		routingTableHandler = routing_table.NewRoutingTableHandler(logger, fakeRoutingTable, fakeEmitter, fakeReceptorClient)
 	})
 
 	Describe("DesiredLRP Event", func() {
@@ -59,7 +59,7 @@ var _ = Describe("EventHandler", func() {
 
 		Describe("HandleDesiredCreate", func() {
 			JustBeforeEach(func() {
-				eventHandler.HandleEvent(receptor.NewDesiredLRPCreatedEvent(desiredLRP))
+				routingTableHandler.HandleEvent(receptor.NewDesiredLRPCreatedEvent(desiredLRP))
 			})
 
 			It("invokes SetRoutes on RoutingTable", func() {
@@ -112,7 +112,7 @@ var _ = Describe("EventHandler", func() {
 			})
 
 			JustBeforeEach(func() {
-				eventHandler.HandleEvent(receptor.NewDesiredLRPChangedEvent(desiredLRP, after))
+				routingTableHandler.HandleEvent(receptor.NewDesiredLRPChangedEvent(desiredLRP, after))
 			})
 
 			It("invokes SetRoutes on RoutingTable", func() {
@@ -146,7 +146,7 @@ var _ = Describe("EventHandler", func() {
 
 		Describe("HandleDesiredDelete", func() {
 			JustBeforeEach(func() {
-				eventHandler.HandleEvent(receptor.NewDesiredLRPRemovedEvent(desiredLRP))
+				routingTableHandler.HandleEvent(receptor.NewDesiredLRPRemovedEvent(desiredLRP))
 			})
 
 			It("does not invoke SetRoutes on RoutingTable", func() {
@@ -175,7 +175,7 @@ var _ = Describe("EventHandler", func() {
 
 		Describe("HandleActualCreate", func() {
 			JustBeforeEach(func() {
-				eventHandler.HandleEvent(receptor.NewActualLRPCreatedEvent(actualLRP))
+				routingTableHandler.HandleEvent(receptor.NewActualLRPCreatedEvent(actualLRP))
 			})
 
 			Context("when state is Running", func() {
@@ -247,7 +247,7 @@ var _ = Describe("EventHandler", func() {
 			)
 
 			JustBeforeEach(func() {
-				eventHandler.HandleEvent(receptor.NewActualLRPChangedEvent(actualLRP, afterLRP))
+				routingTableHandler.HandleEvent(receptor.NewActualLRPChangedEvent(actualLRP, afterLRP))
 			})
 
 			Context("when after state is Running", func() {
@@ -387,7 +387,7 @@ var _ = Describe("EventHandler", func() {
 
 		Describe("HandleActualDelete", func() {
 			JustBeforeEach(func() {
-				eventHandler.HandleEvent(receptor.NewActualLRPRemovedEvent(actualLRP))
+				routingTableHandler.HandleEvent(receptor.NewActualLRPRemovedEvent(actualLRP))
 			})
 
 			Context("when state is Running", func() {
@@ -462,7 +462,7 @@ var _ = Describe("EventHandler", func() {
 
 		invokeSync := func(doneChannel chan struct{}) {
 			defer GinkgoRecover()
-			eventHandler.Sync()
+			routingTableHandler.Sync()
 			close(doneChannel)
 		}
 
@@ -504,15 +504,15 @@ var _ = Describe("EventHandler", func() {
 
 			It("caches the events", func() {
 				go invokeSync(doneChannel)
-				Eventually(eventHandler.Syncing).Should(BeTrue())
+				Eventually(routingTableHandler.Syncing).Should(BeTrue())
 
 				Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
-				eventHandler.HandleEvent(receptor.NewDesiredLRPCreatedEvent(desiredLRP))
+				routingTableHandler.HandleEvent(receptor.NewDesiredLRPCreatedEvent(desiredLRP))
 				Consistently(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
 				Eventually(logger).Should(gbytes.Say("test.caching-event"))
 
 				close(syncChannel)
-				Eventually(eventHandler.Syncing).Should(BeFalse())
+				Eventually(routingTableHandler.Syncing).Should(BeFalse())
 				Eventually(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(1))
 				Eventually(doneChannel).Should(BeClosed())
 				Expect(fakeRoutingTable.SwapCallCount()).Should(Equal(0))
@@ -644,15 +644,15 @@ var _ = Describe("EventHandler", func() {
 
 					It("caches events and applies it to new routing table", func() {
 						go invokeSync(doneChannel)
-						Eventually(eventHandler.Syncing).Should(BeTrue())
+						Eventually(routingTableHandler.Syncing).Should(BeTrue())
 
 						Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
-						eventHandler.HandleEvent(receptor.NewActualLRPChangedEvent(actualLRP, afterActualLRP))
+						routingTableHandler.HandleEvent(receptor.NewActualLRPChangedEvent(actualLRP, afterActualLRP))
 						Consistently(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
 						Eventually(logger).Should(gbytes.Say("test.caching-event"))
 
 						close(syncChannel)
-						Eventually(eventHandler.Syncing).Should(BeFalse())
+						Eventually(routingTableHandler.Syncing).Should(BeFalse())
 						Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
 						Expect(fakeRoutingTable.SwapCallCount()).Should(Equal(1))
 						Expect(fakeEmitter.EmitCallCount()).Should(Equal(1))

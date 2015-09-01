@@ -6,14 +6,14 @@ import (
 	"sync"
 )
 
-//go:generate counterfeiter -o fakes/fake_event_handler.go . EventHandler
-type EventHandler interface {
+//go:generate counterfeiter -o fakes/fake_routing_table_handler.go . RoutingTableHandler
+type RoutingTableHandler interface {
 	HandleEvent(event receptor.Event)
 	Sync()
 	Syncing() bool
 }
 
-type eventHandler struct {
+type routingTableHandler struct {
 	logger         lager.Logger
 	routingTable   RoutingTable
 	emitter        Emitter
@@ -23,8 +23,8 @@ type eventHandler struct {
 	sync.Locker
 }
 
-func NewEventHandler(logger lager.Logger, routingTable RoutingTable, emitter Emitter, receptorClient receptor.Client) EventHandler {
-	return &eventHandler{
+func NewRoutingTableHandler(logger lager.Logger, routingTable RoutingTable, emitter Emitter, receptorClient receptor.Client) RoutingTableHandler {
+	return &routingTableHandler{
 		logger:         logger,
 		routingTable:   routingTable,
 		emitter:        emitter,
@@ -35,13 +35,13 @@ func NewEventHandler(logger lager.Logger, routingTable RoutingTable, emitter Emi
 	}
 }
 
-func (handler *eventHandler) Syncing() bool {
+func (handler *routingTableHandler) Syncing() bool {
 	handler.Lock()
 	defer handler.Unlock()
 	return handler.syncing
 }
 
-func (handler *eventHandler) HandleEvent(event receptor.Event) {
+func (handler *routingTableHandler) HandleEvent(event receptor.Event) {
 	handler.Lock()
 	defer handler.Unlock()
 	if handler.syncing {
@@ -52,7 +52,7 @@ func (handler *eventHandler) HandleEvent(event receptor.Event) {
 	}
 }
 
-func (handler *eventHandler) Sync() {
+func (handler *routingTableHandler) Sync() {
 	logger := handler.logger.Session("handle-sync")
 	logger.Debug("starting")
 
@@ -135,7 +135,7 @@ func (handler *eventHandler) Sync() {
 	handler.applyCachedEvents(logger, tempRoutingTable)
 }
 
-func (handler *eventHandler) applyCachedEvents(logger lager.Logger, tempRoutingTable RoutingTable) {
+func (handler *routingTableHandler) applyCachedEvents(logger lager.Logger, tempRoutingTable RoutingTable) {
 	logger.Debug("apply-cached-events")
 	if tempRoutingTable == nil || tempRoutingTable.RouteCount() == 0 {
 		// sync failed, process the events on the current table
@@ -167,7 +167,7 @@ func (handler *eventHandler) applyCachedEvents(logger lager.Logger, tempRoutingT
 	handler.emit(routingEvents)
 }
 
-func (handler *eventHandler) handleEvent(event receptor.Event) {
+func (handler *routingTableHandler) handleEvent(event receptor.Event) {
 	switch event := event.(type) {
 	case receptor.DesiredLRPCreatedEvent:
 		handler.handleDesiredCreate(event.DesiredLRPResponse)
@@ -186,7 +186,7 @@ func (handler *eventHandler) handleEvent(event receptor.Event) {
 	}
 }
 
-func (handler *eventHandler) handleDesiredCreate(desiredLRP receptor.DesiredLRPResponse) {
+func (handler *routingTableHandler) handleDesiredCreate(desiredLRP receptor.DesiredLRPResponse) {
 	logger := handler.logger.Session("handle-desired-create", desiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
@@ -194,7 +194,7 @@ func (handler *eventHandler) handleDesiredCreate(desiredLRP receptor.DesiredLRPR
 	handler.emit(routingEvents)
 }
 
-func (handler *eventHandler) handleDesiredUpdate(before, after receptor.DesiredLRPResponse) {
+func (handler *routingTableHandler) handleDesiredUpdate(before, after receptor.DesiredLRPResponse) {
 	logger := handler.logger.Session("handling-desired-update", lager.Data{
 		"before": desiredLRPData(before),
 		"after":  desiredLRPData(after),
@@ -207,14 +207,14 @@ func (handler *eventHandler) handleDesiredUpdate(before, after receptor.DesiredL
 	handler.emit(routingEvents)
 }
 
-func (handler *eventHandler) handleDesiredDelete(desiredLRP receptor.DesiredLRPResponse) {
+func (handler *routingTableHandler) handleDesiredDelete(desiredLRP receptor.DesiredLRPResponse) {
 	logger := handler.logger.Session("handling-desired-delete", desiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 	// Do nothing for now...when we support unregistration of routes this needs to do something
 }
 
-func (handler *eventHandler) handleActualCreate(actualLRP receptor.ActualLRPResponse) {
+func (handler *routingTableHandler) handleActualCreate(actualLRP receptor.ActualLRPResponse) {
 	logger := handler.logger.Session("handling-actual-create", actualLRPData(actualLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
@@ -223,23 +223,23 @@ func (handler *eventHandler) handleActualCreate(actualLRP receptor.ActualLRPResp
 	}
 }
 
-func (handler *eventHandler) addAndEmit(actualLRP receptor.ActualLRPResponse) {
+func (handler *routingTableHandler) addAndEmit(actualLRP receptor.ActualLRPResponse) {
 	routingEvents := handler.routingTable.AddEndpoint(actualLRP)
 	handler.emit(routingEvents)
 }
 
-func (handler *eventHandler) removeAndEmit(actualLRP receptor.ActualLRPResponse) {
+func (handler *routingTableHandler) removeAndEmit(actualLRP receptor.ActualLRPResponse) {
 	routingEvents := handler.routingTable.RemoveEndpoint(actualLRP)
 	handler.emit(routingEvents)
 }
 
-func (handler *eventHandler) emit(routingEvents RoutingEvents) {
+func (handler *routingTableHandler) emit(routingEvents RoutingEvents) {
 	if handler.emitter != nil && len(routingEvents) > 0 {
 		handler.emitter.Emit(routingEvents)
 	}
 }
 
-func (handler *eventHandler) handleActualUpdate(before, after receptor.ActualLRPResponse) {
+func (handler *routingTableHandler) handleActualUpdate(before, after receptor.ActualLRPResponse) {
 	logger := handler.logger.Session("handling-actual-update", lager.Data{
 		"before": actualLRPData(before),
 		"after":  actualLRPData(after),
@@ -255,7 +255,7 @@ func (handler *eventHandler) handleActualUpdate(before, after receptor.ActualLRP
 	}
 }
 
-func (handler *eventHandler) handleActualDelete(actualLRP receptor.ActualLRPResponse) {
+func (handler *routingTableHandler) handleActualDelete(actualLRP receptor.ActualLRPResponse) {
 	logger := handler.logger.Session("handling-actual-delete", actualLRPData(actualLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")

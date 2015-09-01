@@ -8,7 +8,7 @@ import (
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 )
 
-type FakeEventHandler struct {
+type FakeRoutingTableHandler struct {
 	HandleEventStub        func(event receptor.Event)
 	handleEventMutex       sync.RWMutex
 	handleEventArgsForCall []struct {
@@ -25,7 +25,7 @@ type FakeEventHandler struct {
 	}
 }
 
-func (fake *FakeEventHandler) HandleEvent(event receptor.Event) {
+func (fake *FakeRoutingTableHandler) HandleEvent(event receptor.Event) {
 	fake.handleEventMutex.Lock()
 	fake.handleEventArgsForCall = append(fake.handleEventArgsForCall, struct {
 		event receptor.Event
@@ -36,19 +36,19 @@ func (fake *FakeEventHandler) HandleEvent(event receptor.Event) {
 	}
 }
 
-func (fake *FakeEventHandler) HandleEventCallCount() int {
+func (fake *FakeRoutingTableHandler) HandleEventCallCount() int {
 	fake.handleEventMutex.RLock()
 	defer fake.handleEventMutex.RUnlock()
 	return len(fake.handleEventArgsForCall)
 }
 
-func (fake *FakeEventHandler) HandleEventArgsForCall(i int) receptor.Event {
+func (fake *FakeRoutingTableHandler) HandleEventArgsForCall(i int) receptor.Event {
 	fake.handleEventMutex.RLock()
 	defer fake.handleEventMutex.RUnlock()
 	return fake.handleEventArgsForCall[i].event
 }
 
-func (fake *FakeEventHandler) Sync() {
+func (fake *FakeRoutingTableHandler) Sync() {
 	fake.syncMutex.Lock()
 	fake.syncArgsForCall = append(fake.syncArgsForCall, struct{}{})
 	fake.syncMutex.Unlock()
@@ -57,13 +57,13 @@ func (fake *FakeEventHandler) Sync() {
 	}
 }
 
-func (fake *FakeEventHandler) SyncCallCount() int {
+func (fake *FakeRoutingTableHandler) SyncCallCount() int {
 	fake.syncMutex.RLock()
 	defer fake.syncMutex.RUnlock()
 	return len(fake.syncArgsForCall)
 }
 
-func (fake *FakeEventHandler) Syncing() bool {
+func (fake *FakeRoutingTableHandler) Syncing() bool {
 	fake.syncingMutex.Lock()
 	fake.syncingArgsForCall = append(fake.syncingArgsForCall, struct{}{})
 	fake.syncingMutex.Unlock()
@@ -74,17 +74,17 @@ func (fake *FakeEventHandler) Syncing() bool {
 	}
 }
 
-func (fake *FakeEventHandler) SyncingCallCount() int {
+func (fake *FakeRoutingTableHandler) SyncingCallCount() int {
 	fake.syncingMutex.RLock()
 	defer fake.syncingMutex.RUnlock()
 	return len(fake.syncingArgsForCall)
 }
 
-func (fake *FakeEventHandler) SyncingReturns(result1 bool) {
+func (fake *FakeRoutingTableHandler) SyncingReturns(result1 bool) {
 	fake.SyncingStub = nil
 	fake.syncingReturns = struct {
 		result1 bool
 	}{result1}
 }
 
-var _ routing_table.EventHandler = new(FakeEventHandler)
+var _ routing_table.RoutingTableHandler = new(FakeRoutingTableHandler)
