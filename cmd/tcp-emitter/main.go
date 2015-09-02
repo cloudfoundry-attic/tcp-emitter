@@ -67,13 +67,11 @@ func main() {
 	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, receptorClient)
 	syncChannel := make(chan struct{})
 	syncRunner := syncer.New(clock, *syncInterval, syncChannel, logger)
-	watcher := ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
-		return watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger).Run(signals, ready)
-	})
+	watcher := watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger)
 
 	members := grouper.Members{
-		{"syncer", syncRunner},
 		{"watcher", watcher},
+		{"syncer", syncRunner},
 	}
 
 	if dbgAddr := cf_debug_server.DebugAddress(flag.CommandLine); dbgAddr != "" {
