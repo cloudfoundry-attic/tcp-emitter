@@ -5,8 +5,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/cloudfoundry-incubator/receptor"
-	"github.com/cloudfoundry-incubator/receptor/fake_receptor"
+	"github.com/cloudfoundry-incubator/bbs/events"
+	"github.com/cloudfoundry-incubator/bbs/events/eventfakes"
+	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
+	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
@@ -19,7 +21,7 @@ import (
 )
 
 type EventHolder struct {
-	event receptor.Event
+	event models.Event
 }
 
 var nilEventHolder = EventHolder{}
@@ -27,10 +29,10 @@ var nilEventHolder = EventHolder{}
 var _ = Describe("Watcher", func() {
 
 	getDesiredLRP := func(processGuid, logGuid string,
-		containerPort, externalPort uint16) receptor.DesiredLRPResponse {
-		var desiredLRP receptor.DesiredLRPResponse
+		containerPort, externalPort uint32) *models.DesiredLRP {
+		var desiredLRP models.DesiredLRP
 		desiredLRP.ProcessGuid = processGuid
-		desiredLRP.Ports = []uint16{containerPort}
+		desiredLRP.Ports = []uint32{containerPort}
 		desiredLRP.LogGuid = logGuid
 		tcpRoutes := tcp_routes.TCPRoutes{
 			tcp_routes.TCPRoute{
@@ -39,45 +41,64 @@ var _ = Describe("Watcher", func() {
 			},
 		}
 		desiredLRP.Routes = tcpRoutes.RoutingInfo()
-		return desiredLRP
+		return &desiredLRP
 	}
 
 	getActualLRP := func(processGuid, instanceGuid, hostAddress string,
-		hostPort, containerPort uint16, evacuating bool) receptor.ActualLRPResponse {
-		actualLRP := receptor.ActualLRPResponse{
-			ProcessGuid:  processGuid,
-			InstanceGuid: instanceGuid,
-			Address:      hostAddress,
-			Evacuating:   evacuating,
-			Ports:        []receptor.PortMapping{{ContainerPort: containerPort, HostPort: hostPort}},
+		hostPort, containerPort uint32, evacuating bool) *models.ActualLRPGroup {
+		if evacuating {
+			return &models.ActualLRPGroup{
+				Instance: nil,
+				Evacuating: &models.ActualLRP{
+					ActualLRPKey:         models.NewActualLRPKey(processGuid, 0, "domain"),
+					ActualLRPInstanceKey: models.NewActualLRPInstanceKey(instanceGuid, "cell-id-1"),
+					ActualLRPNetInfo: models.NewActualLRPNetInfo(
+						hostAddress,
+						models.NewPortMapping(hostPort, containerPort),
+					),
+					State: models.ActualLRPStateRunning,
+				},
+			}
+		} else {
+			return &models.ActualLRPGroup{
+				Instance: &models.ActualLRP{
+					ActualLRPKey:         models.NewActualLRPKey(processGuid, 0, "domain"),
+					ActualLRPInstanceKey: models.NewActualLRPInstanceKey(instanceGuid, "cell-id-1"),
+					ActualLRPNetInfo: models.NewActualLRPNetInfo(
+						hostAddress,
+						models.NewPortMapping(hostPort, containerPort),
+					),
+					State: models.ActualLRPStateRunning,
+				},
+				Evacuating: nil,
+			}
 		}
-		return actualLRP
 	}
 
 	var (
-		eventSource         *fake_receptor.FakeEventSource
-		receptorClient      *fake_receptor.FakeClient
+		eventSource         *eventfakes.FakeEventSource
+		bbsClient           *fake_bbs.FakeClient
 		routingTableHandler *fakes.FakeRoutingTableHandler
 		testWatcher         *watcher.Watcher
 		clock               *fakeclock.FakeClock
 		process             ifrit.Process
-		eventChannel        chan receptor.Event
+		eventChannel        chan models.Event
 		errorChannel        chan error
 		syncChannel         chan struct{}
 	)
 
 	BeforeEach(func() {
-		eventSource = new(fake_receptor.FakeEventSource)
-		receptorClient = new(fake_receptor.FakeClient)
+		eventSource = new(eventfakes.FakeEventSource)
+		bbsClient = new(fake_bbs.FakeClient)
 		routingTableHandler = new(fakes.FakeRoutingTableHandler)
 
 		clock = fakeclock.NewFakeClock(time.Now())
 
-		receptorClient.SubscribeToEventsReturns(eventSource, nil)
+		bbsClient.SubscribeToEventsReturns(eventSource, nil)
 		syncChannel = make(chan struct{})
-		testWatcher = watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger)
+		testWatcher = watcher.NewWatcher(bbsClient, clock, routingTableHandler, syncChannel, logger)
 
-		eventChannel = make(chan receptor.Event)
+		eventChannel = make(chan models.Event)
 		errorChannel = make(chan error)
 
 		eventSource.CloseStub = func() error {
@@ -85,7 +106,7 @@ var _ = Describe("Watcher", func() {
 			return nil
 		}
 
-		eventSource.NextStub = func() (receptor.Event, error) {
+		eventSource.NextStub = func() (models.Event, error) {
 			select {
 			case event := <-eventChannel:
 				return event, nil
@@ -107,12 +128,12 @@ var _ = Describe("Watcher", func() {
 
 	Context("handle DesiredLRPCreatedEvent", func() {
 		var (
-			event receptor.Event
+			event models.Event
 		)
 
 		JustBeforeEach(func() {
 			desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
-			event = receptor.NewDesiredLRPCreatedEvent(desiredLRP)
+			event = models.NewDesiredLRPCreatedEvent(desiredLRP)
 			eventChannel <- event
 		})
 
@@ -125,13 +146,13 @@ var _ = Describe("Watcher", func() {
 
 	Context("handle DesiredLRPChangedEvent", func() {
 		var (
-			event receptor.Event
+			event models.Event
 		)
 
 		JustBeforeEach(func() {
 			beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
 			afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61001)
-			event = receptor.NewDesiredLRPChangedEvent(beforeLRP, afterLRP)
+			event = models.NewDesiredLRPChangedEvent(beforeLRP, afterLRP)
 			eventChannel <- event
 		})
 
@@ -144,12 +165,12 @@ var _ = Describe("Watcher", func() {
 
 	Context("handle DesiredLRPRemovedEvent", func() {
 		var (
-			event receptor.Event
+			event models.Event
 		)
 
 		JustBeforeEach(func() {
 			desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", 5222, 61000)
-			event = receptor.NewDesiredLRPRemovedEvent(desiredLRP)
+			event = models.NewDesiredLRPRemovedEvent(desiredLRP)
 			eventChannel <- event
 		})
 
@@ -162,12 +183,12 @@ var _ = Describe("Watcher", func() {
 
 	Context("handle ActualLRPCreatedEvent", func() {
 		var (
-			event receptor.Event
+			event models.Event
 		)
 
 		JustBeforeEach(func() {
 			actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61000, 5222, false)
-			event = receptor.NewActualLRPCreatedEvent(actualLRP)
+			event = models.NewActualLRPCreatedEvent(actualLRP)
 			eventChannel <- event
 		})
 
@@ -180,13 +201,13 @@ var _ = Describe("Watcher", func() {
 
 	Context("handle ActualLRPChangedEvent", func() {
 		var (
-			event receptor.Event
+			event models.Event
 		)
 
 		JustBeforeEach(func() {
 			beforeLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61000, 5222, false)
 			afterLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip", 61001, 5222, false)
-			event = receptor.NewActualLRPChangedEvent(beforeLRP, afterLRP)
+			event = models.NewActualLRPChangedEvent(beforeLRP, afterLRP)
 			eventChannel <- event
 		})
 
@@ -209,26 +230,26 @@ var _ = Describe("Watcher", func() {
 
 	Context("when eventSource returns error", func() {
 		JustBeforeEach(func() {
-			Eventually(receptorClient.SubscribeToEventsCallCount).Should(Equal(1))
+			Eventually(bbsClient.SubscribeToEventsCallCount).Should(Equal(1))
 			errorChannel <- errors.New("buzinga...")
 		})
 
-		It("resubscribes to SSE from receptor", func() {
-			Eventually(receptorClient.SubscribeToEventsCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(2))
+		It("resubscribes to SSE from bbs", func() {
+			Eventually(bbsClient.SubscribeToEventsCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(2))
 			Eventually(logger).Should(gbytes.Say("test.watcher.failed-getting-next-event"))
 		})
 	})
 
 	Context("when subscribe to events fails", func() {
 		var (
-			receptorErrorChannel chan error
+			bbsErrorChannel chan error
 		)
 		BeforeEach(func() {
-			receptorErrorChannel = make(chan error)
+			bbsErrorChannel = make(chan error)
 
-			receptorClient.SubscribeToEventsStub = func() (receptor.EventSource, error) {
+			bbsClient.SubscribeToEventsStub = func() (events.EventSource, error) {
 				select {
-				case err := <-receptorErrorChannel:
+				case err := <-bbsErrorChannel:
 					if err != nil {
 						return nil, err
 					}
@@ -236,16 +257,16 @@ var _ = Describe("Watcher", func() {
 				return eventSource, nil
 			}
 
-			testWatcher = watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger)
+			testWatcher = watcher.NewWatcher(bbsClient, clock, routingTableHandler, syncChannel, logger)
 		})
 
 		JustBeforeEach(func() {
-			receptorErrorChannel <- errors.New("kaboom")
+			bbsErrorChannel <- errors.New("kaboom")
 		})
 
 		It("retries to subscribe", func() {
-			close(receptorErrorChannel)
-			Eventually(receptorClient.SubscribeToEventsCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(2))
+			close(bbsErrorChannel)
+			Eventually(bbsClient.SubscribeToEventsCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(2))
 			Eventually(logger).Should(gbytes.Say("test.watcher.failed-subscribing-to-events"))
 		})
 	})

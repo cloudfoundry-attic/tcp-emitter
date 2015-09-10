@@ -1,6 +1,6 @@
 package routing_table
 
-import "github.com/cloudfoundry-incubator/receptor"
+import "github.com/cloudfoundry-incubator/bbs/models"
 
 type EndpointKey struct {
 	InstanceGuid string
@@ -17,10 +17,10 @@ func NewEndpointKey(instanceGuid string, evacuating bool) EndpointKey {
 type Endpoint struct {
 	InstanceGuid    string
 	Host            string
-	Port            uint16
-	ContainerPort   uint16
+	Port            uint32
+	ContainerPort   uint32
 	Evacuating      bool
-	ModificationTag receptor.ModificationTag
+	ModificationTag *models.ModificationTag
 }
 
 func (e Endpoint) key() EndpointKey {
@@ -29,8 +29,8 @@ func (e Endpoint) key() EndpointKey {
 
 func NewEndpoint(
 	instanceGuid string, evacuating bool,
-	host string, port, containerPort uint16,
-	modificationTag receptor.ModificationTag) Endpoint {
+	host string, port, containerPort uint32,
+	modificationTag *models.ModificationTag) Endpoint {
 	return Endpoint{
 		InstanceGuid:    instanceGuid,
 		Evacuating:      evacuating,
@@ -42,12 +42,12 @@ func NewEndpoint(
 }
 
 type ExternalEndpointInfo struct {
-	Port uint16
+	Port uint32
 }
 
 type ExternalEndpointInfos []ExternalEndpointInfo
 
-func NewExternalEndpointInfo(port uint16) ExternalEndpointInfo {
+func NewExternalEndpointInfo(port uint32) ExternalEndpointInfo {
 	return ExternalEndpointInfo{
 		Port: port,
 	}
@@ -57,7 +57,7 @@ type RoutableEndpoints struct {
 	ExternalEndpoints ExternalEndpointInfos
 	Endpoints         map[EndpointKey]Endpoint
 	LogGuid           string
-	ModificationTag   receptor.ModificationTag
+	ModificationTag   *models.ModificationTag
 }
 
 func (entry RoutableEndpoints) copy() RoutableEndpoints {
@@ -79,7 +79,7 @@ func NewRoutableEndpoints(
 	externalEndPoint ExternalEndpointInfos,
 	endpoints map[EndpointKey]Endpoint,
 	logGuid string,
-	modificationTag receptor.ModificationTag) RoutableEndpoints {
+	modificationTag *models.ModificationTag) RoutableEndpoints {
 	return RoutableEndpoints{
 		ExternalEndpoints: externalEndPoint,
 		Endpoints:         endpoints,
@@ -90,10 +90,10 @@ func NewRoutableEndpoints(
 
 type RoutingKey struct {
 	ProcessGuid   string
-	ContainerPort uint16
+	ContainerPort uint32
 }
 
-func NewRoutingKey(processGuid string, containerPort uint16) RoutingKey {
+func NewRoutingKey(processGuid string, containerPort uint32) RoutingKey {
 	return RoutingKey{
 		ProcessGuid:   processGuid,
 		ContainerPort: containerPort,

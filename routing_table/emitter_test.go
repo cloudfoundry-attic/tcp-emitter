@@ -3,8 +3,8 @@ package routing_table_test
 import (
 	"encoding/json"
 
+	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/cf-tcp-router"
-	"github.com/cloudfoundry-incubator/receptor"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 
 	. "github.com/onsi/ginkgo"
@@ -22,11 +22,11 @@ var _ = Describe("Emitter", func() {
 
 	BeforeEach(func() {
 		logGuid := "log-guid-1"
-		modificationTag := receptor.ModificationTag{Epoch: "abc", Index: 0}
+		modificationTag := models.ModificationTag{Epoch: "abc", Index: 0}
 
 		endpoints1 := map[routing_table.EndpointKey]routing_table.Endpoint{
 			routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
-				"instance-guid-1", false, "some-ip-1", 62003, 5222, modificationTag),
+				"instance-guid-1", false, "some-ip-1", 62003, 5222, &modificationTag),
 		}
 
 		routingKey1 := routing_table.NewRoutingKey("process-guid-1", 5222)
@@ -34,7 +34,7 @@ var _ = Describe("Emitter", func() {
 		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
 
 		routableEndpoints1 := routing_table.NewRoutableEndpoints(
-			routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, modificationTag)
+			routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)
 
 		routingEvents = routing_table.RoutingEvents{
 			routing_table.RoutingEvent{
@@ -97,11 +97,11 @@ var _ = Describe("Emitter", func() {
 	Context("when invalid routing events are provided", func() {
 		BeforeEach(func() {
 			logGuid := "log-guid-1"
-			modificationTag := receptor.ModificationTag{Epoch: "abc", Index: 0}
+			modificationTag := models.ModificationTag{Epoch: "abc", Index: 0}
 
 			endpoints1 := map[routing_table.EndpointKey]routing_table.Endpoint{
 				routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
-					"instance-guid-1", false, "some-ip-1", 62003, 5222, modificationTag),
+					"instance-guid-1", false, "some-ip-1", 62003, 5222, &modificationTag),
 			}
 
 			routingKey1 := routing_table.NewRoutingKey("process-guid-1", 5222)
@@ -109,7 +109,7 @@ var _ = Describe("Emitter", func() {
 			extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(0)
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(
-				routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, modificationTag)
+				routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)
 
 			routingEvents = routing_table.RoutingEvents{
 				routing_table.RoutingEvent{

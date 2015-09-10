@@ -4,7 +4,7 @@ package fakes
 import (
 	"sync"
 
-	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 )
 
@@ -15,26 +15,26 @@ type FakeRoutingTable struct {
 	routeCountReturns struct {
 		result1 int
 	}
-	SetRoutesStub        func(desiredLRP receptor.DesiredLRPResponse) routing_table.RoutingEvents
+	SetRoutesStub        func(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents
 	setRoutesMutex       sync.RWMutex
 	setRoutesArgsForCall []struct {
-		desiredLRP receptor.DesiredLRPResponse
+		desiredLRP *models.DesiredLRP
 	}
 	setRoutesReturns struct {
 		result1 routing_table.RoutingEvents
 	}
-	AddEndpointStub        func(actualLRP receptor.ActualLRPResponse) routing_table.RoutingEvents
+	AddEndpointStub        func(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents
 	addEndpointMutex       sync.RWMutex
 	addEndpointArgsForCall []struct {
-		actualLRP receptor.ActualLRPResponse
+		actualLRP *models.ActualLRPGroup
 	}
 	addEndpointReturns struct {
 		result1 routing_table.RoutingEvents
 	}
-	RemoveEndpointStub        func(actualLRP receptor.ActualLRPResponse) routing_table.RoutingEvents
+	RemoveEndpointStub        func(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents
 	removeEndpointMutex       sync.RWMutex
 	removeEndpointArgsForCall []struct {
-		actualLRP receptor.ActualLRPResponse
+		actualLRP *models.ActualLRPGroup
 	}
 	removeEndpointReturns struct {
 		result1 routing_table.RoutingEvents
@@ -79,10 +79,10 @@ func (fake *FakeRoutingTable) RouteCountReturns(result1 int) {
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) SetRoutes(desiredLRP receptor.DesiredLRPResponse) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) SetRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
 	fake.setRoutesMutex.Lock()
 	fake.setRoutesArgsForCall = append(fake.setRoutesArgsForCall, struct {
-		desiredLRP receptor.DesiredLRPResponse
+		desiredLRP *models.DesiredLRP
 	}{desiredLRP})
 	fake.setRoutesMutex.Unlock()
 	if fake.SetRoutesStub != nil {
@@ -98,7 +98,7 @@ func (fake *FakeRoutingTable) SetRoutesCallCount() int {
 	return len(fake.setRoutesArgsForCall)
 }
 
-func (fake *FakeRoutingTable) SetRoutesArgsForCall(i int) receptor.DesiredLRPResponse {
+func (fake *FakeRoutingTable) SetRoutesArgsForCall(i int) *models.DesiredLRP {
 	fake.setRoutesMutex.RLock()
 	defer fake.setRoutesMutex.RUnlock()
 	return fake.setRoutesArgsForCall[i].desiredLRP
@@ -111,10 +111,10 @@ func (fake *FakeRoutingTable) SetRoutesReturns(result1 routing_table.RoutingEven
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) AddEndpoint(actualLRP receptor.ActualLRPResponse) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) AddEndpoint(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents {
 	fake.addEndpointMutex.Lock()
 	fake.addEndpointArgsForCall = append(fake.addEndpointArgsForCall, struct {
-		actualLRP receptor.ActualLRPResponse
+		actualLRP *models.ActualLRPGroup
 	}{actualLRP})
 	fake.addEndpointMutex.Unlock()
 	if fake.AddEndpointStub != nil {
@@ -130,7 +130,7 @@ func (fake *FakeRoutingTable) AddEndpointCallCount() int {
 	return len(fake.addEndpointArgsForCall)
 }
 
-func (fake *FakeRoutingTable) AddEndpointArgsForCall(i int) receptor.ActualLRPResponse {
+func (fake *FakeRoutingTable) AddEndpointArgsForCall(i int) *models.ActualLRPGroup {
 	fake.addEndpointMutex.RLock()
 	defer fake.addEndpointMutex.RUnlock()
 	return fake.addEndpointArgsForCall[i].actualLRP
@@ -143,10 +143,10 @@ func (fake *FakeRoutingTable) AddEndpointReturns(result1 routing_table.RoutingEv
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) RemoveEndpoint(actualLRP receptor.ActualLRPResponse) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) RemoveEndpoint(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents {
 	fake.removeEndpointMutex.Lock()
 	fake.removeEndpointArgsForCall = append(fake.removeEndpointArgsForCall, struct {
-		actualLRP receptor.ActualLRPResponse
+		actualLRP *models.ActualLRPGroup
 	}{actualLRP})
 	fake.removeEndpointMutex.Unlock()
 	if fake.RemoveEndpointStub != nil {
@@ -162,7 +162,7 @@ func (fake *FakeRoutingTable) RemoveEndpointCallCount() int {
 	return len(fake.removeEndpointArgsForCall)
 }
 
-func (fake *FakeRoutingTable) RemoveEndpointArgsForCall(i int) receptor.ActualLRPResponse {
+func (fake *FakeRoutingTable) RemoveEndpointArgsForCall(i int) *models.ActualLRPGroup {
 	fake.removeEndpointMutex.RLock()
 	defer fake.removeEndpointMutex.RUnlock()
 	return fake.removeEndpointArgsForCall[i].actualLRP

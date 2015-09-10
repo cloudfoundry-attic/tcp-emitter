@@ -5,10 +5,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/cloudfoundry-incubator/bbs"
 	"github.com/cloudfoundry-incubator/cf-debug-server"
 	"github.com/cloudfoundry-incubator/cf-lager"
 	"github.com/cloudfoundry-incubator/cf_http"
-	"github.com/cloudfoundry-incubator/receptor"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
@@ -20,10 +20,10 @@ import (
 	"github.com/tedsuo/ifrit/sigmon"
 )
 
-var diegoAPIURL = flag.String(
-	"diegoAPIURL",
+var bbsAddress = flag.String(
+	"bbsAddress",
 	"",
-	"URL of diego API",
+	"URL of BBS Server",
 )
 
 var tcpRouterAPIURL = flag.String(
@@ -41,7 +41,7 @@ var communicationTimeout = flag.Duration(
 var syncInterval = flag.Duration(
 	"syncInterval",
 	time.Minute,
-	"The interval between syncs of the routing table from receptor.",
+	"The interval between syncs of the routing table from bbs.",
 )
 
 const (
@@ -61,13 +61,13 @@ func main() {
 
 	initializeDropsonde(logger)
 
-	receptorClient := receptor.NewClient(*diegoAPIURL)
+	bbsClient := bbs.NewClient(*bbsAddress)
 	emitter := routing_table.NewEmitter(logger, *tcpRouterAPIURL)
 	routingTable := routing_table.NewTable(logger, nil)
-	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, receptorClient)
+	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, bbsClient)
 	syncChannel := make(chan struct{})
 	syncRunner := syncer.New(clock, *syncInterval, syncChannel, logger)
-	watcher := watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger)
+	watcher := watcher.NewWatcher(bbsClient, clock, routingTableHandler, syncChannel, logger)
 
 	members := grouper.Members{
 		{"watcher", watcher},

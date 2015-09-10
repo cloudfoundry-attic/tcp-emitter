@@ -4,7 +4,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/cloudfoundry-incubator/receptor/fake_receptor"
+	"github.com/cloudfoundry-incubator/bbs/events/eventfakes"
+	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
@@ -23,28 +24,28 @@ var _ = Describe("Syncer-Watcher Integration", func() {
 
 	var (
 		process             ifrit.Process
-		receptorClient      *fake_receptor.FakeClient
+		bbsClient           *fake_bbs.FakeClient
 		routingTableHandler *fakes.FakeRoutingTableHandler
 		clock               *fakeclock.FakeClock
 		syncInterval        time.Duration
 		logger              lager.Logger
-		eventSource         *fake_receptor.FakeEventSource
+		eventSource         *eventfakes.FakeEventSource
 	)
 
 	BeforeEach(func() {
 		logger = lagertest.NewTestLogger("test")
 		syncInterval = 1 * time.Second
 
-		eventSource = new(fake_receptor.FakeEventSource)
-		receptorClient = new(fake_receptor.FakeClient)
-		receptorClient.SubscribeToEventsReturns(eventSource, nil)
+		eventSource = new(eventfakes.FakeEventSource)
+		bbsClient = new(fake_bbs.FakeClient)
+		bbsClient.SubscribeToEventsReturns(eventSource, nil)
 
 		routingTableHandler = new(fakes.FakeRoutingTableHandler)
 		clock = fakeclock.NewFakeClock(time.Now())
 		syncChannel := make(chan struct{})
 
 		syncRunner := syncer.New(clock, syncInterval, syncChannel, logger)
-		watcher := watcher.NewWatcher(receptorClient, clock, routingTableHandler, syncChannel, logger)
+		watcher := watcher.NewWatcher(bbsClient, clock, routingTableHandler, syncChannel, logger)
 
 		members := grouper.Members{
 			{"watcher", watcher},

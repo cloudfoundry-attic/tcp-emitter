@@ -4,15 +4,15 @@ package fakes
 import (
 	"sync"
 
-	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 )
 
 type FakeRoutingTableHandler struct {
-	HandleEventStub        func(event receptor.Event)
+	HandleEventStub        func(event models.Event)
 	handleEventMutex       sync.RWMutex
 	handleEventArgsForCall []struct {
-		event receptor.Event
+		event models.Event
 	}
 	SyncStub        func()
 	syncMutex       sync.RWMutex
@@ -25,10 +25,10 @@ type FakeRoutingTableHandler struct {
 	}
 }
 
-func (fake *FakeRoutingTableHandler) HandleEvent(event receptor.Event) {
+func (fake *FakeRoutingTableHandler) HandleEvent(event models.Event) {
 	fake.handleEventMutex.Lock()
 	fake.handleEventArgsForCall = append(fake.handleEventArgsForCall, struct {
-		event receptor.Event
+		event models.Event
 	}{event})
 	fake.handleEventMutex.Unlock()
 	if fake.HandleEventStub != nil {
@@ -42,7 +42,7 @@ func (fake *FakeRoutingTableHandler) HandleEventCallCount() int {
 	return len(fake.handleEventArgsForCall)
 }
 
-func (fake *FakeRoutingTableHandler) HandleEventArgsForCall(i int) receptor.Event {
+func (fake *FakeRoutingTableHandler) HandleEventArgsForCall(i int) models.Event {
 	fake.handleEventMutex.RLock()
 	defer fake.handleEventMutex.RUnlock()
 	return fake.handleEventArgsForCall[i].event

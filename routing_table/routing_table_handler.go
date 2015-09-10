@@ -1,37 +1,39 @@
 package routing_table
 
 import (
-	"github.com/cloudfoundry-incubator/receptor"
-	"github.com/pivotal-golang/lager"
 	"sync"
+
+	"github.com/cloudfoundry-incubator/bbs"
+	"github.com/cloudfoundry-incubator/bbs/models"
+	"github.com/pivotal-golang/lager"
 )
 
 //go:generate counterfeiter -o fakes/fake_routing_table_handler.go . RoutingTableHandler
 type RoutingTableHandler interface {
-	HandleEvent(event receptor.Event)
+	HandleEvent(event models.Event)
 	Sync()
 	Syncing() bool
 }
 
 type routingTableHandler struct {
-	logger         lager.Logger
-	routingTable   RoutingTable
-	emitter        Emitter
-	receptorClient receptor.Client
-	syncing        bool
-	cachedEvents   []receptor.Event
+	logger       lager.Logger
+	routingTable RoutingTable
+	emitter      Emitter
+	bbsClient    bbs.Client
+	syncing      bool
+	cachedEvents []models.Event
 	sync.Locker
 }
 
-func NewRoutingTableHandler(logger lager.Logger, routingTable RoutingTable, emitter Emitter, receptorClient receptor.Client) RoutingTableHandler {
+func NewRoutingTableHandler(logger lager.Logger, routingTable RoutingTable, emitter Emitter, bbsClient bbs.Client) RoutingTableHandler {
 	return &routingTableHandler{
-		logger:         logger,
-		routingTable:   routingTable,
-		emitter:        emitter,
-		receptorClient: receptorClient,
-		syncing:        false,
-		cachedEvents:   nil,
-		Locker:         &sync.Mutex{},
+		logger:       logger,
+		routingTable: routingTable,
+		emitter:      emitter,
+		bbsClient:    bbsClient,
+		syncing:      false,
+		cachedEvents: nil,
+		Locker:       &sync.Mutex{},
 	}
 }
 
@@ -41,7 +43,7 @@ func (handler *routingTableHandler) Syncing() bool {
 	return handler.syncing
 }
 
-func (handler *routingTableHandler) HandleEvent(event receptor.Event) {
+func (handler *routingTableHandler) HandleEvent(event models.Event) {
 	handler.Lock()
 	defer handler.Unlock()
 	if handler.syncing {
@@ -65,13 +67,13 @@ func (handler *routingTableHandler) Sync() {
 	}()
 
 	handler.Lock()
-	handler.cachedEvents = []receptor.Event{}
+	handler.cachedEvents = []models.Event{}
 	handler.syncing = true
 	handler.Unlock()
 
-	var runningActualLRPs []receptor.ActualLRPResponse
+	var runningActualLRPs []*models.ActualLRPGroup
 	var getActualLRPsErr error
-	var desiredLRPs []receptor.DesiredLRPResponse
+	var desiredLRPs []*models.DesiredLRP
 	var getDesiredLRPsErr error
 	var tempRoutingTable RoutingTable
 
@@ -82,7 +84,7 @@ func (handler *routingTableHandler) Sync() {
 		defer wg.Done()
 
 		logger.Debug("getting-actual-lrps")
-		actualLRPResponses, err := handler.receptorClient.ActualLRPs()
+		actualLRPResponses, err := handler.bbsClient.ActualLRPGroups(models.ActualLRPFilter{})
 		if err != nil {
 			logger.Error("failed-getting-actual-lrps", err)
 			getActualLRPsErr = err
@@ -90,9 +92,10 @@ func (handler *routingTableHandler) Sync() {
 		}
 		logger.Debug("succeeded-getting-actual-lrps", lager.Data{"num-actual-responses": len(actualLRPResponses)})
 
-		runningActualLRPs = make([]receptor.ActualLRPResponse, 0, len(actualLRPResponses))
+		runningActualLRPs = make([]*models.ActualLRPGroup, 0, len(actualLRPResponses))
 		for _, actualLRPResponse := range actualLRPResponses {
-			if actualLRPResponse.State == receptor.ActualLRPStateRunning {
+			actual, _ := actualLRPResponse.Resolve()
+			if actual.State == models.ActualLRPStateRunning {
 				runningActualLRPs = append(runningActualLRPs, actualLRPResponse)
 			}
 		}
@@ -103,7 +106,7 @@ func (handler *routingTableHandler) Sync() {
 		defer wg.Done()
 
 		logger.Debug("getting-desired-lrps")
-		desiredLRPResponses, err := handler.receptorClient.DesiredLRPs()
+		desiredLRPResponses, err := handler.bbsClient.DesiredLRPs(models.DesiredLRPFilter{})
 		if err != nil {
 			logger.Error("failed-getting-desired-lrps", err)
 			getDesiredLRPsErr = err
@@ -111,7 +114,7 @@ func (handler *routingTableHandler) Sync() {
 		}
 		logger.Debug("succeeded-getting-desired-lrps", lager.Data{"num-desired-responses": len(desiredLRPResponses)})
 
-		desiredLRPs = make([]receptor.DesiredLRPResponse, 0, len(desiredLRPResponses))
+		desiredLRPs = make([]*models.DesiredLRP, 0, len(desiredLRPResponses))
 		for _, desiredLRPResponse := range desiredLRPResponses {
 			desiredLRPs = append(desiredLRPs, desiredLRPResponse)
 		}
@@ -167,26 +170,26 @@ func (handler *routingTableHandler) applyCachedEvents(logger lager.Logger, tempR
 	handler.emit(routingEvents)
 }
 
-func (handler *routingTableHandler) handleEvent(event receptor.Event) {
+func (handler *routingTableHandler) handleEvent(event models.Event) {
 	switch event := event.(type) {
-	case receptor.DesiredLRPCreatedEvent:
-		handler.handleDesiredCreate(event.DesiredLRPResponse)
-	case receptor.DesiredLRPChangedEvent:
+	case *models.DesiredLRPCreatedEvent:
+		handler.handleDesiredCreate(event.DesiredLrp)
+	case *models.DesiredLRPChangedEvent:
 		handler.handleDesiredUpdate(event.Before, event.After)
-	case receptor.DesiredLRPRemovedEvent:
-		handler.handleDesiredDelete(event.DesiredLRPResponse)
-	case receptor.ActualLRPCreatedEvent:
-		handler.handleActualCreate(event.ActualLRPResponse)
-	case receptor.ActualLRPChangedEvent:
+	case *models.DesiredLRPRemovedEvent:
+		handler.handleDesiredDelete(event.DesiredLrp)
+	case *models.ActualLRPCreatedEvent:
+		handler.handleActualCreate(event.ActualLrpGroup)
+	case *models.ActualLRPChangedEvent:
 		handler.handleActualUpdate(event.Before, event.After)
-	case receptor.ActualLRPRemovedEvent:
-		handler.handleActualDelete(event.ActualLRPResponse)
+	case *models.ActualLRPRemovedEvent:
+		handler.handleActualDelete(event.ActualLrpGroup)
 	default:
 		handler.logger.Info("did-not-handle-unrecognizable-event", lager.Data{"event-type": event.EventType()})
 	}
 }
 
-func (handler *routingTableHandler) handleDesiredCreate(desiredLRP receptor.DesiredLRPResponse) {
+func (handler *routingTableHandler) handleDesiredCreate(desiredLRP *models.DesiredLRP) {
 	logger := handler.logger.Session("handle-desired-create", desiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
@@ -194,7 +197,7 @@ func (handler *routingTableHandler) handleDesiredCreate(desiredLRP receptor.Desi
 	handler.emit(routingEvents)
 }
 
-func (handler *routingTableHandler) handleDesiredUpdate(before, after receptor.DesiredLRPResponse) {
+func (handler *routingTableHandler) handleDesiredUpdate(before, after *models.DesiredLRP) {
 	logger := handler.logger.Session("handling-desired-update", lager.Data{
 		"before": desiredLRPData(before),
 		"after":  desiredLRPData(after),
@@ -207,29 +210,30 @@ func (handler *routingTableHandler) handleDesiredUpdate(before, after receptor.D
 	handler.emit(routingEvents)
 }
 
-func (handler *routingTableHandler) handleDesiredDelete(desiredLRP receptor.DesiredLRPResponse) {
+func (handler *routingTableHandler) handleDesiredDelete(desiredLRP *models.DesiredLRP) {
 	logger := handler.logger.Session("handling-desired-delete", desiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 	// Do nothing for now...when we support unregistration of routes this needs to do something
 }
 
-func (handler *routingTableHandler) handleActualCreate(actualLRP receptor.ActualLRPResponse) {
-	logger := handler.logger.Session("handling-actual-create", actualLRPData(actualLRP))
+func (handler *routingTableHandler) handleActualCreate(actualLRPGrp *models.ActualLRPGroup) {
+	actualLRP, evacuating := actualLRPGrp.Resolve()
+	logger := handler.logger.Session("handling-actual-create", actualLRPData(actualLRP, evacuating))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
-	if actualLRP.State == receptor.ActualLRPStateRunning {
-		handler.addAndEmit(actualLRP)
+	if actualLRP.State == models.ActualLRPStateRunning {
+		handler.addAndEmit(actualLRPGrp)
 	}
 }
 
-func (handler *routingTableHandler) addAndEmit(actualLRP receptor.ActualLRPResponse) {
-	routingEvents := handler.routingTable.AddEndpoint(actualLRP)
+func (handler *routingTableHandler) addAndEmit(actualLRPGrp *models.ActualLRPGroup) {
+	routingEvents := handler.routingTable.AddEndpoint(actualLRPGrp)
 	handler.emit(routingEvents)
 }
 
-func (handler *routingTableHandler) removeAndEmit(actualLRP receptor.ActualLRPResponse) {
-	routingEvents := handler.routingTable.RemoveEndpoint(actualLRP)
+func (handler *routingTableHandler) removeAndEmit(actualLRPGrp *models.ActualLRPGroup) {
+	routingEvents := handler.routingTable.RemoveEndpoint(actualLRPGrp)
 	handler.emit(routingEvents)
 }
 
@@ -239,32 +243,35 @@ func (handler *routingTableHandler) emit(routingEvents RoutingEvents) {
 	}
 }
 
-func (handler *routingTableHandler) handleActualUpdate(before, after receptor.ActualLRPResponse) {
+func (handler *routingTableHandler) handleActualUpdate(beforeGrp, afterGrp *models.ActualLRPGroup) {
+	before, beforeEvacuating := beforeGrp.Resolve()
+	after, afterEvacuating := afterGrp.Resolve()
 	logger := handler.logger.Session("handling-actual-update", lager.Data{
-		"before": actualLRPData(before),
-		"after":  actualLRPData(after),
+		"before": actualLRPData(before, beforeEvacuating),
+		"after":  actualLRPData(after, afterEvacuating),
 	})
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 
 	switch {
-	case after.State == receptor.ActualLRPStateRunning:
-		handler.addAndEmit(after)
-	case after.State != receptor.ActualLRPStateRunning && before.State == receptor.ActualLRPStateRunning:
-		handler.removeAndEmit(before)
+	case after.State == models.ActualLRPStateRunning:
+		handler.addAndEmit(afterGrp)
+	case after.State != models.ActualLRPStateRunning && before.State == models.ActualLRPStateRunning:
+		handler.removeAndEmit(beforeGrp)
 	}
 }
 
-func (handler *routingTableHandler) handleActualDelete(actualLRP receptor.ActualLRPResponse) {
-	logger := handler.logger.Session("handling-actual-delete", actualLRPData(actualLRP))
+func (handler *routingTableHandler) handleActualDelete(actualLRPGrp *models.ActualLRPGroup) {
+	actualLRP, evacuating := actualLRPGrp.Resolve()
+	logger := handler.logger.Session("handling-actual-delete", actualLRPData(actualLRP, evacuating))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
-	if actualLRP.State == receptor.ActualLRPStateRunning {
-		handler.removeAndEmit(actualLRP)
+	if actualLRP.State == models.ActualLRPStateRunning {
+		handler.removeAndEmit(actualLRPGrp)
 	}
 }
 
-func desiredLRPData(lrp receptor.DesiredLRPResponse) lager.Data {
+func desiredLRPData(lrp *models.DesiredLRP) lager.Data {
 	return lager.Data{
 		"process-guid": lrp.ProcessGuid,
 		"routes":       lrp.Routes,
@@ -272,16 +279,16 @@ func desiredLRPData(lrp receptor.DesiredLRPResponse) lager.Data {
 	}
 }
 
-func actualLRPData(lrp receptor.ActualLRPResponse) lager.Data {
+func actualLRPData(lrp *models.ActualLRP, evacuating bool) lager.Data {
 	return lager.Data{
 		"process-guid":  lrp.ProcessGuid,
 		"index":         lrp.Index,
 		"domain":        lrp.Domain,
 		"instance-guid": lrp.InstanceGuid,
-		"cell-id":       lrp.CellID,
+		"cell-id":       lrp.CellId,
 		"address":       lrp.Address,
 		"ports":         lrp.Ports,
-		"evacuating":    lrp.Evacuating,
+		"evacuating":    evacuating,
 		"state":         lrp.State,
 	}
 }

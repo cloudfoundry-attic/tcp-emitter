@@ -3,11 +3,12 @@ package routing_table
 import (
 	"errors"
 
-	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/bbs/models"
 )
 
-func EndpointsFromActual(actual receptor.ActualLRPResponse) (map[uint16]Endpoint, error) {
-	endpoints := map[uint16]Endpoint{}
+func EndpointsFromActual(actualGrp *models.ActualLRPGroup) (map[uint32]Endpoint, error) {
+	endpoints := map[uint32]Endpoint{}
+	actual, evacuating := actualGrp.Resolve()
 
 	if len(actual.Ports) == 0 {
 		return endpoints, errors.New("missing ports")
@@ -15,11 +16,11 @@ func EndpointsFromActual(actual receptor.ActualLRPResponse) (map[uint16]Endpoint
 
 	for _, portMapping := range actual.Ports {
 		endpoint := NewEndpoint(
-			actual.InstanceGuid, actual.Evacuating,
+			actual.InstanceGuid, evacuating,
 			actual.Address,
 			portMapping.HostPort,
 			portMapping.ContainerPort,
-			actual.ModificationTag,
+			&actual.ModificationTag,
 		)
 		endpoints[portMapping.ContainerPort] = endpoint
 	}
@@ -27,8 +28,9 @@ func EndpointsFromActual(actual receptor.ActualLRPResponse) (map[uint16]Endpoint
 	return endpoints, nil
 }
 
-func RoutingKeysFromActual(actual receptor.ActualLRPResponse) []RoutingKey {
+func RoutingKeysFromActual(actualGrp *models.ActualLRPGroup) []RoutingKey {
 	keys := []RoutingKey{}
+	actual, _ := actualGrp.Resolve()
 	for _, portMapping := range actual.Ports {
 		keys = append(keys, NewRoutingKey(actual.ProcessGuid, portMapping.ContainerPort))
 	}
@@ -36,7 +38,7 @@ func RoutingKeysFromActual(actual receptor.ActualLRPResponse) []RoutingKey {
 	return keys
 }
 
-func RoutingKeysFromDesired(desired receptor.DesiredLRPResponse) []RoutingKey {
+func RoutingKeysFromDesired(desired *models.DesiredLRP) []RoutingKey {
 	keys := []RoutingKey{}
 	for _, containerPort := range desired.Ports {
 		keys = append(keys, NewRoutingKey(desired.ProcessGuid, containerPort))

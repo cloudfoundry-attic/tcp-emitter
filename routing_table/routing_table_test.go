@@ -1,7 +1,7 @@
 package routing_table_test
 
 import (
-	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
 
@@ -17,14 +17,14 @@ func (t *testRoutingTable) RouteCount() int {
 	return 0
 }
 
-func (t *testRoutingTable) SetRoutes(desiredLRP receptor.DesiredLRPResponse) routing_table.RoutingEvents {
+func (t *testRoutingTable) SetRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
 	return routing_table.RoutingEvents{}
 }
 
-func (t *testRoutingTable) AddEndpoint(actualLRP receptor.ActualLRPResponse) routing_table.RoutingEvents {
+func (t *testRoutingTable) AddEndpoint(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents {
 	return routing_table.RoutingEvents{}
 }
-func (t *testRoutingTable) RemoveEndpoint(actualLRP receptor.ActualLRPResponse) routing_table.RoutingEvents {
+func (t *testRoutingTable) RemoveEndpoint(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents {
 	return routing_table.RoutingEvents{}
 }
 
@@ -40,19 +40,19 @@ var _ = Describe("RoutingTable", func() {
 
 	var (
 		routingTable    routing_table.RoutingTable
-		modificationTag receptor.ModificationTag
+		modificationTag *models.ModificationTag
 		tcpRoutes       tcp_routes.TCPRoutes
 	)
 
 	getDesiredLRP := func(processGuid, logGuid string,
-		tcpRoutes tcp_routes.TCPRoutes, modificationTag receptor.ModificationTag) receptor.DesiredLRPResponse {
-		var desiredLRP receptor.DesiredLRPResponse
-		portMap := map[uint16]struct{}{}
+		tcpRoutes tcp_routes.TCPRoutes, modificationTag *models.ModificationTag) *models.DesiredLRP {
+		var desiredLRP models.DesiredLRP
+		portMap := map[uint32]struct{}{}
 		for _, tcpRoute := range tcpRoutes {
 			portMap[tcpRoute.ContainerPort] = struct{}{}
 		}
 
-		ports := []uint16{}
+		ports := []uint32{}
 		for k, _ := range portMap {
 			ports = append(ports, k)
 		}
@@ -62,21 +62,41 @@ var _ = Describe("RoutingTable", func() {
 		desiredLRP.LogGuid = logGuid
 		desiredLRP.ModificationTag = modificationTag
 		desiredLRP.Routes = tcpRoutes.RoutingInfo()
-		return desiredLRP
+		return &desiredLRP
 	}
 
 	getActualLRP := func(processGuid, instanceGuid, hostAddress string,
-		hostPort, containerPort uint16, evacuating bool,
-		modificationTag receptor.ModificationTag) receptor.ActualLRPResponse {
-		actualLRP := receptor.ActualLRPResponse{
-			ProcessGuid:     processGuid,
-			InstanceGuid:    instanceGuid,
-			Address:         hostAddress,
-			Evacuating:      evacuating,
-			ModificationTag: modificationTag,
-			Ports:           []receptor.PortMapping{{ContainerPort: containerPort, HostPort: hostPort}},
+		hostPort, containerPort uint32, evacuating bool,
+		modificationTag *models.ModificationTag) *models.ActualLRPGroup {
+		if evacuating {
+			return &models.ActualLRPGroup{
+				Instance: nil,
+				Evacuating: &models.ActualLRP{
+					ActualLRPKey:         models.NewActualLRPKey(processGuid, 0, "domain"),
+					ActualLRPInstanceKey: models.NewActualLRPInstanceKey(instanceGuid, "cell-id-1"),
+					ActualLRPNetInfo: models.NewActualLRPNetInfo(
+						hostAddress,
+						models.NewPortMapping(hostPort, containerPort),
+					),
+					State:           models.ActualLRPStateRunning,
+					ModificationTag: *modificationTag,
+				},
+			}
+		} else {
+			return &models.ActualLRPGroup{
+				Instance: &models.ActualLRP{
+					ActualLRPKey:         models.NewActualLRPKey(processGuid, 0, "domain"),
+					ActualLRPInstanceKey: models.NewActualLRPInstanceKey(instanceGuid, "cell-id-1"),
+					ActualLRPNetInfo: models.NewActualLRPNetInfo(
+						hostAddress,
+						models.NewPortMapping(hostPort, containerPort),
+					),
+					State:           models.ActualLRPStateRunning,
+					ModificationTag: *modificationTag,
+				},
+				Evacuating: nil,
+			}
 		}
-		return actualLRP
 	}
 
 	BeforeEach(func() {
@@ -91,7 +111,7 @@ var _ = Describe("RoutingTable", func() {
 	Context("when no entry exist for route", func() {
 		BeforeEach(func() {
 			routingTable = routing_table.NewTable(logger, nil)
-			modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 0}
+			modificationTag = &models.ModificationTag{Epoch: "abc", Index: 0}
 		})
 
 		Describe("SetRoutes", func() {
@@ -124,7 +144,7 @@ var _ = Describe("RoutingTable", func() {
 				tempRoutingTable routing_table.RoutingTable
 				key              routing_table.RoutingKey
 				endpoints        map[routing_table.EndpointKey]routing_table.Endpoint
-				modificationTag  receptor.ModificationTag
+				modificationTag  *models.ModificationTag
 				logGuid          string
 			)
 
@@ -134,7 +154,7 @@ var _ = Describe("RoutingTable", func() {
 					routing_table.NewExternalEndpointInfo(61000),
 				}
 				key = routing_table.NewRoutingKey("process-guid-1", 5222)
-				modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 1}
+				modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
 				endpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
 					routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
 						"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
@@ -186,7 +206,7 @@ var _ = Describe("RoutingTable", func() {
 				routing_table.NewExternalEndpointInfo(61000),
 			}
 			key = routing_table.NewRoutingKey("process-guid-1", 5222)
-			modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 1}
+			modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
 			endpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
 				routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
 					"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
@@ -214,7 +234,7 @@ var _ = Describe("RoutingTable", func() {
 				})
 
 				It("emits routing event", func() {
-					modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 2}
+					modificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
 					routingEvents := routingTable.SetRoutes(desiredLRP)
 					Expect(routingEvents).To(HaveLen(1))
@@ -260,7 +280,7 @@ var _ = Describe("RoutingTable", func() {
 				})
 
 				It("emits routing event", func() {
-					modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 2}
+					modificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
 
 					routingEvents := routingTable.SetRoutes(desiredLRP)
@@ -284,7 +304,7 @@ var _ = Describe("RoutingTable", func() {
 
 			Context("no changes to external port", func() {
 				It("emits nothing", func() {
-					tag := receptor.ModificationTag{Epoch: "abc", Index: 2}
+					tag := &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, tag)
 					routingEvents := routingTable.SetRoutes(desiredLRP)
 					Expect(routingEvents).To(HaveLen(0))
@@ -321,7 +341,7 @@ var _ = Describe("RoutingTable", func() {
 				})
 
 				It("emits two separate registration events with no overlap", func() {
-					modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 2}
+					modificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
 
 					externalInfo1 := []routing_table.ExternalEndpointInfo{
@@ -361,7 +381,7 @@ var _ = Describe("RoutingTable", func() {
 				})
 
 				It("emits nothing", func() {
-					newTag := receptor.ModificationTag{Epoch: "abc", Index: 2}
+					newTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newTag)
 					routingEvents := routingTable.SetRoutes(desiredLRP)
 					Expect(routingEvents).To(HaveLen(0))
@@ -381,7 +401,7 @@ var _ = Describe("RoutingTable", func() {
 				})
 
 				It("emits routing events", func() {
-					newTag := receptor.ModificationTag{Epoch: "abc", Index: 1}
+					newTag := &models.ModificationTag{Epoch: "abc", Index: 1}
 					actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61104, 5222, false, newTag)
 					routingEvents := routingTable.AddEndpoint(actualLRP)
 					Expect(routingEvents).To(HaveLen(1))
@@ -411,7 +431,7 @@ var _ = Describe("RoutingTable", func() {
 
 				Context("with different instance guid", func() {
 					It("emits routing events", func() {
-						newTag := receptor.ModificationTag{Epoch: "abc", Index: 2}
+						newTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 						actualLRP := getActualLRP("process-guid-1", "instance-guid-3", "some-ip-3", 61104, 5222, false, newTag)
 						routingEvents := routingTable.AddEndpoint(actualLRP)
 						Expect(routingEvents).To(HaveLen(1))
@@ -437,7 +457,7 @@ var _ = Describe("RoutingTable", func() {
 				Context("with same instance guid", func() {
 					Context("newer modification tag", func() {
 						It("emits routing events", func() {
-							newTag := receptor.ModificationTag{Epoch: "abc", Index: 2}
+							newTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 							actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61105, 5222, false, newTag)
 							routingEvents := routingTable.AddEndpoint(actualLRP)
 							Expect(routingEvents).To(HaveLen(1))
@@ -461,7 +481,7 @@ var _ = Describe("RoutingTable", func() {
 
 					Context("older modification tag", func() {
 						It("emits nothing", func() {
-							olderTag := receptor.ModificationTag{Epoch: "abc", Index: 0}
+							olderTag := &models.ModificationTag{Epoch: "abc", Index: 0}
 							actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61105, 5222, false, olderTag)
 							routingEvents := routingTable.AddEndpoint(actualLRP)
 							Expect(routingEvents).To(HaveLen(0))
@@ -483,7 +503,7 @@ var _ = Describe("RoutingTable", func() {
 				})
 
 				It("emits nothing", func() {
-					newTag := receptor.ModificationTag{Epoch: "abc", Index: 1}
+					newTag := &models.ModificationTag{Epoch: "abc", Index: 1}
 					actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61104, 5222, false, newTag)
 					routingEvents := routingTable.RemoveEndpoint(actualLRP)
 					Expect(routingEvents).To(HaveLen(0))
@@ -500,7 +520,7 @@ var _ = Describe("RoutingTable", func() {
 
 				Context("with instance guid not present in existing endpoints", func() {
 					It("emits nothing", func() {
-						newTag := receptor.ModificationTag{Epoch: "abc", Index: 2}
+						newTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 						actualLRP := getActualLRP("process-guid-1", "instance-guid-3", "some-ip-3", 62004, 5222, false, newTag)
 						routingEvents := routingTable.RemoveEndpoint(actualLRP)
 						Expect(routingEvents).To(HaveLen(0))
@@ -510,7 +530,7 @@ var _ = Describe("RoutingTable", func() {
 				Context("with same instance guid", func() {
 					Context("newer modification tag", func() {
 						It("emits routing events", func() {
-							newTag := receptor.ModificationTag{Epoch: "abc", Index: 2}
+							newTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 							actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 62004, 5222, false, newTag)
 							routingEvents := routingTable.RemoveEndpoint(actualLRP)
 							Expect(routingEvents).To(HaveLen(1))
@@ -553,7 +573,7 @@ var _ = Describe("RoutingTable", func() {
 
 					Context("older modification tag", func() {
 						It("emits nothing", func() {
-							olderTag := receptor.ModificationTag{Epoch: "abc", Index: 0}
+							olderTag := &models.ModificationTag{Epoch: "abc", Index: 0}
 							actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 62004, 5222, false, olderTag)
 							routingEvents := routingTable.RemoveEndpoint(actualLRP)
 							Expect(routingEvents).To(HaveLen(0))
@@ -593,7 +613,7 @@ var _ = Describe("RoutingTable", func() {
 				tempRoutingTable routing_table.RoutingTable
 				key              routing_table.RoutingKey
 				endpoints        map[routing_table.EndpointKey]routing_table.Endpoint
-				modificationTag  receptor.ModificationTag
+				modificationTag  *models.ModificationTag
 				logGuid          string
 			)
 
@@ -603,7 +623,7 @@ var _ = Describe("RoutingTable", func() {
 					routing_table.NewExternalEndpointInfo(61000),
 				}
 				existingKey := routing_table.NewRoutingKey("process-guid-1", 5222)
-				modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 1}
+				modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
 				existingEndpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
 					routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
 						"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
@@ -664,7 +684,7 @@ var _ = Describe("RoutingTable", func() {
 				routing_table.NewExternalEndpointInfo(61000),
 			}
 			key := routing_table.NewRoutingKey("process-guid-1", 5222)
-			modificationTag := receptor.ModificationTag{Epoch: "abc", Index: 1}
+			modificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}
 			endpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
 				routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
 					"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),

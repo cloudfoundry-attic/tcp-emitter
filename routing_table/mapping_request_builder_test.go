@@ -1,8 +1,8 @@
 package routing_table_test
 
 import (
+	"github.com/cloudfoundry-incubator/bbs/models"
 	cf_tcp_router "github.com/cloudfoundry-incubator/cf-tcp-router"
-	"github.com/cloudfoundry-incubator/receptor"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -27,24 +27,24 @@ var _ = Describe("MappingRequestBuilder", func() {
 		routingKey1             routing_table.RoutingKey
 		routingKey2             routing_table.RoutingKey
 		logGuid                 string
-		modificationTag         receptor.ModificationTag
+		modificationTag         models.ModificationTag
 	)
 
 	BeforeEach(func() {
 		logGuid = "log-guid-1"
-		modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 0}
+		modificationTag = models.ModificationTag{Epoch: "abc", Index: 0}
 
 		endpoints1 = map[routing_table.EndpointKey]routing_table.Endpoint{
 			routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
-				"instance-guid-1", false, "some-ip-1", 62003, 5222, modificationTag),
+				"instance-guid-1", false, "some-ip-1", 62003, 5222, &modificationTag),
 			routing_table.NewEndpointKey("instance-guid-2", false): routing_table.NewEndpoint(
-				"instance-guid-2", false, "some-ip-2", 62004, 5222, modificationTag),
+				"instance-guid-2", false, "some-ip-2", 62004, 5222, &modificationTag),
 		}
 		endpoints2 = map[routing_table.EndpointKey]routing_table.Endpoint{
 			routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
-				"instance-guid-3", false, "some-ip-3", 62005, 5222, modificationTag),
+				"instance-guid-3", false, "some-ip-3", 62005, 5222, &modificationTag),
 			routing_table.NewEndpointKey("instance-guid-2", false): routing_table.NewEndpoint(
-				"instance-guid-4", false, "some-ip-4", 62006, 5222, modificationTag),
+				"instance-guid-4", false, "some-ip-4", 62006, 5222, &modificationTag),
 		}
 
 		routingKey1 = routing_table.NewRoutingKey("process-guid-1", 5222)
@@ -61,9 +61,9 @@ var _ = Describe("MappingRequestBuilder", func() {
 		}
 
 		routableEndpoints1 := routing_table.NewRoutableEndpoints(
-			endpointInfo1, endpoints1, logGuid, modificationTag)
+			endpointInfo1, endpoints1, logGuid, &modificationTag)
 		routableEndpoints2 := routing_table.NewRoutableEndpoints(
-			endpointInfo2, endpoints2, logGuid, modificationTag)
+			endpointInfo2, endpoints2, logGuid, &modificationTag)
 
 		routingEvents = routing_table.RoutingEvents{
 			routing_table.RoutingEvent{
@@ -121,7 +121,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 			}
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(
-				extenralEndpointInfo1, endpoints1, logGuid, modificationTag)
+				extenralEndpointInfo1, endpoints1, logGuid, &modificationTag)
 
 			routingEvents = routing_table.RoutingEvents{
 				routing_table.RoutingEvent{
@@ -145,7 +145,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 				}
 
 				routableEndpoints1 := routing_table.NewRoutableEndpoints(
-					externalInfo, endpoints1, logGuid, modificationTag)
+					externalInfo, endpoints1, logGuid, &modificationTag)
 
 				routingEvents = routing_table.RoutingEvents{
 					routing_table.RoutingEvent{
@@ -168,7 +168,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 			}
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(
-				extenralEndpointInfo1, nil, logGuid, modificationTag)
+				extenralEndpointInfo1, nil, logGuid, &modificationTag)
 
 			routingEvents = routing_table.RoutingEvents{
 				routing_table.RoutingEvent{

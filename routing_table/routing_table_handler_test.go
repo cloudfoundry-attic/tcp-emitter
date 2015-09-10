@@ -2,8 +2,9 @@ package routing_table_test
 
 import (
 	"errors"
-	"github.com/cloudfoundry-incubator/receptor"
-	"github.com/cloudfoundry-incubator/receptor/fake_receptor"
+
+	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
+	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
@@ -17,34 +18,34 @@ var _ = Describe("RoutingTableHandler", func() {
 		fakeRoutingTable    *fakes.FakeRoutingTable
 		fakeEmitter         *fakes.FakeEmitter
 		routingTableHandler routing_table.RoutingTableHandler
-		fakeReceptorClient  *fake_receptor.FakeClient
+		fakeBbsClient       *fake_bbs.FakeClient
 	)
 
 	BeforeEach(func() {
 		fakeRoutingTable = new(fakes.FakeRoutingTable)
 		fakeEmitter = new(fakes.FakeEmitter)
-		fakeReceptorClient = new(fake_receptor.FakeClient)
-		routingTableHandler = routing_table.NewRoutingTableHandler(logger, fakeRoutingTable, fakeEmitter, fakeReceptorClient)
+		fakeBbsClient = new(fake_bbs.FakeClient)
+		routingTableHandler = routing_table.NewRoutingTableHandler(logger, fakeRoutingTable, fakeEmitter, fakeBbsClient)
 	})
 
 	Describe("DesiredLRP Event", func() {
 		var (
-			desiredLRP    receptor.DesiredLRPResponse
+			desiredLRP    *models.DesiredLRP
 			routingEvents routing_table.RoutingEvents
 		)
 
 		BeforeEach(func() {
-			externalPort := uint16(61000)
-			containerPort := uint16(5222)
+			externalPort := uint32(61000)
+			containerPort := uint32(5222)
 			tcpRoutes := tcp_routes.TCPRoutes{
 				tcp_routes.TCPRoute{
 					ExternalPort:  externalPort,
 					ContainerPort: containerPort,
 				},
 			}
-			desiredLRP = receptor.DesiredLRPResponse{
+			desiredLRP = &models.DesiredLRP{
 				ProcessGuid: "process-guid-1",
-				Ports:       []uint16{containerPort},
+				Ports:       []uint32{containerPort},
 				LogGuid:     "log-guid",
 				Routes:      tcpRoutes.RoutingInfo(),
 			}
@@ -59,7 +60,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		Describe("HandleDesiredCreate", func() {
 			JustBeforeEach(func() {
-				routingTableHandler.HandleEvent(receptor.NewDesiredLRPCreatedEvent(desiredLRP))
+				routingTableHandler.HandleEvent(models.NewDesiredLRPCreatedEvent(desiredLRP))
 			})
 
 			It("invokes SetRoutes on RoutingTable", func() {
@@ -92,27 +93,27 @@ var _ = Describe("RoutingTableHandler", func() {
 		})
 
 		Describe("HandleDesiredUpdate", func() {
-			var after receptor.DesiredLRPResponse
+			var after *models.DesiredLRP
 
 			BeforeEach(func() {
-				externalPort := uint16(62000)
-				containerPort := uint16(5222)
+				externalPort := uint32(62000)
+				containerPort := uint32(5222)
 				tcpRoutes := tcp_routes.TCPRoutes{
 					tcp_routes.TCPRoute{
 						ExternalPort:  externalPort,
 						ContainerPort: containerPort,
 					},
 				}
-				after = receptor.DesiredLRPResponse{
+				after = &models.DesiredLRP{
 					ProcessGuid: "process-guid-1",
-					Ports:       []uint16{containerPort},
+					Ports:       []uint32{containerPort},
 					LogGuid:     "log-guid",
 					Routes:      tcpRoutes.RoutingInfo(),
 				}
 			})
 
 			JustBeforeEach(func() {
-				routingTableHandler.HandleEvent(receptor.NewDesiredLRPChangedEvent(desiredLRP, after))
+				routingTableHandler.HandleEvent(models.NewDesiredLRPChangedEvent(desiredLRP, after))
 			})
 
 			It("invokes SetRoutes on RoutingTable", func() {
@@ -146,7 +147,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		Describe("HandleDesiredDelete", func() {
 			JustBeforeEach(func() {
-				routingTableHandler.HandleEvent(receptor.NewDesiredLRPRemovedEvent(desiredLRP))
+				routingTableHandler.HandleEvent(models.NewDesiredLRPRemovedEvent(desiredLRP))
 			})
 
 			It("does not invoke SetRoutes on RoutingTable", func() {
@@ -158,7 +159,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 	Describe("ActualLRP Event", func() {
 		var (
-			actualLRP     receptor.ActualLRPResponse
+			actualLRP     *models.ActualLRPGroup
 			routingEvents routing_table.RoutingEvents
 		)
 
@@ -175,18 +176,22 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		Describe("HandleActualCreate", func() {
 			JustBeforeEach(func() {
-				routingTableHandler.HandleEvent(receptor.NewActualLRPCreatedEvent(actualLRP))
+				routingTableHandler.HandleEvent(models.NewActualLRPCreatedEvent(actualLRP))
 			})
 
 			Context("when state is Running", func() {
 				BeforeEach(func() {
-					actualLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "some-ip",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateRunning,
-						Ports:        []receptor.PortMapping{{ContainerPort: 5222, HostPort: 61106}},
+					actualLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"some-ip",
+								models.NewPortMapping(611006, 5222),
+							),
+							State: models.ActualLRPStateRunning,
+						},
+						Evacuating: nil,
 					}
 				})
 
@@ -221,13 +226,17 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			Context("when state is not in Running", func() {
 				BeforeEach(func() {
-					actualLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "some-ip",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateClaimed,
-						Ports:        []receptor.PortMapping{{ContainerPort: 5222, HostPort: 61106}},
+					actualLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"some-ip",
+								models.NewPortMapping(611006, 5222),
+							),
+							State: models.ActualLRPStateClaimed,
+						},
+						Evacuating: nil,
 					}
 				})
 
@@ -243,31 +252,38 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		Describe("HandleActualUpdate", func() {
 			var (
-				afterLRP receptor.ActualLRPResponse
+				afterLRP *models.ActualLRPGroup
 			)
 
 			JustBeforeEach(func() {
-				routingTableHandler.HandleEvent(receptor.NewActualLRPChangedEvent(actualLRP, afterLRP))
+				routingTableHandler.HandleEvent(models.NewActualLRPChangedEvent(actualLRP, afterLRP))
 			})
 
 			Context("when after state is Running", func() {
 				BeforeEach(func() {
-					actualLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateClaimed,
-						Ports:        []receptor.PortMapping{},
+					actualLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"",
+							),
+							State: models.ActualLRPStateClaimed,
+						},
+						Evacuating: nil,
 					}
 
-					afterLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "some-ip",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateRunning,
-						Ports:        []receptor.PortMapping{{ContainerPort: 5222, HostPort: 61106}},
+					afterLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"some-ip",
+								models.NewPortMapping(611006, 5222),
+							),
+							State: models.ActualLRPStateRunning,
+						},
+						Evacuating: nil,
 					}
 				})
 
@@ -302,22 +318,29 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			Context("when after state is not Running and before state is Running", func() {
 				BeforeEach(func() {
-					actualLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "some-ip",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateRunning,
-						Ports:        []receptor.PortMapping{{ContainerPort: 5222, HostPort: 61106}},
+					actualLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"some-ip",
+								models.NewPortMapping(611006, 5222),
+							),
+							State: models.ActualLRPStateRunning,
+						},
+						Evacuating: nil,
 					}
 
-					afterLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateCrashed,
-						Ports:        []receptor.PortMapping{},
+					afterLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"",
+							),
+							State: models.ActualLRPStateCrashed,
+						},
+						Evacuating: nil,
 					}
 				})
 
@@ -352,22 +375,28 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			Context("when both after and before state is not Running", func() {
 				BeforeEach(func() {
-					actualLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateUnclaimed,
-						Ports:        []receptor.PortMapping{},
+					actualLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", ""),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"",
+							),
+							State: models.ActualLRPStateUnclaimed,
+						},
+						Evacuating: nil,
 					}
 
-					afterLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateClaimed,
-						Ports:        []receptor.PortMapping{},
+					afterLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"",
+							),
+							State: models.ActualLRPStateClaimed,
+						},
+						Evacuating: nil,
 					}
 				})
 
@@ -387,18 +416,22 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		Describe("HandleActualDelete", func() {
 			JustBeforeEach(func() {
-				routingTableHandler.HandleEvent(receptor.NewActualLRPRemovedEvent(actualLRP))
+				routingTableHandler.HandleEvent(models.NewActualLRPRemovedEvent(actualLRP))
 			})
 
 			Context("when state is Running", func() {
 				BeforeEach(func() {
-					actualLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "some-ip",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateRunning,
-						Ports:        []receptor.PortMapping{{ContainerPort: 5222, HostPort: 61106}},
+					actualLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"some-ip",
+								models.NewPortMapping(611006, 5222),
+							),
+							State: models.ActualLRPStateRunning,
+						},
+						Evacuating: nil,
 					}
 				})
 
@@ -433,13 +466,16 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			Context("when state is not in Running", func() {
 				BeforeEach(func() {
-					actualLRP = receptor.ActualLRPResponse{
-						ProcessGuid:  "process-guid",
-						InstanceGuid: "instance-guid",
-						Address:      "some-ip",
-						Evacuating:   false,
-						State:        receptor.ActualLRPStateClaimed,
-						Ports:        []receptor.PortMapping{{ContainerPort: 5222, HostPort: 61106}},
+					actualLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"",
+							),
+							State: models.ActualLRPStateClaimed,
+						},
+						Evacuating: nil,
 					}
 				})
 
@@ -473,30 +509,30 @@ var _ = Describe("RoutingTableHandler", func() {
 		Context("when events are received", func() {
 			var (
 				syncChannel chan struct{}
-				desiredLRP  receptor.DesiredLRPResponse
+				desiredLRP  *models.DesiredLRP
 			)
 
 			BeforeEach(func() {
 				syncChannel = make(chan struct{})
 				tmpSyncChannel := syncChannel
-				fakeReceptorClient.DesiredLRPsStub = func() ([]receptor.DesiredLRPResponse, error) {
+				fakeBbsClient.DesiredLRPsStub = func(filter models.DesiredLRPFilter) ([]*models.DesiredLRP, error) {
 					select {
 					case <-tmpSyncChannel:
 						logger.Info("Desired LRPs complete")
 					}
 					return nil, nil
 				}
-				externalPort := uint16(61000)
-				containerPort := uint16(5222)
+				externalPort := uint32(61000)
+				containerPort := uint32(5222)
 				tcpRoutes := tcp_routes.TCPRoutes{
 					tcp_routes.TCPRoute{
 						ExternalPort:  externalPort,
 						ContainerPort: containerPort,
 					},
 				}
-				desiredLRP = receptor.DesiredLRPResponse{
+				desiredLRP = &models.DesiredLRP{
 					ProcessGuid: "process-guid-1",
-					Ports:       []uint16{containerPort},
+					Ports:       []uint32{containerPort},
 					LogGuid:     "log-guid",
 					Routes:      tcpRoutes.RoutingInfo(),
 				}
@@ -507,7 +543,7 @@ var _ = Describe("RoutingTableHandler", func() {
 				Eventually(routingTableHandler.Syncing).Should(BeTrue())
 
 				Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
-				routingTableHandler.HandleEvent(receptor.NewDesiredLRPCreatedEvent(desiredLRP))
+				routingTableHandler.HandleEvent(models.NewDesiredLRPCreatedEvent(desiredLRP))
 				Consistently(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
 				Eventually(logger).Should(gbytes.Say("test.caching-event"))
 
@@ -519,9 +555,9 @@ var _ = Describe("RoutingTableHandler", func() {
 			})
 		})
 
-		Context("when receptor returns error while fetching desired lrps", func() {
+		Context("when bbs server returns error while fetching desired lrps", func() {
 			BeforeEach(func() {
-				fakeReceptorClient.DesiredLRPsReturns(nil, errors.New("kaboom"))
+				fakeBbsClient.DesiredLRPsReturns(nil, errors.New("kaboom"))
 			})
 
 			It("does not update the routing table", func() {
@@ -533,9 +569,9 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		})
 
-		Context("when receptor returns error while fetching actual lrps", func() {
+		Context("when bbs server returns error while fetching actual lrps", func() {
 			BeforeEach(func() {
-				fakeReceptorClient.ActualLRPsReturns(nil, errors.New("kaboom"))
+				fakeBbsClient.ActualLRPGroupsReturns(nil, errors.New("kaboom"))
 			})
 
 			It("does not update the routing table", func() {
@@ -546,8 +582,8 @@ var _ = Describe("RoutingTableHandler", func() {
 			})
 		})
 
-		Context("when receptor calls return successfully", func() {
-			Context("when receptor returns no data", func() {
+		Context("when bbs server calls return successfully", func() {
+			Context("when bbs server returns no data", func() {
 				It("does not update the routing table", func() {
 					go invokeSync(doneChannel)
 					Eventually(doneChannel).Should(BeClosed())
@@ -555,18 +591,18 @@ var _ = Describe("RoutingTableHandler", func() {
 				})
 			})
 
-			Context("when receptor returns desired and actual lrps", func() {
+			Context("when bbs server returns desired and actual lrps", func() {
 
 				var (
-					desiredLRP      receptor.DesiredLRPResponse
-					actualLRP       receptor.ActualLRPResponse
-					modificationTag receptor.ModificationTag
+					desiredLRP      *models.DesiredLRP
+					actualLRP       *models.ActualLRPGroup
+					modificationTag models.ModificationTag
 				)
 
 				BeforeEach(func() {
-					modificationTag = receptor.ModificationTag{Epoch: "abc", Index: 1}
-					externalPort := uint16(61000)
-					containerPort := uint16(5222)
+					modificationTag = models.ModificationTag{Epoch: "abc", Index: 1}
+					externalPort := uint32(61000)
+					containerPort := uint32(5222)
 					tcpRoutes := tcp_routes.TCPRoutes{
 						tcp_routes.TCPRoute{
 							ExternalPort:  externalPort,
@@ -574,24 +610,28 @@ var _ = Describe("RoutingTableHandler", func() {
 						},
 					}
 
-					desiredLRP = receptor.DesiredLRPResponse{
+					desiredLRP = &models.DesiredLRP{
 						ProcessGuid:     "process-guid-1",
-						Ports:           []uint16{containerPort},
+						Ports:           []uint32{containerPort},
 						LogGuid:         "log-guid",
 						Routes:          tcpRoutes.RoutingInfo(),
-						ModificationTag: modificationTag,
+						ModificationTag: &modificationTag,
 					}
-					actualLRP = receptor.ActualLRPResponse{
-						ProcessGuid:     "process-guid-1",
-						InstanceGuid:    "instance-guid",
-						Address:         "some-ip",
-						Evacuating:      false,
-						State:           receptor.ActualLRPStateRunning,
-						Ports:           []receptor.PortMapping{{ContainerPort: 5222, HostPort: 61106}},
-						ModificationTag: modificationTag,
+					actualLRP = &models.ActualLRPGroup{
+						Instance: &models.ActualLRP{
+							ActualLRPKey:         models.NewActualLRPKey("process-guid-1", 0, "domain"),
+							ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
+							ActualLRPNetInfo: models.NewActualLRPNetInfo(
+								"some-ip",
+								models.NewPortMapping(61006, 5222),
+							),
+							State:           models.ActualLRPStateRunning,
+							ModificationTag: modificationTag,
+						},
+						Evacuating: nil,
 					}
-					fakeReceptorClient.DesiredLRPsReturns([]receptor.DesiredLRPResponse{desiredLRP}, nil)
-					fakeReceptorClient.ActualLRPsReturns([]receptor.ActualLRPResponse{actualLRP}, nil)
+					fakeBbsClient.DesiredLRPsReturns([]*models.DesiredLRP{desiredLRP}, nil)
+					fakeBbsClient.ActualLRPGroupsReturns([]*models.ActualLRPGroup{actualLRP}, nil)
 
 					fakeRoutingTable.SwapStub = func(t routing_table.RoutingTable) routing_table.RoutingEvents {
 						routingEvents := routing_table.RoutingEvents{
@@ -616,29 +656,33 @@ var _ = Describe("RoutingTableHandler", func() {
 
 					var (
 						syncChannel          chan struct{}
-						afterActualLRP       receptor.ActualLRPResponse
-						afterModificationTag receptor.ModificationTag
+						afterActualLRP       *models.ActualLRPGroup
+						afterModificationTag models.ModificationTag
 					)
 
 					BeforeEach(func() {
-						afterModificationTag = receptor.ModificationTag{Epoch: "abc", Index: 2}
-						afterActualLRP = receptor.ActualLRPResponse{
-							ProcessGuid:     "process-guid-1",
-							InstanceGuid:    "instance-guid",
-							Address:         "some-ip-1",
-							Evacuating:      false,
-							State:           receptor.ActualLRPStateRunning,
-							Ports:           []receptor.PortMapping{{ContainerPort: 5222, HostPort: 61107}},
-							ModificationTag: afterModificationTag,
+						afterModificationTag = models.ModificationTag{Epoch: "abc", Index: 2}
+						afterActualLRP = &models.ActualLRPGroup{
+							Instance: &models.ActualLRP{
+								ActualLRPKey:         models.NewActualLRPKey("process-guid-1", 0, "domain"),
+								ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id-1"),
+								ActualLRPNetInfo: models.NewActualLRPNetInfo(
+									"some-ip-1",
+									models.NewPortMapping(61007, 5222),
+								),
+								State:           models.ActualLRPStateRunning,
+								ModificationTag: afterModificationTag,
+							},
+							Evacuating: nil,
 						}
 						syncChannel = make(chan struct{})
 						tmpSyncChannel := syncChannel
-						fakeReceptorClient.DesiredLRPsStub = func() ([]receptor.DesiredLRPResponse, error) {
+						fakeBbsClient.DesiredLRPsStub = func(filter models.DesiredLRPFilter) ([]*models.DesiredLRP, error) {
 							select {
 							case <-tmpSyncChannel:
 								logger.Info("Desired LRPs complete")
 							}
-							return []receptor.DesiredLRPResponse{desiredLRP}, nil
+							return []*models.DesiredLRP{desiredLRP}, nil
 						}
 					})
 
@@ -647,7 +691,7 @@ var _ = Describe("RoutingTableHandler", func() {
 						Eventually(routingTableHandler.Syncing).Should(BeTrue())
 
 						Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
-						routingTableHandler.HandleEvent(receptor.NewActualLRPChangedEvent(actualLRP, afterActualLRP))
+						routingTableHandler.HandleEvent(models.NewActualLRPChangedEvent(actualLRP, afterActualLRP))
 						Consistently(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
 						Eventually(logger).Should(gbytes.Say("test.caching-event"))
 
@@ -669,7 +713,7 @@ var _ = Describe("RoutingTableHandler", func() {
 						}
 						endpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
 							routing_table.NewEndpointKey("instance-guid", false): routing_table.NewEndpoint(
-								"instance-guid", false, "some-ip-1", 61107, 5222, afterModificationTag),
+								"instance-guid", false, "some-ip-1", 61007, 5222, &afterModificationTag),
 						}
 
 						Expect(routingEvent.Key).Should(Equal(key))
@@ -678,7 +722,7 @@ var _ = Describe("RoutingTableHandler", func() {
 							routing_table.NewExternalEndpointInfo(61000),
 						}
 						expectedEntry := routing_table.NewRoutableEndpoints(
-							externalInfo, endpoints, "log-guid", modificationTag)
+							externalInfo, endpoints, "log-guid", &modificationTag)
 						Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 					})
 

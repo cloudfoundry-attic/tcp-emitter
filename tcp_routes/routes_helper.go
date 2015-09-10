@@ -3,7 +3,7 @@ package tcp_routes
 import (
 	"encoding/json"
 
-	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/bbs/models"
 )
 
 const TCP_ROUTER = "tcp-router"
@@ -11,22 +11,24 @@ const TCP_ROUTER = "tcp-router"
 type TCPRoutes []TCPRoute
 
 type TCPRoute struct {
-	ExternalPort  uint16 `json:"external_port"`
-	ContainerPort uint16 `json:"container_port"`
+	ExternalPort  uint32 `json:"external_port"`
+	ContainerPort uint32 `json:"container_port"`
 }
 
-func (c TCPRoutes) RoutingInfo() receptor.RoutingInfo {
+func (c TCPRoutes) RoutingInfo() *models.Routes {
 	data, _ := json.Marshal(c)
 	routingInfo := json.RawMessage(data)
-	return receptor.RoutingInfo{
+	return &models.Routes{
 		TCP_ROUTER: &routingInfo,
 	}
 }
 
-func TCPRoutesFromRoutingInfo(routingInfo receptor.RoutingInfo) (TCPRoutes, error) {
-	if routingInfo == nil {
+func TCPRoutesFromRoutingInfo(routingInfoPtr *models.Routes) (TCPRoutes, error) {
+	if routingInfoPtr == nil {
 		return nil, nil
 	}
+
+	routingInfo := *routingInfoPtr
 
 	data, found := routingInfo[TCP_ROUTER]
 	if !found {

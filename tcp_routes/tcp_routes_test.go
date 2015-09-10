@@ -3,7 +3,7 @@ package tcp_routes_test
 import (
 	"encoding/json"
 
-	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
 
 	. "github.com/onsi/ginkgo"
@@ -37,10 +37,15 @@ var _ = Describe("TcpRoutes", func() {
 	})
 
 	Describe("RoutingInfo", func() {
-		var routingInfo receptor.RoutingInfo
+		var (
+			routingInfoPtr *models.Routes
+			routingInfo    models.Routes
+		)
 
 		JustBeforeEach(func() {
-			routingInfo = routes.RoutingInfo()
+			routingInfoPtr = routes.RoutingInfo()
+			Expect(routingInfoPtr).NotTo(BeNil())
+			routingInfo = *routingInfoPtr
 		})
 
 		It("wraps the serialized routes with the correct key", func() {
@@ -71,7 +76,7 @@ var _ = Describe("TcpRoutes", func() {
 		var (
 			routesResult    tcp_routes.TCPRoutes
 			conversionError error
-			routingInfo     receptor.RoutingInfo
+			routingInfo     *models.Routes
 		)
 
 		JustBeforeEach(func() {
@@ -89,7 +94,7 @@ var _ = Describe("TcpRoutes", func() {
 
 			Context("when the TCP routes are nil", func() {
 				BeforeEach(func() {
-					routingInfo = receptor.RoutingInfo{tcp_routes.TCP_ROUTER: nil}
+					routingInfo = &models.Routes{tcp_routes.TCP_ROUTER: nil}
 				})
 
 				It("returns nil routes", func() {
@@ -101,7 +106,7 @@ var _ = Describe("TcpRoutes", func() {
 
 		Context("when TCP routes are not present in the routing info", func() {
 			BeforeEach(func() {
-				routingInfo = receptor.RoutingInfo{}
+				routingInfo = &models.Routes{}
 			})
 
 			It("returns nil routes", func() {

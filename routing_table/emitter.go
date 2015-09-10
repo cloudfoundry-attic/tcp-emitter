@@ -67,7 +67,7 @@ func (emitter *tcpEmitter) logRoutingEvents(routingEvents RoutingEvents) {
 			endpoints = append(endpoints, endpoint)
 		}
 
-		ports := make([]uint16, 0)
+		ports := make([]uint32, 0)
 		for _, extEndpoint := range event.Entry.ExternalEndpoints {
 			ports = append(ports, extEndpoint.Port)
 		}

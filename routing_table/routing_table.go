@@ -3,7 +3,7 @@ package routing_table
 import (
 	"sync"
 
-	"github.com/cloudfoundry-incubator/receptor"
+	"github.com/cloudfoundry-incubator/bbs/models"
 
 	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
 	"github.com/pivotal-golang/lager"
@@ -13,10 +13,10 @@ import (
 type RoutingTable interface {
 	RouteCount() int
 
-	SetRoutes(desiredLRP receptor.DesiredLRPResponse) RoutingEvents
+	SetRoutes(desiredLRP *models.DesiredLRP) RoutingEvents
 
-	AddEndpoint(actualLRP receptor.ActualLRPResponse) RoutingEvents
-	RemoveEndpoint(actualLRP receptor.ActualLRPResponse) RoutingEvents
+	AddEndpoint(actualLRP *models.ActualLRPGroup) RoutingEvents
+	RemoveEndpoint(actualLRP *models.ActualLRPGroup) RoutingEvents
 
 	Swap(t RoutingTable) RoutingEvents
 
@@ -85,7 +85,7 @@ func (table *routingTable) RouteCount() int {
 	return len(table.entries)
 }
 
-func (table *routingTable) SetRoutes(desiredLRP receptor.DesiredLRPResponse) RoutingEvents {
+func (table *routingTable) SetRoutes(desiredLRP *models.DesiredLRP) RoutingEvents {
 	logger := table.logger.Session("SetRoutes", lager.Data{"desired_lrp": desiredLRP})
 	logger.Debug("starting")
 	defer logger.Debug("completed")
@@ -134,7 +134,7 @@ func (table *routingTable) setRoutes(
 }
 
 func (table *routingTable) generateRoutingEvents(logger lager.Logger,
-	updatedKeys map[RoutingKey]struct{}, logGuid string, modificationTag receptor.ModificationTag) RoutingEvents {
+	updatedKeys map[RoutingKey]struct{}, logGuid string, modificationTag *models.ModificationTag) RoutingEvents {
 
 	routingEvents := RoutingEvents{}
 	for key, _ := range updatedKeys {
@@ -147,7 +147,7 @@ func (table *routingTable) generateRoutingEvents(logger lager.Logger,
 	return routingEvents
 }
 
-func (table *routingTable) AddEndpoint(actualLRP receptor.ActualLRPResponse) RoutingEvents {
+func (table *routingTable) AddEndpoint(actualLRP *models.ActualLRPGroup) RoutingEvents {
 	logger := table.logger.Session("AddEndpoint", lager.Data{"actual_lrp": actualLRP})
 	logger.Debug("starting")
 	defer logger.Debug("completed")
@@ -185,7 +185,7 @@ func (table *routingTable) addEndpoint(logger lager.Logger, key RoutingKey, endp
 	return table.getRegistrationEvents(logger, key, currentEntry, newEntry)
 }
 
-func (table *routingTable) RemoveEndpoint(actualLRP receptor.ActualLRPResponse) RoutingEvents {
+func (table *routingTable) RemoveEndpoint(actualLRP *models.ActualLRPGroup) RoutingEvents {
 	logger := table.logger.Session("RemoveEndpoint", lager.Data{"actual_lrp": actualLRP})
 	logger.Debug("starting")
 	defer logger.Debug("completed")
@@ -279,7 +279,7 @@ func hasNoExternalPorts(logger lager.Logger, externalEndpoints ExternalEndpointI
 	return false
 }
 
-func isNewExternalEndpoint(endpoints ExternalEndpointInfos, port uint16) bool {
+func isNewExternalEndpoint(endpoints ExternalEndpointInfos, port uint32) bool {
 	for _, existing := range endpoints {
 		if existing.Port == port {
 			return false

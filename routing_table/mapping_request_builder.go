@@ -28,9 +28,9 @@ func mapRoutingEvent(routingEvent RoutingEvent) *cf_tcp_router.MappingRequests {
 
 		backends := cf_tcp_router.BackendHostInfos{}
 		for _, endpoint := range routingEvent.Entry.Endpoints {
-			backends = append(backends, cf_tcp_router.NewBackendHostInfo(endpoint.Host, endpoint.Port))
+			backends = append(backends, cf_tcp_router.NewBackendHostInfo(endpoint.Host, uint16(endpoint.Port)))
 		}
-		mappingRequests = append(mappingRequests, cf_tcp_router.NewMappingRequest(externalEndpoint.Port, backends))
+		mappingRequests = append(mappingRequests, cf_tcp_router.NewMappingRequest(uint16(externalEndpoint.Port), backends))
 	}
 	return &mappingRequests
 }
