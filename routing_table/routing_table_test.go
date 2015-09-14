@@ -223,7 +223,7 @@ var _ = Describe("RoutingTable", func() {
 				Expect(routingTable.RouteCount()).Should(Equal(1))
 			})
 
-			Context("only external port changes", func() {
+			Context("existing external port changes", func() {
 				BeforeEach(func() {
 					tcpRoutes = tcp_routes.TCPRoutes{
 						tcp_routes.TCPRoute{
@@ -233,7 +233,48 @@ var _ = Describe("RoutingTable", func() {
 					}
 				})
 
-				It("emits routing event", func() {
+				It("emits routing event with modified external port", func() {
+					modificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
+					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
+					routingEvents := routingTable.SetRoutes(desiredLRP)
+					Expect(routingEvents).To(HaveLen(1))
+					routingEvent := routingEvents[0]
+					Expect(routingEvent.Key).Should(Equal(key))
+					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
+					externalInfo := []routing_table.ExternalEndpointInfo{
+						routing_table.NewExternalEndpointInfo(61001),
+					}
+					expectedEntry := routing_table.NewRoutableEndpoints(
+						externalInfo, endpoints, logGuid, modificationTag)
+					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
+					Expect(routingTable.RouteCount()).Should(Equal(1))
+				})
+
+				Context("older modification tag", func() {
+					It("emits nothing", func() {
+						desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
+						routingEvents := routingTable.SetRoutes(desiredLRP)
+						Expect(routingEvents).To(HaveLen(0))
+						Expect(routingTable.RouteCount()).Should(Equal(1))
+					})
+				})
+			})
+
+			Context("new external port is added", func() {
+				BeforeEach(func() {
+					tcpRoutes = tcp_routes.TCPRoutes{
+						tcp_routes.TCPRoute{
+							ExternalPort:  61000,
+							ContainerPort: 5222,
+						},
+						tcp_routes.TCPRoute{
+							ExternalPort:  61001,
+							ContainerPort: 5222,
+						},
+					}
+				})
+
+				It("emits routing event with both external ports", func() {
 					modificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
 					routingEvents := routingTable.SetRoutes(desiredLRP)
@@ -345,7 +386,6 @@ var _ = Describe("RoutingTable", func() {
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
 
 					externalInfo1 := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo(61000),
 						routing_table.NewExternalEndpointInfo(61001),
 					}
 					expectedEntry1 := routing_table.NewRoutableEndpoints(
@@ -370,7 +410,7 @@ var _ = Describe("RoutingTable", func() {
 				})
 			})
 
-			Context("when container ports doesn't match", func() {
+			Context("when container ports don't match", func() {
 				BeforeEach(func() {
 					tcpRoutes = tcp_routes.TCPRoutes{
 						tcp_routes.TCPRoute{

@@ -119,15 +119,23 @@ func (table *routingTable) setRoutes(
 	key RoutingKey) bool {
 	var updated bool
 
-	for _, route := range routes {
-		if key.ContainerPort == route.ContainerPort &&
-			isNewExternalEndpoint(existingEntry.ExternalEndpoints, route.ExternalPort) {
-			existingEntry.ExternalEndpoints = append(existingEntry.ExternalEndpoints,
-				NewExternalEndpointInfo(route.ExternalPort))
+	var newExternalEndpoints ExternalEndpointInfos
 
-			table.entries[key] = existingEntry
-			updated = true
+	for _, route := range routes {
+		if key.ContainerPort == route.ContainerPort {
+			if isNewExternalEndpoint(existingEntry.ExternalEndpoints, route.ExternalPort) {
+				newExternalEndpoints = append(newExternalEndpoints,
+					NewExternalEndpointInfo(route.ExternalPort))
+				updated = true
+			} else {
+				newExternalEndpoints = append(newExternalEndpoints,
+					NewExternalEndpointInfo(route.ExternalPort))
+			}
 		}
+	}
+	if updated {
+		existingEntry.ExternalEndpoints = newExternalEndpoints
+		table.entries[key] = existingEntry
 	}
 
 	return updated
