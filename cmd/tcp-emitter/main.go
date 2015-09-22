@@ -44,6 +44,24 @@ var syncInterval = flag.Duration(
 	"The interval between syncs of the routing table from bbs.",
 )
 
+var bbsCACert = flag.String(
+	"bbsCACert",
+	"",
+	"path to certificate authority cert used for mutually authenticated TLS BBS communication",
+)
+
+var bbsClientCert = flag.String(
+	"bbsClientCert",
+	"",
+	"path to client cert used for mutually authenticated TLS BBS communication",
+)
+
+var bbsClientKey = flag.String(
+	"bbsClientKey",
+	"",
+	"path to client key used for mutually authenticated TLS BBS communication",
+)
+
 const (
 	dropsondeDestination = "localhost:3457"
 	dropsondeOrigin      = "route_emitter"
@@ -61,7 +79,12 @@ func main() {
 
 	initializeDropsonde(logger)
 
-	bbsClient := bbs.NewClient(*bbsAddress)
+	bbsClient, err := bbs.NewSecureClient(*bbsAddress, *bbsCACert, *bbsClientCert, *bbsClientKey)
+	if err != nil {
+		logger.Error("Failed to configure secure BBS client", err)
+		os.Exit(1)
+	}
+
 	emitter := routing_table.NewEmitter(logger, *tcpRouterAPIURL)
 	routingTable := routing_table.NewTable(logger, nil)
 	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, bbsClient)
@@ -86,7 +109,7 @@ func main() {
 
 	logger.Info("started")
 
-	err := <-monitor.Wait()
+	err = <-monitor.Wait()
 	if err != nil {
 		logger.Error("exited-with-failure", err)
 		os.Exit(1)
