@@ -1,23 +1,28 @@
 package routing_table_test
 
 import (
-	"encoding/json"
+	"errors"
 
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/cf-tcp-router"
+	"github.com/cloudfoundry-incubator/routing-api/db"
+	"github.com/cloudfoundry-incubator/routing-api/fake_routing_api"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
+	"github.com/cloudfoundry-incubator/uaa-token-fetcher"
+	testTokenFetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher/fakes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/ghttp"
+	"github.com/onsi/gomega/gbytes"
 )
 
 var _ = Describe("Emitter", func() {
 
 	var (
-		emitter       routing_table.Emitter
-		routingEvents routing_table.RoutingEvents
-		fakeRouterAPI *ghttp.Server
+		emitter                 routing_table.Emitter
+		routingApiClient        *fake_routing_api.FakeClient
+		tokenFetcher            *testTokenFetcher.FakeTokenFetcher
+		routingEvents           routing_table.RoutingEvents
+		expectedMappingRequests []db.TcpRouteMapping
 	)
 
 	BeforeEach(func() {
@@ -33,6 +38,10 @@ var _ = Describe("Emitter", func() {
 
 		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
 
+		expectedMappingRequests = []db.TcpRouteMapping{
+			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
+		}
+
 		routableEndpoints1 := routing_table.NewRoutableEndpoints(
 			routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)
 
@@ -44,51 +53,51 @@ var _ = Describe("Emitter", func() {
 			},
 		}
 
-		fakeRouterAPI = ghttp.NewServer()
-		emitter = routing_table.NewEmitter(logger, fakeRouterAPI.URL())
-	})
-
-	AfterEach(func() {
-		defer fakeRouterAPI.Close()
+		routingApiClient = new(fake_routing_api.FakeClient)
+		tokenFetcher = &testTokenFetcher.FakeTokenFetcher{}
+		tokenFetcher.FetchTokenReturns(&token_fetcher.Token{"some-token", 1234}, nil)
+		emitter = routing_table.NewEmitter(logger, routingApiClient, tokenFetcher)
 	})
 
 	Context("when valid routing events are provided", func() {
 
 		Context("when router API returns no errors", func() {
-			BeforeEach(func() {
-				expectedMappingRequests := cf_tcp_router.MappingRequests{
-					cf_tcp_router.NewMappingRequest(61000, cf_tcp_router.BackendHostInfos{
-						cf_tcp_router.NewBackendHostInfo("some-ip-1", 62003),
-					}),
-				}
-
-				expectedRequestPayload, err := json.Marshal(expectedMappingRequests)
-				Expect(err).ShouldNot(HaveOccurred())
-				fakeRouterAPI.AppendHandlers(ghttp.CombineHandlers(
-					ghttp.VerifyRequest("POST", "/v0/external_ports"),
-					ghttp.VerifyJSON(string(expectedRequestPayload)),
-					ghttp.RespondWith(200, ""),
-				))
-			})
 
 			It("emits valid mapping request", func() {
 				err := emitter.Emit(routingEvents)
 				Expect(err).ShouldNot(HaveOccurred())
+				Expect(routingApiClient.UpsertTcpRouteMappingsCallCount()).To(Equal(1))
+				Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(1))
+				Expect(routingApiClient.SetTokenCallCount()).To(Equal(1))
+				Expect(routingApiClient.SetTokenArgsForCall(0)).To(Equal("some-token"))
+				mappingRequests := routingApiClient.UpsertTcpRouteMappingsArgsForCall(0)
+				Expect(mappingRequests).To(ConsistOf(expectedMappingRequests))
 			})
 		})
 
-		Context("when router API returns non OK status code", func() {
+		Context("when routing API returns error", func() {
 			BeforeEach(func() {
-				fakeRouterAPI.AppendHandlers(ghttp.CombineHandlers(
-					ghttp.VerifyRequest("POST", "/v0/external_ports"),
-					ghttp.RespondWith(500, ""),
-				))
+				routingApiClient.UpsertTcpRouteMappingsReturns(errors.New("kabooom"))
 			})
 
-			It("emits valid mapping request", func() {
+			It("returns error", func() {
 				err := emitter.Emit(routingEvents)
 				Expect(err).Should(HaveOccurred())
-				Expect(err.Error()).Should(Equal("Received non OK status code 500"))
+				Expect(err.Error()).Should(Equal("kabooom"))
+				Expect(logger).To(gbytes.Say("test.unable-to-upsert"))
+			})
+		})
+
+		Context("when token fetcher returns error", func() {
+			BeforeEach(func() {
+				tokenFetcher.FetchTokenReturns(nil, errors.New("kabooom"))
+			})
+
+			It("returns error", func() {
+				err := emitter.Emit(routingEvents)
+				Expect(err).Should(HaveOccurred())
+				Expect(err.Error()).Should(Equal("kabooom"))
+				Expect(logger).To(gbytes.Say("test.unable-to-get-token"))
 			})
 		})
 

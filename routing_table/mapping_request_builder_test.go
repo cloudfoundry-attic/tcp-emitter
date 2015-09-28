@@ -2,7 +2,7 @@ package routing_table_test
 
 import (
 	"github.com/cloudfoundry-incubator/bbs/models"
-	cf_tcp_router "github.com/cloudfoundry-incubator/cf-tcp-router"
+	"github.com/cloudfoundry-incubator/routing-api/db"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -10,18 +10,9 @@ import (
 
 var _ = Describe("MappingRequestBuilder", func() {
 
-	verifyMappingRequest := func(mappingRequestMap map[uint16]cf_tcp_router.BackendHostInfos,
-		port uint16, backends cf_tcp_router.BackendHostInfos) {
-		Expect(mappingRequestMap).Should(HaveKey(port))
-		Expect(mappingRequestMap[port]).Should(HaveLen(len(backends)))
-		for _, backend := range backends {
-			Expect(mappingRequestMap[port]).Should(ContainElement(backend))
-		}
-	}
-
 	var (
 		routingEvents           routing_table.RoutingEvents
-		expectedMappingRequests cf_tcp_router.MappingRequests
+		expectedMappingRequests []db.TcpRouteMapping
 		endpoints1              map[routing_table.EndpointKey]routing_table.Endpoint
 		endpoints2              map[routing_table.EndpointKey]routing_table.Endpoint
 		routingKey1             routing_table.RoutingKey
@@ -78,38 +69,21 @@ var _ = Describe("MappingRequestBuilder", func() {
 			},
 		}
 
-		expectedMappingRequests = cf_tcp_router.MappingRequests{
-			cf_tcp_router.NewMappingRequest(61000, cf_tcp_router.BackendHostInfos{
-				cf_tcp_router.NewBackendHostInfo("some-ip-1", 62003),
-				cf_tcp_router.NewBackendHostInfo("some-ip-2", 62004),
-			}),
-			cf_tcp_router.NewMappingRequest(61001, cf_tcp_router.BackendHostInfos{
-				cf_tcp_router.NewBackendHostInfo("some-ip-3", 62005),
-				cf_tcp_router.NewBackendHostInfo("some-ip-4", 62006),
-			}),
+		expectedMappingRequests = []db.TcpRouteMapping{
+			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
+			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
+			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-3", 62005),
+			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-4", 62006),
+			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-3", 62005),
+			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-4", 62006),
 		}
 	})
 
 	Context("with valid routing events", func() {
 		It("returns valid mapping requests ", func() {
 			mappingRequests := routing_table.BuildMappingRequests(routingEvents)
-			Expect(mappingRequests).Should(HaveLen(3))
-			mappingRequestMap := make(map[uint16]cf_tcp_router.BackendHostInfos)
-			for _, mappingRequest := range mappingRequests {
-				mappingRequestMap[mappingRequest.ExternalPort] = mappingRequest.Backends
-			}
-			verifyMappingRequest(mappingRequestMap, 61000, cf_tcp_router.BackendHostInfos{
-				cf_tcp_router.NewBackendHostInfo("some-ip-1", 62003),
-				cf_tcp_router.NewBackendHostInfo("some-ip-2", 62004),
-			})
-			verifyMappingRequest(mappingRequestMap, 61001, cf_tcp_router.BackendHostInfos{
-				cf_tcp_router.NewBackendHostInfo("some-ip-3", 62005),
-				cf_tcp_router.NewBackendHostInfo("some-ip-4", 62006),
-			})
-			verifyMappingRequest(mappingRequestMap, 61002, cf_tcp_router.BackendHostInfos{
-				cf_tcp_router.NewBackendHostInfo("some-ip-3", 62005),
-				cf_tcp_router.NewBackendHostInfo("some-ip-4", 62006),
-			})
+			Expect(mappingRequests).Should(HaveLen(len(expectedMappingRequests)))
+			Expect(mappingRequests).Should(ConsistOf(expectedMappingRequests))
 		})
 	})
 
@@ -154,9 +128,14 @@ var _ = Describe("MappingRequestBuilder", func() {
 						Entry:     routableEndpoints1,
 					},
 				}
+				expMappingRequests := []db.TcpRouteMapping{
+					db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
+					db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
+				}
 
 				mappingRequests := routing_table.BuildMappingRequests(routingEvents)
-				Expect(mappingRequests).Should(HaveLen(1))
+				Expect(mappingRequests).Should(HaveLen(len(expMappingRequests)))
+				Expect(mappingRequests).To(ConsistOf(expMappingRequests))
 			})
 		})
 	})

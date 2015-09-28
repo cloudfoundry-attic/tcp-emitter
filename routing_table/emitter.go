@@ -1,12 +1,11 @@
 package routing_table
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 
+	"github.com/cloudfoundry-incubator/routing-api"
+	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
 	"github.com/pivotal-golang/lager"
 )
 
@@ -16,20 +15,23 @@ type Emitter interface {
 }
 
 type tcpEmitter struct {
-	logger          lager.Logger
-	tcpRouterAPIURL string
+	logger           lager.Logger
+	routingApiClient routing_api.Client
+	tokenFetcher     token_fetcher.TokenFetcher
 }
 
-func NewEmitter(logger lager.Logger, tcpRouterAPIURL string) Emitter {
+func NewEmitter(logger lager.Logger, routingApiClient routing_api.Client, tokenFetcher token_fetcher.TokenFetcher) Emitter {
 	return &tcpEmitter{
-		logger:          logger,
-		tcpRouterAPIURL: tcpRouterAPIURL,
+		logger:           logger,
+		routingApiClient: routingApiClient,
+		tokenFetcher:     tokenFetcher,
 	}
 }
 
 func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 
 	emitter.logRoutingEvents(routingEvents)
+	defer emitter.logger.Debug("complete-emit")
 
 	mappingRequests := BuildMappingRequests(routingEvents)
 	if len(mappingRequests) == 0 {
@@ -37,23 +39,19 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 		emitter.logger.Error("no-mapping-request-to-emit", err)
 		return err
 	}
-	payload, err := json.Marshal(mappingRequests)
-	if err != nil {
-		emitter.logger.Error("invalid-mapping-request-marshaling", err)
-		return err
-	}
-	resp, err := http.Post(
-		fmt.Sprintf("%s/v0/external_ports", emitter.tcpRouterAPIURL),
-		"application/json", bytes.NewBuffer(payload))
 
+	token, err := emitter.tokenFetcher.FetchToken()
 	if err != nil {
-		emitter.logger.Error("unable-to-post", err)
+		emitter.logger.Error("unable-to-get-token", err)
 		return err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		err = errors.New(fmt.Sprintf("Received non OK status code %d", resp.StatusCode))
-		emitter.logger.Error("unable-to-post", err)
+	emitter.routingApiClient.SetToken(token.AccessToken)
+
+	err = emitter.routingApiClient.UpsertTcpRouteMappings(mappingRequests)
+
+	if err != nil {
+		emitter.logger.Error("unable-to-upsert", err)
 		return err
 	}
 

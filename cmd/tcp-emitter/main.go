@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
@@ -9,9 +10,12 @@ import (
 	"github.com/cloudfoundry-incubator/cf-debug-server"
 	"github.com/cloudfoundry-incubator/cf-lager"
 	"github.com/cloudfoundry-incubator/cf_http"
+	"github.com/cloudfoundry-incubator/routing-api"
+	"github.com/cloudfoundry-incubator/tcp-emitter/config"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
+	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
 	"github.com/cloudfoundry/dropsonde"
 	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
@@ -24,12 +28,6 @@ var bbsAddress = flag.String(
 	"bbsAddress",
 	"",
 	"URL of BBS Server",
-)
-
-var tcpRouterAPIURL = flag.String(
-	"tcpRouterAPIURL",
-	"",
-	"URL of TCP Router API",
 )
 
 var communicationTimeout = flag.Duration(
@@ -62,9 +60,15 @@ var bbsClientKey = flag.String(
 	"path to client key used for mutually authenticated TLS BBS communication",
 )
 
+var configFile = flag.String(
+	"config",
+	"/var/vcap/jobs/tcp_emitter/config/tcp_emitter.yml",
+	"The TCP emitter yml config.",
+)
+
 const (
 	dropsondeDestination = "localhost:3457"
-	dropsondeOrigin      = "route_emitter"
+	dropsondeOrigin      = "tcp_emitter"
 )
 
 func main() {
@@ -85,7 +89,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	emitter := routing_table.NewEmitter(logger, *tcpRouterAPIURL)
+	cfg, err := config.New(*configFile)
+	if err != nil {
+		logger.Error("failed-to-unmarshal-config-file", err)
+		os.Exit(1)
+	}
+	tokenFetcher := token_fetcher.NewTokenFetcher(&cfg.OAuth)
+	routingApiAddress := fmt.Sprintf("%s:%d", cfg.RoutingApi.Uri, cfg.RoutingApi.Port)
+	logger.Debug("creating-routing-api-client", lager.Data{"api-location": routingApiAddress})
+	routingApiClient := routing_api.NewClient(routingApiAddress)
+
+	emitter := routing_table.NewEmitter(logger, routingApiClient, tokenFetcher)
 	routingTable := routing_table.NewTable(logger, nil)
 	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, bbsClient)
 	syncChannel := make(chan struct{})
