@@ -10,6 +10,7 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/events/eventfakes"
 	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
 	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
@@ -23,6 +24,7 @@ import (
 	"github.com/tedsuo/ifrit/sigmon"
 
 	routingtestrunner "github.com/cloudfoundry-incubator/routing-api/cmd/routing-api/testrunner"
+	"github.com/cloudfoundry-incubator/routing-api/db"
 	"github.com/cloudfoundry-incubator/tcp-emitter/cmd/tcp-emitter/testrunner"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -195,6 +197,18 @@ var _ = Describe("TCP Emitter", func() {
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
 				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("unable-to-upsert"))
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-upserted-event"))
+
+				expectedTcpRouteMapping := db.TcpRouteMapping{
+					TcpRoute: db.TcpRoute{
+						RouterGroupGuid: routing_table.DefaultRouterGroupGuid,
+						ExternalPort:    5222,
+					},
+					HostPort: 62003,
+					HostIP:   "some-ip",
+				}
+				tcpRouteMappings, err := routingApiClient.TcpRouteMappings()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(tcpRouteMappings).To(ContainElement(expectedTcpRouteMapping))
 			})
 		})
 

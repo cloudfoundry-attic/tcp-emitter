@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudfoundry-incubator/routing-api"
 	routingtestrunner "github.com/cloudfoundry-incubator/routing-api/cmd/routing-api/testrunner"
 	"github.com/cloudfoundry-incubator/tcp-emitter/cmd/tcp-emitter/testrunner"
 	"github.com/cloudfoundry/storeadapter"
@@ -46,6 +47,8 @@ var (
 	tcpEmitterArgs    testrunner.Args
 
 	logger lager.Logger
+
+	routingApiClient routing_api.Client
 )
 
 func TestTcpEmitter(t *testing.T) {
@@ -107,7 +110,7 @@ var _ = BeforeEach(func() {
 	routingAPIPort = uint16(6900 + GinkgoParallelNode())
 	routingAPIIP = "127.0.0.1"
 	routingAPISystemDomain = "example.com"
-	routingAPIAddress = fmt.Sprintf("%s:%d", routingAPIIP, routingAPIPort)
+	routingAPIAddress = fmt.Sprintf("http://%s:%d", routingAPIIP, routingAPIPort)
 
 	routingAPIArgs = routingtestrunner.Args{
 		Port:         routingAPIPort,
@@ -117,6 +120,8 @@ var _ = BeforeEach(func() {
 		EtcdCluster:  etcdUrl,
 		DevMode:      true,
 	}
+
+	routingApiClient = routing_api.NewClient(routingAPIAddress)
 
 	tcpEmitterArgs = testrunner.Args{
 		BBSAddress:     bbsServer.URL(),
