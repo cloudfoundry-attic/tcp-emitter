@@ -154,7 +154,7 @@ var _ = Describe("TCP Emitter", func() {
 			runner := testrunner.New(path, args)
 			session, err := gexec.Start(runner.Command, allOutput, allOutput)
 			Expect(err).ToNot(HaveOccurred())
-			Eventually(session.Out).Should(gbytes.Say("tcp-emitter.started"))
+			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
 			return session
 		}
 
