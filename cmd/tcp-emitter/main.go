@@ -85,7 +85,7 @@ func main() {
 
 	bbsClient, err := bbs.NewSecureClient(*bbsAddress, *bbsCACert, *bbsClientCert, *bbsClientKey)
 	if err != nil {
-		logger.Error("Failed to configure secure BBS client", err)
+		logger.Error("failed-to-configure-bbs-client", err)
 		os.Exit(1)
 	}
 

@@ -49,11 +49,11 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 	emitter.routingApiClient.SetToken(token.AccessToken)
 
 	err = emitter.routingApiClient.UpsertTcpRouteMappings(mappingRequests)
-
 	if err != nil {
 		emitter.logger.Error("unable-to-upsert", err)
 		return err
 	}
+	emitter.logger.Debug("successfully-upserted-event")
 
 	return nil
 }
