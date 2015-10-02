@@ -36,6 +36,7 @@ var (
 	routingAPIPort         uint16
 	routingAPIIP           string
 	routingAPISystemDomain string
+	routingApiClient       routing_api.Client
 
 	oauthServer     *ghttp.Server
 	oauthServerPort string
@@ -47,8 +48,6 @@ var (
 	tcpEmitterArgs    testrunner.Args
 
 	logger lager.Logger
-
-	routingApiClient routing_api.Client
 )
 
 func TestTcpEmitter(t *testing.T) {

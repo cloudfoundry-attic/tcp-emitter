@@ -58,8 +58,11 @@ func (handler *routingTableHandler) Sync() {
 	logger := handler.logger.Session("handle-sync")
 	logger.Debug("starting")
 
+	var tempRoutingTable RoutingTable
+
 	defer func() {
 		handler.Lock()
+		handler.applyCachedEvents(logger, tempRoutingTable)
 		handler.syncing = false
 		handler.cachedEvents = nil
 		handler.Unlock()
@@ -75,7 +78,6 @@ func (handler *routingTableHandler) Sync() {
 	var getActualLRPsErr error
 	var desiredLRPs []*models.DesiredLRP
 	var getDesiredLRPsErr error
-	var tempRoutingTable RoutingTable
 
 	wg := sync.WaitGroup{}
 
@@ -135,7 +137,6 @@ func (handler *routingTableHandler) Sync() {
 	} else {
 		logger.Info("sync-failed")
 	}
-	handler.applyCachedEvents(logger, tempRoutingTable)
 }
 
 func (handler *routingTableHandler) applyCachedEvents(logger lager.Logger, tempRoutingTable RoutingTable) {
