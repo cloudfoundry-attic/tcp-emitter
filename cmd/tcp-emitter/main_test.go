@@ -151,14 +151,58 @@ var _ = Describe("TCP Emitter", func() {
 			return ifrit.Invoke(routingApiServer)
 		}
 
-		setupTcpEmitter := func(path string, args testrunner.Args) *gexec.Session {
+		setupTcpEmitter := func(path string, args testrunner.Args, expectStarted bool) *gexec.Session {
 			allOutput := gbytes.NewBuffer()
 			runner := testrunner.New(path, args)
 			session, err := gexec.Start(runner.Command, allOutput, allOutput)
 			Expect(err).ToNot(HaveOccurred())
-			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
+			if expectStarted {
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
+			} else {
+				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("tcp-emitter.started"))
+			}
 			return session
 		}
+
+		eventsEndpointRequests := func() int {
+			requests := make([]*http.Request, 0)
+			receivedRequests := bbsServer.ReceivedRequests()
+			for _, req := range receivedRequests {
+				if strings.Contains(req.RequestURI, "/v1/events") {
+					requests = append(requests, req)
+				}
+			}
+			return len(requests)
+		}
+
+		checkEmitterWorks := func(session *gexec.Session) {
+			Eventually(eventsEndpointRequests, 5*time.Second).Should(BeNumerically(">=", 1))
+			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
+			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
+			Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("unable-to-upsert"))
+			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-upserted-event"))
+		}
+
+		checkTcpRouteMapping := func(tcpRouteMapping db.TcpRouteMapping) {
+			tcpRouteMappings, err := routingApiClient.TcpRouteMappings()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tcpRouteMappings).To(ContainElement(tcpRouteMapping))
+		}
+
+		var (
+			expectedTcpRouteMapping db.TcpRouteMapping
+		)
+
+		BeforeEach(func() {
+			expectedTcpRouteMapping = db.TcpRouteMapping{
+				TcpRoute: db.TcpRoute{
+					RouterGroupGuid: routing_table.DefaultRouterGroupGuid,
+					ExternalPort:    5222,
+				},
+				HostPort: 62003,
+				HostIP:   "some-ip",
+			}
+		})
 
 		Context("when both bbs and routing api server are up and running", func() {
 			var (
@@ -169,7 +213,7 @@ var _ = Describe("TCP Emitter", func() {
 				setupBbsServer(bbsServer)
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
-				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs)
+				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 				logger.Info("started-tcp-emitter")
 			})
 
@@ -182,33 +226,8 @@ var _ = Describe("TCP Emitter", func() {
 			})
 
 			It("starts an SSE connection to the bbs and emits events to routing api", func() {
-				Eventually(func() int {
-					requests := make([]*http.Request, 0)
-					receivedRequests := bbsServer.ReceivedRequests()
-					for _, req := range receivedRequests {
-						if strings.Contains(req.RequestURI, "/v1/events") {
-							requests = append(requests, req)
-						}
-					}
-					return len(requests)
-				}, 5*time.Second).Should(BeNumerically(">=", 1))
-				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
-
-				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
-				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("unable-to-upsert"))
-				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-upserted-event"))
-
-				expectedTcpRouteMapping := db.TcpRouteMapping{
-					TcpRoute: db.TcpRoute{
-						RouterGroupGuid: routing_table.DefaultRouterGroupGuid,
-						ExternalPort:    5222,
-					},
-					HostPort: 62003,
-					HostIP:   "some-ip",
-				}
-				tcpRouteMappings, err := routingApiClient.TcpRouteMappings()
-				Expect(err).NotTo(HaveOccurred())
-				Expect(tcpRouteMappings).To(ContainElement(expectedTcpRouteMapping))
+				checkEmitterWorks(session)
+				checkTcpRouteMapping(expectedTcpRouteMapping)
 			})
 		})
 
@@ -220,7 +239,7 @@ var _ = Describe("TCP Emitter", func() {
 
 			BeforeEach(func() {
 				setupBbsServer(bbsServer)
-				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs)
+				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 				logger.Info("started-tcp-emitter")
 			})
 
@@ -233,18 +252,9 @@ var _ = Describe("TCP Emitter", func() {
 			})
 
 			It("starts an SSE connection to the bbs and continues to try to emit to routing api", func() {
-				Eventually(func() int {
-					requests := make([]*http.Request, 0)
-					receivedRequests := bbsServer.ReceivedRequests()
-					for _, req := range receivedRequests {
-						if strings.Contains(req.RequestURI, "/v1/events") {
-							requests = append(requests, req)
-						}
-					}
-					return len(requests)
-				}, 5*time.Second).Should(BeNumerically(">=", 1))
-				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
+				Eventually(eventsEndpointRequests, 5*time.Second).Should(BeNumerically(">=", 1))
 
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("unable-to-upsert"))
 				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("successfully-upserted-event"))
@@ -268,7 +278,7 @@ var _ = Describe("TCP Emitter", func() {
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
 				bbsServer.Close()
-				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs)
+				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 				logger.Info("started-tcp-emitter")
 			})
 
@@ -284,6 +294,70 @@ var _ = Describe("TCP Emitter", func() {
 				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("failed-subscribing-to-events"))
 				Consistently(session.Exited).ShouldNot(BeClosed())
 				bbsServer = ghttp.NewServer()
+			})
+		})
+
+		Context("when both bbs and routing api server are up and running", func() {
+			var (
+				routingApiProcess ifrit.Process
+				session1          *gexec.Session
+			)
+			BeforeEach(func() {
+				setupBbsServer(bbsServer)
+				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				logger.Info("started-routing-api-server")
+				session1 = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
+				logger.Info("started-tcp-emitter")
+			})
+
+			AfterEach(func() {
+				logger.Info("shutting-down")
+				session1.Signal(os.Interrupt)
+				Eventually(session1.Exited, 5*time.Second).Should(BeClosed())
+				routingApiProcess.Signal(os.Interrupt)
+				Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
+			})
+
+			It("and the first emitter starts an SSE connection to the bbs and emits events to routing api", func() {
+				checkEmitterWorks(session1)
+				checkTcpRouteMapping(expectedTcpRouteMapping)
+			})
+
+			Context("and another emitter starts", func() {
+				var (
+					session2 *gexec.Session
+				)
+
+				BeforeEach(func() {
+					tcpEmitterArgs.SessionName = "tcp-emitter-2"
+					session2 = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, false)
+					logger.Info("started-tcp-emitter trying to acquire the consul lock")
+				})
+
+				AfterEach(func() {
+					logger.Info("shutting-down-emitter-2")
+					session2.Signal(os.Interrupt)
+					Eventually(session2.Exited, 5*time.Second).Should(BeClosed())
+
+				})
+
+				Context("and the first emitter goes away", func() {
+					BeforeEach(func() {
+						logger.Info("forcing-emitter-1-to-shutting-down")
+						session1.Signal(os.Interrupt)
+					})
+
+					Describe("the second emitter", func() {
+						It("becomes active", func() {
+							Eventually(session2.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
+
+							By("the second emitter could receive events")
+
+							checkEmitterWorks(session2)
+							checkTcpRouteMapping(expectedTcpRouteMapping)
+						})
+					})
+				})
 			})
 		})
 	})

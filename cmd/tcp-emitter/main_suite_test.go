@@ -9,12 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudfoundry-incubator/consuladapter/consulrunner"
 	"github.com/cloudfoundry-incubator/routing-api"
 	routingtestrunner "github.com/cloudfoundry-incubator/routing-api/cmd/routing-api/testrunner"
 	"github.com/cloudfoundry-incubator/tcp-emitter/cmd/tcp-emitter/testrunner"
 	"github.com/cloudfoundry/storeadapter"
 	"github.com/cloudfoundry/storeadapter/storerunner/etcdstorerunner"
 	. "github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/config"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
@@ -46,6 +48,8 @@ var (
 
 	tcpEmitterBinPath string
 	tcpEmitterArgs    testrunner.Args
+
+	consulRunner *consulrunner.ClusterRunner
 
 	logger lager.Logger
 )
@@ -95,6 +99,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 			w.Write(jsonBytes)
 		})
 
+	consulRunner = consulrunner.NewClusterRunner(
+		9001+config.GinkgoConfig.ParallelNode*consulrunner.PortOffsetLength,
+		1,
+		"http",
+	)
+
 	logger.Info("started-oauth-server", lager.Data{"address": oauthServer.URL()})
 
 })
@@ -129,11 +139,16 @@ var _ = BeforeEach(func() {
 		BBSClientKey:   createClientKey(),
 		ConfigFilePath: createEmitterConfig(),
 		SyncInterval:   1 * time.Second,
+		ConsulCluster:  consulRunner.ConsulCluster(),
 	}
+
+	consulRunner.Start()
+	consulRunner.WaitUntilReady()
 })
 
 var _ = AfterEach(func() {
 	bbsServer.Close()
+	consulRunner.Stop()
 })
 
 var _ = SynchronizedAfterSuite(func() {

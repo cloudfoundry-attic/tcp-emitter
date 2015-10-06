@@ -10,6 +10,8 @@ import (
 	"github.com/cloudfoundry-incubator/cf-debug-server"
 	"github.com/cloudfoundry-incubator/cf-lager"
 	"github.com/cloudfoundry-incubator/cf_http"
+	"github.com/cloudfoundry-incubator/consuladapter"
+	"github.com/cloudfoundry-incubator/locket"
 	"github.com/cloudfoundry-incubator/routing-api"
 	"github.com/cloudfoundry-incubator/tcp-emitter/config"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
@@ -17,11 +19,16 @@ import (
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
 	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
 	"github.com/cloudfoundry/dropsonde"
+	"github.com/nu7hatch/gouuid"
 	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/sigmon"
+)
+
+const (
+	TCP_EMITTER_LOCK_PATH = "tcp_emitter_lock"
 )
 
 var bbsAddress = flag.String(
@@ -66,6 +73,30 @@ var configFile = flag.String(
 	"The TCP emitter yml config.",
 )
 
+var consulCluster = flag.String(
+	"consulCluster",
+	"",
+	"comma-separated list of consul server URLs (scheme://ip:port)",
+)
+
+var lockTTL = flag.Duration(
+	"lockTTL",
+	locket.LockTTL,
+	"TTL for service lock",
+)
+
+var lockRetryInterval = flag.Duration(
+	"lockRetryInterval",
+	locket.RetryInterval,
+	"interval to wait before retrying a failed lock acquisition",
+)
+
+var sessionName = flag.String(
+	"sessionName",
+	"tcp-emitter",
+	"consul session name",
+)
+
 const (
 	dropsondeDestination = "localhost:3457"
 	dropsondeOrigin      = "tcp_emitter"
@@ -106,7 +137,11 @@ func main() {
 	syncRunner := syncer.New(clock, *syncInterval, syncChannel, logger)
 	watcher := watcher.NewWatcher(bbsClient, clock, routingTableHandler, syncChannel, logger)
 
+	lockMaintainer := initializeLockMaintainer(logger, *consulCluster, *sessionName,
+		*lockTTL, *lockRetryInterval, clock)
+
 	members := grouper.Members{
+		{"lock-maintainer", lockMaintainer},
 		{"watcher", watcher},
 		{"syncer", syncRunner},
 	}
@@ -137,4 +172,40 @@ func initializeDropsonde(logger lager.Logger) {
 	if err != nil {
 		logger.Error("failed to initialize dropsonde: %v", err)
 	}
+}
+
+func initializeLockMaintainer(
+	logger lager.Logger,
+	consulCluster, sessionName string,
+	lockTTL, lockRetryInterval time.Duration,
+	clock clock.Clock,
+) ifrit.Runner {
+	client, err := consuladapter.NewClient(consulCluster)
+	if err != nil {
+		logger.Fatal("new-client-failed", err)
+	}
+	sessionMgr := consuladapter.NewSessionManager(client)
+	consulSession, err := consuladapter.NewSession(sessionName, lockTTL, client, sessionMgr)
+	if err != nil {
+		logger.Fatal("consul-session-failed", err)
+	}
+
+	return newLockRunner(logger, consulSession, clock, lockRetryInterval)
+}
+
+func newLockRunner(
+	logger lager.Logger,
+	consulSession *consuladapter.Session,
+	clock clock.Clock,
+	lockRetryInterval time.Duration) ifrit.Runner {
+	lockSchemaPath := locket.LockSchemaPath(TCP_EMITTER_LOCK_PATH)
+
+	tcpEmitterUUID, err := uuid.NewV4()
+	if err != nil {
+		logger.Fatal("Couldn't generate tcp Emitter UUID", err)
+	}
+	tcpEmitterId := []byte(tcpEmitterUUID.String())
+
+	return locket.NewLock(consulSession, lockSchemaPath,
+		tcpEmitterId, clock, lockRetryInterval, logger)
 }

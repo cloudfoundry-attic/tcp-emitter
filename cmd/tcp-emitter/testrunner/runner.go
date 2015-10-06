@@ -14,6 +14,10 @@ type Args struct {
 	BBSClientKey   string
 	ConfigFilePath string
 	SyncInterval   time.Duration
+
+	ConsulCluster     string
+	LockRetryInterval time.Duration
+	SessionName       string
 }
 
 func (args Args) ArgSlice() []string {
@@ -25,6 +29,9 @@ func (args Args) ArgSlice() []string {
 		"-config=" + args.ConfigFilePath,
 		"-syncInterval=" + args.SyncInterval.String(),
 		"-logLevel=debug",
+		"-lockRetryInterval", "1s",
+		"-consulCluster", args.ConsulCluster,
+		"-sessionName", args.SessionName,
 	}
 }
 
