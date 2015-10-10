@@ -23,6 +23,14 @@ type FakeRoutingTable struct {
 	setRoutesReturns struct {
 		result1 routing_table.RoutingEvents
 	}
+	RemoveRoutesStub        func(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents
+	removeRoutesMutex       sync.RWMutex
+	removeRoutesArgsForCall []struct {
+		desiredLRP *models.DesiredLRP
+	}
+	removeRoutesReturns struct {
+		result1 routing_table.RoutingEvents
+	}
 	AddEndpointStub        func(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents
 	addEndpointMutex       sync.RWMutex
 	addEndpointArgsForCall []struct {
@@ -107,6 +115,38 @@ func (fake *FakeRoutingTable) SetRoutesArgsForCall(i int) *models.DesiredLRP {
 func (fake *FakeRoutingTable) SetRoutesReturns(result1 routing_table.RoutingEvents) {
 	fake.SetRoutesStub = nil
 	fake.setRoutesReturns = struct {
+		result1 routing_table.RoutingEvents
+	}{result1}
+}
+
+func (fake *FakeRoutingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
+	fake.removeRoutesMutex.Lock()
+	fake.removeRoutesArgsForCall = append(fake.removeRoutesArgsForCall, struct {
+		desiredLRP *models.DesiredLRP
+	}{desiredLRP})
+	fake.removeRoutesMutex.Unlock()
+	if fake.RemoveRoutesStub != nil {
+		return fake.RemoveRoutesStub(desiredLRP)
+	} else {
+		return fake.removeRoutesReturns.result1
+	}
+}
+
+func (fake *FakeRoutingTable) RemoveRoutesCallCount() int {
+	fake.removeRoutesMutex.RLock()
+	defer fake.removeRoutesMutex.RUnlock()
+	return len(fake.removeRoutesArgsForCall)
+}
+
+func (fake *FakeRoutingTable) RemoveRoutesArgsForCall(i int) *models.DesiredLRP {
+	fake.removeRoutesMutex.RLock()
+	defer fake.removeRoutesMutex.RUnlock()
+	return fake.removeRoutesArgsForCall[i].desiredLRP
+}
+
+func (fake *FakeRoutingTable) RemoveRoutesReturns(result1 routing_table.RoutingEvents) {
+	fake.RemoveRoutesStub = nil
+	fake.removeRoutesReturns = struct {
 		result1 routing_table.RoutingEvents
 	}{result1}
 }

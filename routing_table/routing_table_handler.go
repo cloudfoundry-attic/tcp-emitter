@@ -206,7 +206,6 @@ func (handler *routingTableHandler) handleDesiredUpdate(before, after *models.De
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 
-	// TODO: Just call SetRoutes for after...once we have unregistration support we need to add that logic too
 	routingEvents := handler.routingTable.SetRoutes(after)
 	handler.emit(routingEvents)
 }
@@ -215,6 +214,17 @@ func (handler *routingTableHandler) handleDesiredDelete(desiredLRP *models.Desir
 	logger := handler.logger.Session("handling-desired-delete", desiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
+
+	// desiredLRP.
+
+	// 	actualLRP, evacuating := actualLRPGrp.Resolve()
+	// logger := handler.logger.Session("handling-actual-delete", actualLRPData(actualLRP, evacuating))
+	// logger.Debug("starting")
+	// defer logger.Debug("complete")
+	// if actualLRP.State == models.ActualLRPStateRunning {
+	// 	handler.removeAndEmit(actualLRPGrp)
+	// }
+
 	// Do nothing for now...when we support unregistration of routes this needs to do something
 }
 
