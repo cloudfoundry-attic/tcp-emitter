@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"time"
 
@@ -114,9 +115,26 @@ func main() {
 
 	initializeDropsonde(logger)
 
-	bbsClient, err := bbs.NewSecureClient(*bbsAddress, *bbsCACert, *bbsClientCert, *bbsClientKey)
+	bbsUrl, err := url.Parse(*bbsAddress)
 	if err != nil {
-		logger.Error("failed-to-configure-bbs-client", err)
+		logger.Error("invalid-bbs-address", err)
+		os.Exit(1)
+	}
+
+	var bbsClient bbs.Client
+
+	if bbsUrl.Scheme == "http" {
+		logger.Info("setting-up-non-secure-bbs-client")
+		bbsClient = bbs.NewClient(bbsUrl.String())
+	} else if bbsUrl.Scheme == "https" {
+		logger.Info("setting-up-secure-bbs-client")
+		bbsClient, err = bbs.NewSecureClient(bbsUrl.String(), *bbsCACert, *bbsClientCert, *bbsClientKey)
+		if err != nil {
+			logger.Error("failed-to-configure-bbs-client", err)
+			os.Exit(1)
+		}
+	} else {
+		logger.Error("invalid-scheme-in-bbs-address", err)
 		os.Exit(1)
 	}
 

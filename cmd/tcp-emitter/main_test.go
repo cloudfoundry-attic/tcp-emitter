@@ -204,6 +204,59 @@ var _ = Describe("TCP Emitter", func() {
 			}
 		})
 
+		Context("when invalid bbs address is passed to tcp emitter", func() {
+			var (
+				session *gexec.Session
+			)
+
+			BeforeEach(func() {
+				invalidTcpEmitterArgs := testrunner.Args{
+					BBSAddress:     "127.0.0.1",
+					BBSClientCert:  "",
+					BBSCACert:      "",
+					BBSClientKey:   "",
+					ConfigFilePath: createEmitterConfig(),
+					SyncInterval:   1 * time.Second,
+					ConsulCluster:  consulRunner.ConsulCluster(),
+				}
+				session = setupTcpEmitter(tcpEmitterBinPath, invalidTcpEmitterArgs, false)
+			})
+
+			It("fails to come up", func() {
+				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("invalid-scheme-in-bbs-address"))
+			})
+		})
+
+		Context("when protocol is http", func() {
+			var (
+				session *gexec.Session
+			)
+
+			BeforeEach(func() {
+				tcpEmitterArgs := testrunner.Args{
+					BBSAddress:     bbsServer.URL(),
+					BBSClientCert:  "",
+					BBSCACert:      "",
+					BBSClientKey:   "",
+					ConfigFilePath: createEmitterConfig(),
+					SyncInterval:   1 * time.Second,
+					ConsulCluster:  consulRunner.ConsulCluster(),
+				}
+				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
+			})
+
+			AfterEach(func() {
+				logger.Info("shutting-down")
+				session.Signal(os.Interrupt)
+				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
+			})
+
+			It("does not use the secure bbs client", func() {
+				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("setting-up-secure-bbs-client"))
+			})
+		})
+
 		Context("when both bbs and routing api server are up and running", func() {
 			var (
 				routingApiProcess ifrit.Process
