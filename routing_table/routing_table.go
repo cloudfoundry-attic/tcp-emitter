@@ -68,22 +68,26 @@ func (table *routingTable) Swap(t RoutingTable) RoutingEvents {
 	table.Lock()
 	defer table.Unlock()
 
-	// existingEntries := table.entries
-	// for key, existingEntry := range newEntries {
-	// 	//always register everything on sync
-	// 	routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(table.logger, key, newEntry)...)
-
-	// 	 newTable.setRoutes(logger, existingEntry, routes, key, desiredLRP.LogGuid, desiredLRP.ModificationTag)
-	// }
 	newEntries := newTable.entries
 	for key, newEntry := range newEntries {
 		//always register everything on sync
 		routingEvents = append(routingEvents, table.createRoutingEvent(table.logger, key, newEntry, RouteRegistrationEvent)...)
+
+		newExternalEndpoints := newEntry.ExternalEndpoints
+		existingEntry := table.entries[key]
+
+		if unregistrationEntry, updated := existingEntry.SubstractExternalEndpoints(newExternalEndpoints); updated {
+			routingEvents = append(routingEvents, table.createRoutingEvent(table.logger, key, unregistrationEntry, RouteUnregistrationEvent)...)
+		}
+	}
+
+	for key, existingEntry := range table.entries {
+		if _, ok := newEntries[key]; !ok {
+			routingEvents = append(routingEvents, table.createRoutingEvent(table.logger, key, existingEntry, RouteUnregistrationEvent)...)
+		}
 	}
 
 	table.entries = newEntries
-
-	//TODO: We need to go over existing entries and generate unregistration messages
 
 	return routingEvents
 }
@@ -161,7 +165,6 @@ func (table *routingTable) setRoutes(
 	var registrationNeeded bool
 
 	var newExternalEndpoints ExternalEndpointInfos
-	var deletedExternalEndpoints ExternalEndpointInfos
 
 	for _, route := range routes {
 		if key.ContainerPort == route.ContainerPort {
@@ -176,12 +179,6 @@ func (table *routingTable) setRoutes(
 		}
 	}
 
-	for _, externalEndpoint := range existingEntry.ExternalEndpoints {
-		if !containsExternalPort(newExternalEndpoints, externalEndpoint.Port) {
-			deletedExternalEndpoints = append(deletedExternalEndpoints, NewExternalEndpointInfo(externalEndpoint.Port))
-		}
-	}
-
 	routingEvents := RoutingEvents{}
 
 	if registrationNeeded {
@@ -193,10 +190,8 @@ func (table *routingTable) setRoutes(
 		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, updatedEntry, RouteRegistrationEvent)...)
 	}
 
-	if len(deletedExternalEndpoints) > 0 {
-		deletedEntry := existingEntry.copy()
-		deletedEntry.ExternalEndpoints = deletedExternalEndpoints
-		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, deletedEntry, RouteUnregistrationEvent)...)
+	if unregistrationEntry, updated := existingEntry.SubstractExternalEndpoints(newExternalEndpoints); updated {
+		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, unregistrationEntry, RouteUnregistrationEvent)...)
 	}
 
 	return routingEvents

@@ -105,3 +105,29 @@ func NewRoutingKey(processGuid string, containerPort uint32) RoutingKey {
 		ContainerPort: containerPort,
 	}
 }
+
+// this function returns the entryA with the external externalEndpoints substracted from its internal collection
+// Ex; Given, entryA { externalEndpoints={p1,p2,p4} } and externalEndpoints = {p2,p3} ==> entryA { externalEndpoints={p1,p4} }
+func (entryA RoutableEndpoints) SubstractExternalEndpoints(externalEndpoints ExternalEndpointInfos) (RoutableEndpoints, bool) {
+
+	subtractedExternalEndpoints := entryA.ExternalEndpoints.Subtract(externalEndpoints)
+
+	if len(subtractedExternalEndpoints) > 0 {
+		resultEntry := entryA.copy()
+		resultEntry.ExternalEndpoints = subtractedExternalEndpoints
+		return resultEntry, true
+	}
+
+	return entryA, false
+}
+
+// this function return a-b set. Ex: a = {p1,p2, p4} b={p2,p3} ===> a-b = {p1, p4}
+func (setA ExternalEndpointInfos) Subtract(setB ExternalEndpointInfos) ExternalEndpointInfos {
+	var diffSet ExternalEndpointInfos
+	for _, externalEndpoint := range setA {
+		if !containsExternalPort(setB, externalEndpoint.Port) {
+			diffSet = append(diffSet, NewExternalEndpointInfo(externalEndpoint.Port))
+		}
+	}
+	return diffSet
+}
