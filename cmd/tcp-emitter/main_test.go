@@ -180,7 +180,7 @@ var _ = Describe("TCP Emitter", func() {
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
 			Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("unable-to-upsert"))
-			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-upserted-event"))
+			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-emitted-events"))
 		}
 
 		checkTcpRouteMapping := func(tcpRouteMapping db.TcpRouteMapping) {
@@ -310,13 +310,13 @@ var _ = Describe("TCP Emitter", func() {
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("unable-to-upsert"))
-				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("successfully-upserted-event"))
+				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("successfully-emitted-event"))
 				Consistently(session.Exited).ShouldNot(BeClosed())
 
 				By("starting routing api server")
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
-				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-upserted-event"))
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-emitted-event"))
 			})
 
 		})

@@ -1,6 +1,11 @@
 package routing_table
 
-import "github.com/cloudfoundry-incubator/routing-api/db"
+import (
+	"errors"
+
+	"github.com/cloudfoundry-incubator/routing-api/db"
+	"github.com/pivotal-golang/lager"
+)
 
 func BuildMappingRequests(routingEvents RoutingEvents) []db.TcpRouteMapping {
 	mappingRequests := make([]db.TcpRouteMapping, 0)
@@ -30,4 +35,29 @@ func mapRoutingEvent(routingEvent RoutingEvent) *[]db.TcpRouteMapping {
 		}
 	}
 	return &mappingRequests
+}
+
+func CreateMappingRequests(logger lager.Logger, routingEvents RoutingEvents) ([]db.TcpRouteMapping, []db.TcpRouteMapping) {
+
+	registrationEvents := RoutingEvents{}
+	unregistrationEvents := RoutingEvents{}
+	for _, routingEvent := range routingEvents {
+
+		if !routingEvent.Valid() {
+			logger.Error("invalid-routing-event", errors.New("Invalid routing event"), lager.Data{"routing-event-key": routingEvent.Key})
+			continue
+		}
+
+		if routingEvent.EventType == RouteRegistrationEvent {
+			registrationEvents = append(registrationEvents, routingEvent)
+		} else if routingEvent.EventType == RouteUnregistrationEvent {
+			unregistrationEvents = append(unregistrationEvents, routingEvent)
+		}
+	}
+
+	registrationMappingRequests := BuildMappingRequests(registrationEvents)
+
+	unregistrationMappingRequests := BuildMappingRequests(unregistrationEvents)
+
+	return registrationMappingRequests, unregistrationMappingRequests
 }

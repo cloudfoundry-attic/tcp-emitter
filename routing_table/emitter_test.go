@@ -23,6 +23,8 @@ var _ = Describe("Emitter", func() {
 		tokenFetcher            *testTokenFetcher.FakeTokenFetcher
 		routingEvents           routing_table.RoutingEvents
 		expectedMappingRequests []db.TcpRouteMapping
+		routingKey1             routing_table.RoutingKey
+		routableEndpoints1      routing_table.RoutableEndpoints
 	)
 
 	BeforeEach(func() {
@@ -34,7 +36,7 @@ var _ = Describe("Emitter", func() {
 				"instance-guid-1", false, "some-ip-1", 62003, 5222, &modificationTag),
 		}
 
-		routingKey1 := routing_table.NewRoutingKey("process-guid-1", 5222)
+		routingKey1 = routing_table.NewRoutingKey("process-guid-1", 5222)
 
 		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
 
@@ -42,7 +44,7 @@ var _ = Describe("Emitter", func() {
 			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
 		}
 
-		routableEndpoints1 := routing_table.NewRoutableEndpoints(
+		routableEndpoints1 = routing_table.NewRoutableEndpoints(
 			routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)
 
 		routingEvents = routing_table.RoutingEvents{
@@ -63,28 +65,70 @@ var _ = Describe("Emitter", func() {
 
 		Context("when router API returns no errors", func() {
 
-			It("emits valid mapping request", func() {
-				err := emitter.Emit(routingEvents)
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(routingApiClient.UpsertTcpRouteMappingsCallCount()).To(Equal(1))
-				Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(1))
-				Expect(routingApiClient.SetTokenCallCount()).To(Equal(1))
-				Expect(routingApiClient.SetTokenArgsForCall(0)).To(Equal("some-token"))
-				mappingRequests := routingApiClient.UpsertTcpRouteMappingsArgsForCall(0)
-				Expect(mappingRequests).To(ConsistOf(expectedMappingRequests))
+			Context("and there are registration events", func() {
+				It("emits valid upsert tcp routes", func() {
+					err := emitter.Emit(routingEvents)
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(routingApiClient.UpsertTcpRouteMappingsCallCount()).To(Equal(1))
+					Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(1))
+					Expect(routingApiClient.SetTokenCallCount()).To(Equal(1))
+					Expect(routingApiClient.SetTokenArgsForCall(0)).To(Equal("some-token"))
+					mappingRequests := routingApiClient.UpsertTcpRouteMappingsArgsForCall(0)
+					Expect(mappingRequests).To(ConsistOf(expectedMappingRequests))
+				})
+			})
+			Context("and there are unregistration events", func() {
+				BeforeEach(func() {
+					routingEvents = routing_table.RoutingEvents{
+						routing_table.RoutingEvent{
+							EventType: routing_table.RouteUnregistrationEvent,
+							Key:       routingKey1,
+							Entry:     routableEndpoints1,
+						},
+					}
+				})
+				It("emits valid delete tcp routes", func() {
+					err := emitter.Emit(routingEvents)
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(routingApiClient.DeleteTcpRouteMappingsCallCount()).To(Equal(1))
+					Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(1))
+					Expect(routingApiClient.SetTokenCallCount()).To(Equal(1))
+					Expect(routingApiClient.SetTokenArgsForCall(0)).To(Equal("some-token"))
+					mappingRequests := routingApiClient.DeleteTcpRouteMappingsArgsForCall(0)
+					Expect(mappingRequests).To(ConsistOf(expectedMappingRequests))
+				})
 			})
 		})
 
-		Context("when routing API returns error", func() {
+		Context("when routing API Upsert returns error", func() {
 			BeforeEach(func() {
 				routingApiClient.UpsertTcpRouteMappingsReturns(errors.New("kabooom"))
 			})
 
 			It("returns error", func() {
 				err := emitter.Emit(routingEvents)
-				Expect(err).Should(HaveOccurred())
-				Expect(err.Error()).Should(Equal("kabooom"))
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(logger).To(gbytes.Say("test.unable-to-upsert"))
+			})
+		})
+
+		Context("when routing API Delete returns error", func() {
+
+			BeforeEach(func() {
+				routingApiClient.DeleteTcpRouteMappingsReturns(errors.New("kabooom"))
+				routingEvents = routing_table.RoutingEvents{
+					routing_table.RoutingEvent{
+						EventType: routing_table.RouteUnregistrationEvent,
+						Key:       routingKey1,
+						Entry:     routableEndpoints1,
+					},
+				}
+			})
+
+			It("returns error", func() {
+				err := emitter.Emit(routingEvents)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(logger).To(gbytes.Say("test.unable-to-delete"))
 			})
 		})
 
@@ -131,8 +175,8 @@ var _ = Describe("Emitter", func() {
 
 		It("returns \"Unable to build mapping request\" error", func() {
 			err := emitter.Emit(routingEvents)
-			Expect(err).Should(HaveOccurred())
-			Expect(err.Error()).Should(Equal("Unable to build mapping request"))
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(logger).To(gbytes.Say("test.invalid-routing-event"))
 		})
 	})
 

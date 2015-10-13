@@ -1,9 +1,6 @@
 package routing_table
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/cloudfoundry-incubator/routing-api"
 	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
 	"github.com/pivotal-golang/lager"
@@ -29,16 +26,8 @@ func NewEmitter(logger lager.Logger, routingApiClient routing_api.Client, tokenF
 }
 
 func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
-
 	emitter.logRoutingEvents(routingEvents)
 	defer emitter.logger.Debug("complete-emit")
-
-	mappingRequests := BuildMappingRequests(routingEvents)
-	if len(mappingRequests) == 0 {
-		err := errors.New(fmt.Sprintf("Unable to build mapping request"))
-		emitter.logger.Error("no-mapping-request-to-emit", err)
-		return err
-	}
 
 	token, err := emitter.tokenFetcher.FetchToken()
 	if err != nil {
@@ -46,15 +35,28 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 		return err
 	}
 
+	registrationMappingRequests, unregistrationMappingRequests := CreateMappingRequests(emitter.logger, routingEvents)
+
 	emitter.routingApiClient.SetToken(token.AccessToken)
 
-	err = emitter.routingApiClient.UpsertTcpRouteMappings(mappingRequests)
-	if err != nil {
-		emitter.logger.Error("unable-to-upsert", err)
-		return err
+	emitted := true
+	if len(registrationMappingRequests) > 0 {
+		if err = emitter.routingApiClient.UpsertTcpRouteMappings(registrationMappingRequests); err != nil {
+			emitted = false
+			emitter.logger.Error("unable-to-upsert", err)
+		}
 	}
-	emitter.logger.Debug("successfully-upserted-event")
 
+	if len(unregistrationMappingRequests) > 0 {
+		if err = emitter.routingApiClient.DeleteTcpRouteMappings(unregistrationMappingRequests); err != nil {
+			emitted = false
+			emitter.logger.Error("unable-to-delete", err)
+		}
+	}
+
+	if emitted {
+		emitter.logger.Debug("successfully-emitted-events")
+	}
 	return nil
 }
 
