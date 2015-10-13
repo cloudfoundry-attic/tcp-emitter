@@ -44,7 +44,3 @@ func TCPRoutesFromRoutingInfo(routingInfoPtr *models.Routes) (TCPRoutes, error) 
 
 	return routes, err
 }
-
-// func TCPRoutesFromEntry(key routing_table.RoutingKey, entry routing_table.RoutableEndpoints) tcp_routes.TCPRoutes {
-// 	return tcp_routes.TCPRoutes{}
-// }

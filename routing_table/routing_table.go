@@ -50,7 +50,7 @@ func (table *routingTable) GetRoutingEvents() RoutingEvents {
 
 	for key, entry := range table.entries {
 		//always register everything on sync
-		routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(table.logger, key, entry)...)
+		routingEvents = append(routingEvents, table.createRoutingEvent(table.logger, key, entry, RouteRegistrationEvent)...)
 	}
 
 	return routingEvents
@@ -78,7 +78,7 @@ func (table *routingTable) Swap(t RoutingTable) RoutingEvents {
 	newEntries := newTable.entries
 	for key, newEntry := range newEntries {
 		//always register everything on sync
-		routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(table.logger, key, newEntry)...)
+		routingEvents = append(routingEvents, table.createRoutingEvent(table.logger, key, newEntry, RouteRegistrationEvent)...)
 	}
 
 	table.entries = newEntries
@@ -190,13 +190,13 @@ func (table *routingTable) setRoutes(
 		updatedEntry.LogGuid = logGuid
 		updatedEntry.ModificationTag = modificationTag
 		table.entries[key] = updatedEntry
-		routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(logger, key, updatedEntry)...)
+		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, updatedEntry, RouteRegistrationEvent)...)
 	}
 
 	if len(deletedExternalEndpoints) > 0 {
 		deletedEntry := existingEntry.copy()
 		deletedEntry.ExternalEndpoints = deletedExternalEndpoints
-		routingEvents = append(routingEvents, table.getUnregistrationEvents(logger, key, deletedEntry)...)
+		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, deletedEntry, RouteUnregistrationEvent)...)
 	}
 
 	return routingEvents
@@ -283,7 +283,7 @@ func (table *routingTable) removeEndpoint(logger lager.Logger, key RoutingKey, e
 
 	deletedEntry := table.getDeletedEntry(currentEntry, newEntry)
 
-	return table.getUnregistrationEvents(logger, key, deletedEntry)
+	return table.createRoutingEvent(logger, key, deletedEntry, RouteUnregistrationEvent)
 }
 
 func (table *routingTable) getRegistrationEvents(
@@ -314,23 +314,20 @@ func (table *routingTable) getRegistrationEvents(
 	return routingEvents
 }
 
-func (table *routingTable) getUnregistrationEvents(
-	logger lager.Logger,
-	key RoutingKey,
-	deletedEntry RoutableEndpoints) RoutingEvents {
-
-	logger.Debug("get-unregistration-events")
-	if hasNoExternalPorts(logger, deletedEntry.ExternalEndpoints) {
+func (table *routingTable) createRoutingEvent(logger lager.Logger, key RoutingKey, entry RoutableEndpoints, eventType RoutingEventType) RoutingEvents {
+	logger.Debug("create-routing-events")
+	// in which case does a entry end up with no external endpoints ?
+	if hasNoExternalPorts(logger, entry.ExternalEndpoints) {
 		return RoutingEvents{}
 	}
 
-	// We are replacing the whole mapping so just check if there exists any endpoints
-	if len(deletedEntry.Endpoints) > 0 {
+	if len(entry.Endpoints) > 0 {
+		logger.Debug("endpoints", lager.Data{"count": len(entry.Endpoints)})
 		return RoutingEvents{
 			RoutingEvent{
-				EventType: RouteUnregistrationEvent,
+				EventType: eventType,
 				Key:       key,
-				Entry:     deletedEntry,
+				Entry:     entry,
 			},
 		}
 	}
@@ -346,27 +343,6 @@ func (table *routingTable) getDeletedEntry(existingEntry, newEntry RoutableEndpo
 		}
 	}
 	return gapEntry
-}
-
-func (table *routingTable) desiredLRPRegistrationEvents(logger lager.Logger, key RoutingKey, entry RoutableEndpoints) RoutingEvents {
-	logger.Debug("get-registration-events")
-	// in which case does a entry end up with no external endpoints ?
-	if hasNoExternalPorts(logger, entry.ExternalEndpoints) {
-		return RoutingEvents{}
-	}
-
-	// We are replacing the whole mapping so just check if there exists any endpoints
-	if len(entry.Endpoints) > 0 {
-		logger.Debug("endpoints", lager.Data{"count": len(entry.Endpoints)})
-		return RoutingEvents{
-			RoutingEvent{
-				EventType: RouteRegistrationEvent,
-				Key:       key,
-				Entry:     entry,
-			},
-		}
-	}
-	return RoutingEvents{}
 }
 
 func hasNoExternalPorts(logger lager.Logger, externalEndpoints ExternalEndpointInfos) bool {
