@@ -68,11 +68,19 @@ func (table *routingTable) Swap(t RoutingTable) RoutingEvents {
 	table.Lock()
 	defer table.Unlock()
 
+	// existingEntries := table.entries
+	// for key, existingEntry := range newEntries {
+	// 	//always register everything on sync
+	// 	routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(table.logger, key, newEntry)...)
+
+	// 	 newTable.setRoutes(logger, existingEntry, routes, key, desiredLRP.LogGuid, desiredLRP.ModificationTag)
+	// }
 	newEntries := newTable.entries
 	for key, newEntry := range newEntries {
 		//always register everything on sync
 		routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(table.logger, key, newEntry)...)
 	}
+
 	table.entries = newEntries
 
 	//TODO: We need to go over existing entries and generate unregistration messages
@@ -104,8 +112,8 @@ func (table *routingTable) SetRoutes(desiredLRP *models.DesiredLRP) RoutingEvent
 		if !existingModificationTag.SucceededBy(desiredLRP.ModificationTag) {
 			continue
 		}
-
-		routingEvents = append(routingEvents, table.setRoutes(logger, existingEntry, routes, key)...)
+		routingEvents = append(routingEvents, table.setRoutes(logger, existingEntry,
+			routes, key, desiredLRP.LogGuid, desiredLRP.ModificationTag)...)
 	}
 
 	return routingEvents
@@ -147,7 +155,9 @@ func (table *routingTable) setRoutes(
 	logger lager.Logger,
 	existingEntry RoutableEndpoints,
 	routes tcp_routes.TCPRoutes,
-	key RoutingKey) RoutingEvents {
+	key RoutingKey,
+	logGuid string,
+	modificationTag *models.ModificationTag) RoutingEvents {
 	var registrationNeeded bool
 
 	var newExternalEndpoints ExternalEndpointInfos
@@ -175,17 +185,18 @@ func (table *routingTable) setRoutes(
 	routingEvents := RoutingEvents{}
 
 	if registrationNeeded {
-		existingEntry.ExternalEndpoints = newExternalEndpoints
-		table.entries[key] = existingEntry
-		// generate registration events
-		routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(logger, key, existingEntry)...)
+		updatedEntry := existingEntry.copy()
+		updatedEntry.ExternalEndpoints = newExternalEndpoints
+		updatedEntry.LogGuid = logGuid
+		updatedEntry.ModificationTag = modificationTag
+		table.entries[key] = updatedEntry
+		routingEvents = append(routingEvents, table.desiredLRPRegistrationEvents(logger, key, updatedEntry)...)
 	}
 
 	if len(deletedExternalEndpoints) > 0 {
-		// generate unregistration events
-		deleteEntry := existingEntry.copy()
-		deleteEntry.ExternalEndpoints = deletedExternalEndpoints
-		routingEvents = append(routingEvents, table.getUnregistrationEvents(logger, key, deleteEntry, RoutableEndpoints{})...)
+		deletedEntry := existingEntry.copy()
+		deletedEntry.ExternalEndpoints = deletedExternalEndpoints
+		routingEvents = append(routingEvents, table.getUnregistrationEvents(logger, key, deletedEntry)...)
 	}
 
 	return routingEvents
@@ -256,7 +267,8 @@ func (table *routingTable) removeEndpoint(logger lager.Logger, key RoutingKey, e
 	endpointKey := endpoint.key()
 	currentEndpoint, ok := currentEntry.Endpoints[endpointKey]
 
-	if !ok || !(currentEndpoint.ModificationTag.Equal(endpoint.ModificationTag) || currentEndpoint.ModificationTag.SucceededBy(endpoint.ModificationTag)) {
+	if !ok || !(currentEndpoint.ModificationTag.Equal(endpoint.ModificationTag) ||
+		currentEndpoint.ModificationTag.SucceededBy(endpoint.ModificationTag)) {
 		return RoutingEvents{}
 	}
 
@@ -264,10 +276,20 @@ func (table *routingTable) removeEndpoint(logger lager.Logger, key RoutingKey, e
 	delete(newEntry.Endpoints, endpointKey)
 	table.entries[key] = newEntry
 
-	return table.getUnregistrationEvents(logger, key, currentEntry, newEntry)
+	if !haveExternalEndpointsChanged(currentEntry, newEntry) && !haveEndpointsChanged(currentEntry, newEntry) {
+		logger.Debug("no-change-to-endpoints")
+		return RoutingEvents{}
+	}
+
+	deletedEntry := table.getDeletedEntry(currentEntry, newEntry)
+
+	return table.getUnregistrationEvents(logger, key, deletedEntry)
 }
 
-func (table *routingTable) getRegistrationEvents(logger lager.Logger, key RoutingKey, existingEntry, newEntry RoutableEndpoints) RoutingEvents {
+func (table *routingTable) getRegistrationEvents(
+	logger lager.Logger,
+	key RoutingKey,
+	existingEntry, newEntry RoutableEndpoints) RoutingEvents {
 	logger.Debug("get-registration-events")
 	if hasNoExternalPorts(logger, newEntry.ExternalEndpoints) {
 		return RoutingEvents{}
@@ -295,20 +317,12 @@ func (table *routingTable) getRegistrationEvents(logger lager.Logger, key Routin
 func (table *routingTable) getUnregistrationEvents(
 	logger lager.Logger,
 	key RoutingKey,
-	existingEntry, newEntry RoutableEndpoints) RoutingEvents {
+	deletedEntry RoutableEndpoints) RoutingEvents {
 
 	logger.Debug("get-unregistration-events")
-	if hasNoExternalPorts(logger, newEntry.ExternalEndpoints) {
+	if hasNoExternalPorts(logger, deletedEntry.ExternalEndpoints) {
 		return RoutingEvents{}
 	}
-
-	if !haveExternalEndpointsChanged(existingEntry, newEntry) &&
-		!haveEndpointsChanged(existingEntry, newEntry) {
-		logger.Debug("no-change-to-endpoints")
-		return RoutingEvents{}
-	}
-
-	deletedEntry := table.getDeletedEntry(existingEntry, newEntry)
 
 	// We are replacing the whole mapping so just check if there exists any endpoints
 	if len(deletedEntry.Endpoints) > 0 {
@@ -336,6 +350,7 @@ func (table *routingTable) getDeletedEntry(existingEntry, newEntry RoutableEndpo
 
 func (table *routingTable) desiredLRPRegistrationEvents(logger lager.Logger, key RoutingKey, entry RoutableEndpoints) RoutingEvents {
 	logger.Debug("get-registration-events")
+	// in which case does a entry end up with no external endpoints ?
 	if hasNoExternalPorts(logger, entry.ExternalEndpoints) {
 		return RoutingEvents{}
 	}
