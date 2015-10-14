@@ -11,14 +11,17 @@ import (
 var _ = Describe("MappingRequestBuilder", func() {
 
 	var (
-		routingEvents           routing_table.RoutingEvents
-		expectedMappingRequests []db.TcpRouteMapping
-		endpoints1              map[routing_table.EndpointKey]routing_table.Endpoint
-		endpoints2              map[routing_table.EndpointKey]routing_table.Endpoint
-		routingKey1             routing_table.RoutingKey
-		routingKey2             routing_table.RoutingKey
-		logGuid                 string
-		modificationTag         models.ModificationTag
+		routingEvents                  routing_table.RoutingEvents
+		expectedRegistrationRequests   []db.TcpRouteMapping
+		expectedUnregistrationRequests []db.TcpRouteMapping
+		endpoints1                     map[routing_table.EndpointKey]routing_table.Endpoint
+		endpoints2                     map[routing_table.EndpointKey]routing_table.Endpoint
+		routingKey1                    routing_table.RoutingKey
+		routingKey2                    routing_table.RoutingKey
+		routableEndpoints1             routing_table.RoutableEndpoints
+		routableEndpoints2             routing_table.RoutableEndpoints
+		logGuid                        string
+		modificationTag                models.ModificationTag
 	)
 
 	BeforeEach(func() {
@@ -42,7 +45,6 @@ var _ = Describe("MappingRequestBuilder", func() {
 		routingKey2 = routing_table.NewRoutingKey("process-guid-2", 5222)
 
 		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
-
 		extenralEndpointInfo2 := routing_table.NewExternalEndpointInfo(61001)
 		extenralEndpointInfo3 := routing_table.NewExternalEndpointInfo(61002)
 		endpointInfo1 := routing_table.ExternalEndpointInfos{extenralEndpointInfo1}
@@ -51,45 +53,120 @@ var _ = Describe("MappingRequestBuilder", func() {
 			extenralEndpointInfo3,
 		}
 
-		routableEndpoints1 := routing_table.NewRoutableEndpoints(
-			endpointInfo1, endpoints1, logGuid, &modificationTag)
-		routableEndpoints2 := routing_table.NewRoutableEndpoints(
-			endpointInfo2, endpoints2, logGuid, &modificationTag)
-
-		routingEvents = routing_table.RoutingEvents{
-			routing_table.RoutingEvent{
-				EventType: routing_table.RouteRegistrationEvent,
-				Key:       routingKey1,
-				Entry:     routableEndpoints1,
-			},
-			routing_table.RoutingEvent{
-				EventType: routing_table.RouteRegistrationEvent,
-				Key:       routingKey2,
-				Entry:     routableEndpoints2,
-			},
-		}
-
-		expectedMappingRequests = []db.TcpRouteMapping{
-			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
-			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
-			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-3", 62005),
-			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-4", 62006),
-			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-3", 62005),
-			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-4", 62006),
-		}
+		routableEndpoints1 = routing_table.NewRoutableEndpoints(endpointInfo1, endpoints1, logGuid, &modificationTag)
+		routableEndpoints2 = routing_table.NewRoutableEndpoints(endpointInfo2, endpoints2, logGuid, &modificationTag)
 	})
 
 	Context("with valid routing events", func() {
-		It("returns valid mapping requests ", func() {
-			mappingRequests := routing_table.BuildMappingRequests(routingEvents)
-			Expect(mappingRequests).Should(HaveLen(len(expectedMappingRequests)))
-			Expect(mappingRequests).Should(ConsistOf(expectedMappingRequests))
+		BeforeEach(func() {
+			routingEvents = routing_table.RoutingEvents{
+				routing_table.RoutingEvent{
+					EventType: routing_table.RouteRegistrationEvent,
+					Key:       routingKey1,
+					Entry:     routableEndpoints1,
+				},
+				routing_table.RoutingEvent{
+					EventType: routing_table.RouteUnregistrationEvent,
+					Key:       routingKey2,
+					Entry:     routableEndpoints2,
+				},
+			}
+
+			expectedRegistrationRequests = []db.TcpRouteMapping{
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
+			}
+
+			expectedUnregistrationRequests = []db.TcpRouteMapping{
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-3", 62005),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-4", 62006),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-3", 62005),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-4", 62006),
+			}
+		})
+
+		It("returns valid registration and unregistration mapping requests ", func() {
+			registrationRequests, unregistrationRequests := routing_table.CreateMappingRequests(logger, routingEvents)
+			Expect(registrationRequests).Should(HaveLen(len(expectedRegistrationRequests)))
+			Expect(registrationRequests).Should(ConsistOf(expectedRegistrationRequests))
+			Expect(unregistrationRequests).Should(HaveLen(len(expectedUnregistrationRequests)))
+			Expect(unregistrationRequests).Should(ConsistOf(expectedUnregistrationRequests))
 		})
 	})
 
-	Context("with an invalid external port in routing event", func() {
-		It("returns an empty mapping request", func() {
+	Context("with no unregistration events", func() {
+		BeforeEach(func() {
+			routingEvents = routing_table.RoutingEvents{
+				routing_table.RoutingEvent{
+					EventType: routing_table.RouteRegistrationEvent,
+					Key:       routingKey1,
+					Entry:     routableEndpoints1,
+				},
+				routing_table.RoutingEvent{
+					EventType: routing_table.RouteRegistrationEvent,
+					Key:       routingKey2,
+					Entry:     routableEndpoints2,
+				},
+			}
 
+			expectedRegistrationRequests = []db.TcpRouteMapping{
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-3", 62005),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-4", 62006),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-3", 62005),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-4", 62006),
+			}
+
+			expectedUnregistrationRequests = []db.TcpRouteMapping{}
+		})
+
+		It("returns only registration mapping requests ", func() {
+			registrationRequests, unregistrationRequests := routing_table.CreateMappingRequests(logger, routingEvents)
+			Expect(registrationRequests).Should(HaveLen(len(expectedRegistrationRequests)))
+			Expect(registrationRequests).Should(ConsistOf(expectedRegistrationRequests))
+			Expect(unregistrationRequests).Should(HaveLen(0))
+		})
+	})
+
+	Context("with no registration events", func() {
+		BeforeEach(func() {
+			routingEvents = routing_table.RoutingEvents{
+				routing_table.RoutingEvent{
+					EventType: routing_table.RouteUnregistrationEvent,
+					Key:       routingKey1,
+					Entry:     routableEndpoints1,
+				},
+				routing_table.RoutingEvent{
+					EventType: routing_table.RouteUnregistrationEvent,
+					Key:       routingKey2,
+					Entry:     routableEndpoints2,
+				},
+			}
+
+			expectedUnregistrationRequests = []db.TcpRouteMapping{
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-3", 62005),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-4", 62006),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-3", 62005),
+				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-4", 62006),
+			}
+
+			expectedRegistrationRequests = []db.TcpRouteMapping{}
+		})
+
+		It("returns only unregistration mapping requests ", func() {
+			registrationRequests, unregistrationRequests := routing_table.CreateMappingRequests(logger, routingEvents)
+			Expect(unregistrationRequests).Should(HaveLen(len(expectedUnregistrationRequests)))
+			Expect(unregistrationRequests).Should(ConsistOf(expectedUnregistrationRequests))
+			Expect(registrationRequests).Should(HaveLen(0))
+		})
+	})
+
+	Context("with an invalid external port in route registration event", func() {
+
+		It("returns an empty registration request", func() {
 			extenralEndpointInfo1 := routing_table.ExternalEndpointInfos{
 				routing_table.NewExternalEndpointInfo(0),
 			}
@@ -104,13 +181,13 @@ var _ = Describe("MappingRequestBuilder", func() {
 					Entry:     routableEndpoints1,
 				},
 			}
-
-			mappingRequests := routing_table.BuildMappingRequests(routingEvents)
-			Expect(mappingRequests).Should(HaveLen(0))
+			registrationRequests, unregistrationRequests := routing_table.CreateMappingRequests(logger, routingEvents)
+			Expect(unregistrationRequests).Should(HaveLen(0))
+			Expect(registrationRequests).Should(HaveLen(0))
 		})
 
 		Context("and multiple external ports", func() {
-			It("only disregards the invalid external port", func() {
+			It("disregards the entire routing event", func() {
 				extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(0)
 				extenralEndpointInfo2 := routing_table.NewExternalEndpointInfo(61000)
 				externalInfo := []routing_table.ExternalEndpointInfo{
@@ -128,14 +205,10 @@ var _ = Describe("MappingRequestBuilder", func() {
 						Entry:     routableEndpoints1,
 					},
 				}
-				expMappingRequests := []db.TcpRouteMapping{
-					db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
-					db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
-				}
 
-				mappingRequests := routing_table.BuildMappingRequests(routingEvents)
-				Expect(mappingRequests).Should(HaveLen(len(expMappingRequests)))
-				Expect(mappingRequests).To(ConsistOf(expMappingRequests))
+				registrationRequests, unregistrationRequests := routing_table.CreateMappingRequests(logger, routingEvents)
+				Expect(unregistrationRequests).Should(HaveLen(0))
+				Expect(registrationRequests).Should(HaveLen(0))
 			})
 		})
 	})
@@ -157,8 +230,9 @@ var _ = Describe("MappingRequestBuilder", func() {
 				},
 			}
 
-			mappingRequests := routing_table.BuildMappingRequests(routingEvents)
-			Expect(mappingRequests).Should(HaveLen(0))
+			registrationRequests, unregistrationRequests := routing_table.CreateMappingRequests(logger, routingEvents)
+			Expect(unregistrationRequests).Should(HaveLen(0))
+			Expect(registrationRequests).Should(HaveLen(0))
 		})
 	})
 })

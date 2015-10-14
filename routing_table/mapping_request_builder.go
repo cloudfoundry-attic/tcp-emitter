@@ -7,7 +7,7 @@ import (
 	"github.com/pivotal-golang/lager"
 )
 
-func BuildMappingRequests(routingEvents RoutingEvents) []db.TcpRouteMapping {
+func buildMappingRequests(routingEvents RoutingEvents) []db.TcpRouteMapping {
 	mappingRequests := make([]db.TcpRouteMapping, 0)
 	for _, routingEvent := range routingEvents {
 		mappingRequest := mapRoutingEvent(routingEvent)
@@ -19,16 +19,8 @@ func BuildMappingRequests(routingEvents RoutingEvents) []db.TcpRouteMapping {
 }
 
 func mapRoutingEvent(routingEvent RoutingEvent) *[]db.TcpRouteMapping {
-	if len(routingEvent.Entry.Endpoints) == 0 {
-		return nil
-	}
-
 	mappingRequests := make([]db.TcpRouteMapping, 0)
 	for _, externalEndpoint := range routingEvent.Entry.ExternalEndpoints {
-		if externalEndpoint.Port == 0 {
-			continue
-		}
-
 		for _, endpoint := range routingEvent.Entry.Endpoints {
 			mappingRequests = append(mappingRequests, db.NewTcpRouteMapping(externalEndpoint.RouterGroupGuid, uint16(externalEndpoint.Port),
 				endpoint.Host, uint16(endpoint.Port)))
@@ -38,11 +30,9 @@ func mapRoutingEvent(routingEvent RoutingEvent) *[]db.TcpRouteMapping {
 }
 
 func CreateMappingRequests(logger lager.Logger, routingEvents RoutingEvents) ([]db.TcpRouteMapping, []db.TcpRouteMapping) {
-
 	registrationEvents := RoutingEvents{}
 	unregistrationEvents := RoutingEvents{}
 	for _, routingEvent := range routingEvents {
-
 		if !routingEvent.Valid() {
 			logger.Error("invalid-routing-event", errors.New("Invalid routing event"), lager.Data{"routing-event-key": routingEvent.Key})
 			continue
@@ -55,9 +45,9 @@ func CreateMappingRequests(logger lager.Logger, routingEvents RoutingEvents) ([]
 		}
 	}
 
-	registrationMappingRequests := BuildMappingRequests(registrationEvents)
+	registrationMappingRequests := buildMappingRequests(registrationEvents)
 
-	unregistrationMappingRequests := BuildMappingRequests(unregistrationEvents)
+	unregistrationMappingRequests := buildMappingRequests(unregistrationEvents)
 
 	return registrationMappingRequests, unregistrationMappingRequests
 }

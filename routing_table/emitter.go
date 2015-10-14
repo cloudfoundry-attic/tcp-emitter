@@ -44,6 +44,9 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 		if err = emitter.routingApiClient.UpsertTcpRouteMappings(registrationMappingRequests); err != nil {
 			emitted = false
 			emitter.logger.Error("unable-to-upsert", err)
+		} else {
+			emitter.logger.Debug("successfully-emitted-registration-events",
+				lager.Data{"number-of-registration-events": len(registrationMappingRequests)})
 		}
 	}
 
@@ -51,6 +54,9 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 		if err = emitter.routingApiClient.DeleteTcpRouteMappings(unregistrationMappingRequests); err != nil {
 			emitted = false
 			emitter.logger.Error("unable-to-delete", err)
+		} else {
+			emitter.logger.Debug("successfully-emitted-unregistration-events",
+				lager.Data{"number-of-unregistration-events": len(unregistrationMappingRequests)})
 		}
 	}
 

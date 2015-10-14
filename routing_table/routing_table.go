@@ -76,9 +76,8 @@ func (table *routingTable) Swap(t RoutingTable) RoutingEvents {
 		newExternalEndpoints := newEntry.ExternalEndpoints
 		existingEntry := table.entries[key]
 
-		if unregistrationEntry, updated := existingEntry.SubstractExternalEndpoints(newExternalEndpoints); updated {
-			routingEvents = append(routingEvents, table.createRoutingEvent(table.logger, key, unregistrationEntry, RouteUnregistrationEvent)...)
-		}
+		unregistrationEntry := existingEntry.RemoveExternalEndpoints(newExternalEndpoints)
+		routingEvents = append(routingEvents, table.createRoutingEvent(table.logger, key, unregistrationEntry, RouteUnregistrationEvent)...)
 	}
 
 	for key, existingEntry := range table.entries {
@@ -190,9 +189,8 @@ func (table *routingTable) setRoutes(
 		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, updatedEntry, RouteRegistrationEvent)...)
 	}
 
-	if unregistrationEntry, updated := existingEntry.SubstractExternalEndpoints(newExternalEndpoints); updated {
-		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, unregistrationEntry, RouteUnregistrationEvent)...)
-	}
+	unregistrationEntry := existingEntry.RemoveExternalEndpoints(newExternalEndpoints)
+	routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, unregistrationEntry, RouteUnregistrationEvent)...)
 
 	return routingEvents
 }

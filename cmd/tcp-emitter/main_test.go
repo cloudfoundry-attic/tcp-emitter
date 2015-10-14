@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"encoding/base64"
 	"net/http"
 	"os"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/sigmon"
+	"github.com/vito/go-sse/sse"
 
 	routingtestrunner "github.com/cloudfoundry-incubator/routing-api/cmd/routing-api/testrunner"
 	"github.com/cloudfoundry-incubator/routing-api/db"
@@ -90,22 +92,48 @@ var _ = Describe("TCP Emitter", func() {
 	})
 
 	Describe("Main", func() {
-		setupBbsServer := func(server *ghttp.Server) {
+
+		getDesiredLRP := func(processGuid, logGuid string, externalPort, containerPort, modificationIndex uint32) models.DesiredLRP {
+			desiredLRP := models.DesiredLRP{}
+			desiredLRP.ProcessGuid = processGuid
+			desiredLRP.Ports = []uint32{containerPort}
+			desiredLRP.LogGuid = logGuid
+			tcpRoutes := tcp_routes.TCPRoutes{
+				tcp_routes.TCPRoute{
+					ExternalPort:  externalPort,
+					ContainerPort: containerPort,
+				},
+			}
+			desiredLRP.Routes = tcpRoutes.RoutingInfo()
+			desiredLRP.ModificationTag = &models.ModificationTag{Epoch: "abc", Index: modificationIndex}
+			return desiredLRP
+		}
+
+		getActualLRP := func(processGuid, instanceGuid, ipAddress string, containerPort uint32) models.ActualLRPGroup {
+			return models.ActualLRPGroup{
+				Instance: &models.ActualLRP{
+					ActualLRPKey:         models.NewActualLRPKey(processGuid, 0, "domain"),
+					ActualLRPInstanceKey: models.NewActualLRPInstanceKey(instanceGuid, "cell-id-1"),
+					ActualLRPNetInfo: models.NewActualLRPNetInfo(
+						ipAddress,
+						models.NewPortMapping(62003, containerPort),
+					),
+					State: models.ActualLRPStateRunning,
+				},
+				Evacuating: nil,
+			}
+		}
+
+		setupBbsServer := func(server *ghttp.Server, includeSecondLRP bool, exitChannel chan struct{}) {
 			server.RouteToHandler("POST", "/v1/actual_lrp_groups/list",
 				func(w http.ResponseWriter, req *http.Request) {
+					actualLRP1 := getActualLRP("some-guid", "instance-guid", "some-ip", 5222)
 					actualLRPs := []*models.ActualLRPGroup{
-						&models.ActualLRPGroup{
-							Instance: &models.ActualLRP{
-								ActualLRPKey:         models.NewActualLRPKey("some-guid", 0, "domain"),
-								ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id-1"),
-								ActualLRPNetInfo: models.NewActualLRPNetInfo(
-									"some-ip",
-									models.NewPortMapping(62003, 5222),
-								),
-								State: models.ActualLRPStateRunning,
-							},
-							Evacuating: nil,
-						},
+						&actualLRP1,
+					}
+					if includeSecondLRP {
+						actualLRP2 := getActualLRP("some-guid-1", "instance-guid-1", "some-ip-1", 1883)
+						actualLRPs = append(actualLRPs, &actualLRP2)
 					}
 					actualLRPResponse := models.ActualLRPGroupsResponse{
 						ActualLrpGroups: actualLRPs,
@@ -118,19 +146,13 @@ var _ = Describe("TCP Emitter", func() {
 				})
 			server.RouteToHandler("POST", "/v1/desired_lrps/list",
 				func(w http.ResponseWriter, req *http.Request) {
-					var desiredLRP models.DesiredLRP
-					desiredLRP.ProcessGuid = "some-guid"
-					desiredLRP.Ports = []uint32{5222}
-					desiredLRP.LogGuid = "log-guid"
-					tcpRoutes := tcp_routes.TCPRoutes{
-						tcp_routes.TCPRoute{
-							ExternalPort:  5222,
-							ContainerPort: 5222,
-						},
-					}
-					desiredLRP.Routes = tcpRoutes.RoutingInfo()
+					desiredLRP1 := getDesiredLRP("some-guid", "log-guid", 5222, 5222, 1)
 					desiredLRPs := []*models.DesiredLRP{
-						&desiredLRP,
+						&desiredLRP1,
+					}
+					if includeSecondLRP {
+						desiredLRP2 := getDesiredLRP("some-guid-1", "log-guid-1", 1883, 1883, 1)
+						desiredLRPs = append(desiredLRPs, &desiredLRP2)
 					}
 					desiredLRPResponse := models.DesiredLRPsResponse{
 						DesiredLrps: desiredLRPs,
@@ -141,8 +163,35 @@ var _ = Describe("TCP Emitter", func() {
 					w.WriteHeader(http.StatusOK)
 					w.Write(data)
 				})
+
+			deletedDesiredLRP := getDesiredLRP("some-guid-1", "log-guid-1", 1883, 1883, 2)
+			desiredLRPEvent := models.NewDesiredLRPRemovedEvent(&deletedDesiredLRP)
+			eventData, err := proto.Marshal(desiredLRPEvent)
+			b64EventData := base64.StdEncoding.EncodeToString(eventData)
+
+			Expect(err).ToNot(HaveOccurred())
+			sseEvent := sse.Event{
+				ID:   "1",
+				Name: models.EventTypeDesiredLRPRemoved,
+				Data: []byte(b64EventData),
+			}
 			server.RouteToHandler("GET", "/v1/events",
 				func(w http.ResponseWriter, req *http.Request) {
+					flusher := w.(http.Flusher)
+					headers := w.Header()
+					headers["Content-Type"] = []string{"text/event-stream; charset=utf-8"}
+					w.WriteHeader(http.StatusOK)
+					flusher.Flush()
+					for {
+						select {
+						case <-exitChannel:
+							return
+						default:
+							sseEvent.Write(w)
+							flusher.Flush()
+							time.Sleep(1 * time.Second)
+						}
+					}
 				})
 		}
 
@@ -183,14 +232,23 @@ var _ = Describe("TCP Emitter", func() {
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-emitted-events"))
 		}
 
-		checkTcpRouteMapping := func(tcpRouteMapping db.TcpRouteMapping) {
-			tcpRouteMappings, err := routingApiClient.TcpRouteMappings()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(tcpRouteMappings).To(ContainElement(tcpRouteMapping))
+		checkTcpRouteMapping := func(tcpRouteMapping db.TcpRouteMapping, present bool) {
+			if present {
+				Eventually(func() []db.TcpRouteMapping {
+					tcpRouteMappings, _ := routingApiClient.TcpRouteMappings()
+					return tcpRouteMappings
+				}, 5*time.Second).Should(ContainElement(tcpRouteMapping))
+			} else {
+				Eventually(func() []db.TcpRouteMapping {
+					tcpRouteMappings, _ := routingApiClient.TcpRouteMappings()
+					return tcpRouteMappings
+				}, 5*time.Second).ShouldNot(ContainElement(tcpRouteMapping))
+			}
 		}
 
 		var (
-			expectedTcpRouteMapping db.TcpRouteMapping
+			expectedTcpRouteMapping    db.TcpRouteMapping
+			notExpectedTcpRouteMapping db.TcpRouteMapping
 		)
 
 		BeforeEach(func() {
@@ -202,6 +260,15 @@ var _ = Describe("TCP Emitter", func() {
 				HostPort: 62003,
 				HostIP:   "some-ip",
 			}
+			notExpectedTcpRouteMapping = db.TcpRouteMapping{
+				TcpRoute: db.TcpRoute{
+					RouterGroupGuid: routing_table.DefaultRouterGroupGuid,
+					ExternalPort:    1883,
+				},
+				HostPort: 62003,
+				HostIP:   "some-ip-1",
+			}
+
 		})
 
 		Context("when invalid bbs address is passed to tcp emitter", func() {
@@ -261,9 +328,11 @@ var _ = Describe("TCP Emitter", func() {
 			var (
 				routingApiProcess ifrit.Process
 				session           *gexec.Session
+				exitChannel       chan struct{}
 			)
 			BeforeEach(func() {
-				setupBbsServer(bbsServer)
+				exitChannel = make(chan struct{})
+				setupBbsServer(bbsServer, true, exitChannel)
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
 				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
@@ -276,11 +345,16 @@ var _ = Describe("TCP Emitter", func() {
 				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 				routingApiProcess.Signal(os.Interrupt)
 				Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
+				close(exitChannel)
 			})
 
 			It("starts an SSE connection to the bbs and emits events to routing api", func() {
 				checkEmitterWorks(session)
-				checkTcpRouteMapping(expectedTcpRouteMapping)
+				Eventually(session.Out, 2*time.Second).Should(gbytes.Say("successfully-emitted-registration-events"))
+				checkTcpRouteMapping(expectedTcpRouteMapping, true)
+
+				Eventually(session.Out, 2*time.Second).Should(gbytes.Say("successfully-emitted-unregistration-events"))
+				checkTcpRouteMapping(notExpectedTcpRouteMapping, false)
 			})
 		})
 
@@ -288,10 +362,12 @@ var _ = Describe("TCP Emitter", func() {
 			var (
 				routingApiProcess ifrit.Process
 				session           *gexec.Session
+				exitChannel       chan struct{}
 			)
 
 			BeforeEach(func() {
-				setupBbsServer(bbsServer)
+				exitChannel = make(chan struct{})
+				setupBbsServer(bbsServer, false, exitChannel)
 				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 				logger.Info("started-tcp-emitter")
 			})
@@ -302,6 +378,7 @@ var _ = Describe("TCP Emitter", func() {
 				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 				routingApiProcess.Signal(os.Interrupt)
 				Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
+				close(exitChannel)
 			})
 
 			It("starts an SSE connection to the bbs and continues to try to emit to routing api", func() {
@@ -354,9 +431,11 @@ var _ = Describe("TCP Emitter", func() {
 			var (
 				routingApiProcess ifrit.Process
 				session1          *gexec.Session
+				exitChannel       chan struct{}
 			)
 			BeforeEach(func() {
-				setupBbsServer(bbsServer)
+				exitChannel = make(chan struct{})
+				setupBbsServer(bbsServer, false, exitChannel)
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
 				session1 = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
@@ -369,11 +448,12 @@ var _ = Describe("TCP Emitter", func() {
 				Eventually(session1.Exited, 5*time.Second).Should(BeClosed())
 				routingApiProcess.Signal(os.Interrupt)
 				Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
+				close(exitChannel)
 			})
 
 			It("and the first emitter starts an SSE connection to the bbs and emits events to routing api", func() {
 				checkEmitterWorks(session1)
-				checkTcpRouteMapping(expectedTcpRouteMapping)
+				checkTcpRouteMapping(expectedTcpRouteMapping, true)
 			})
 
 			Context("and another emitter starts", func() {
@@ -407,7 +487,7 @@ var _ = Describe("TCP Emitter", func() {
 							By("the second emitter could receive events")
 
 							checkEmitterWorks(session2)
-							checkTcpRouteMapping(expectedTcpRouteMapping)
+							checkTcpRouteMapping(expectedTcpRouteMapping, true)
 						})
 					})
 				})

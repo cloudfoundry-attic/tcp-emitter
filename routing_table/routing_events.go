@@ -19,6 +19,9 @@ func (r RoutingEvent) Valid() bool {
 	if len(r.Entry.Endpoints) == 0 {
 		return false
 	}
+	if len(r.Entry.ExternalEndpoints) == 0 {
+		return false
+	}
 	for _, externalEndpoint := range r.Entry.ExternalEndpoints {
 		if externalEndpoint.Port == 0 {
 			return false
