@@ -146,13 +146,25 @@ var _ = Describe("RoutingTableHandler", func() {
 		})
 
 		Describe("HandleDesiredDelete", func() {
+			BeforeEach(func() {
+				unregistrationEvent := routing_table.RoutingEvents{
+					routing_table.RoutingEvent{
+						EventType: routing_table.RouteUnregistrationEvent,
+						Key:       routing_table.RoutingKey{},
+						Entry:     routing_table.RoutableEndpoints{},
+					},
+				}
+				fakeRoutingTable.RemoveRoutesReturns(unregistrationEvent)
+			})
 			JustBeforeEach(func() {
 				routingTableHandler.HandleEvent(models.NewDesiredLRPRemovedEvent(desiredLRP))
 			})
 
 			It("does not invoke SetRoutes on RoutingTable", func() {
-				Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
-				Expect(fakeEmitter.EmitCallCount()).Should(Equal(0))
+				Expect(fakeRoutingTable.RemoveRoutesCallCount()).Should(Equal(1))
+				Expect(fakeEmitter.EmitCallCount()).Should(Equal(1))
+				lrp := fakeRoutingTable.RemoveRoutesArgsForCall(0)
+				Expect(lrp).Should(Equal(desiredLRP))
 			})
 		})
 	})
