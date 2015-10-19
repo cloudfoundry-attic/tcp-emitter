@@ -133,13 +133,14 @@ var _ = BeforeEach(func() {
 	routingApiClient = routing_api.NewClient(routingAPIAddress)
 
 	tcpEmitterArgs = testrunner.Args{
-		BBSAddress:     bbsServer.URL(),
-		BBSClientCert:  createClientCert(),
-		BBSCACert:      createCACert(),
-		BBSClientKey:   createClientKey(),
-		ConfigFilePath: createEmitterConfig(),
-		SyncInterval:   1 * time.Second,
-		ConsulCluster:  consulRunner.ConsulCluster(),
+		BBSAddress:            bbsServer.URL(),
+		BBSClientCert:         createClientCert(),
+		BBSCACert:             createCACert(),
+		BBSClientKey:          createClientKey(),
+		ConfigFilePath:        createEmitterConfig(),
+		SyncInterval:          1 * time.Second,
+		ConsulCluster:         consulRunner.ConsulCluster(),
+		RoutingApiAuthEnabled: true,
 	}
 
 	consulRunner.Start()

@@ -493,5 +493,51 @@ var _ = Describe("TCP Emitter", func() {
 				})
 			})
 		})
+
+		Context("when routing api auth is disabled", func() {
+			var (
+				routingApiProcess ifrit.Process
+				session           *gexec.Session
+				exitChannel       chan struct{}
+			)
+			BeforeEach(func() {
+				exitChannel = make(chan struct{})
+				setupBbsServer(bbsServer, true, exitChannel)
+				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				logger.Info("started-routing-api-server")
+				unAuthTcpEmitterArgs := testrunner.Args{
+					BBSAddress:            bbsServer.URL(),
+					BBSClientCert:         createClientCert(),
+					BBSCACert:             createCACert(),
+					BBSClientKey:          createClientKey(),
+					ConfigFilePath:        createEmitterConfig(),
+					SyncInterval:          1 * time.Second,
+					ConsulCluster:         consulRunner.ConsulCluster(),
+					RoutingApiAuthEnabled: false,
+				}
+
+				allOutput := gbytes.NewBuffer()
+				runner := testrunner.New(tcpEmitterBinPath, unAuthTcpEmitterArgs)
+				var err error
+				session, err = gexec.Start(runner.Command, allOutput, allOutput)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			AfterEach(func() {
+				logger.Info("shutting-down")
+				session.Signal(os.Interrupt)
+				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
+				routingApiProcess.Signal(os.Interrupt)
+				Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
+				close(exitChannel)
+			})
+
+			It("does not call oauth server to get the auth token", func() {
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("creating-noop-token-fetcher"))
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
+				Eventually(session.Out, 2*time.Second).Should(gbytes.Say("successfully-emitted-registration-events"))
+				checkTcpRouteMapping(expectedTcpRouteMapping, true)
+			})
+		})
 	})
 })
