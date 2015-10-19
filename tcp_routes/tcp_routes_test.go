@@ -21,16 +21,19 @@ var _ = Describe("TcpRoutes", func() {
 
 	BeforeEach(func() {
 		route1 = tcp_routes.TCPRoute{
-			ExternalPort:  5222,
-			ContainerPort: 11111,
+			RouterGroupGuid: "some-guid",
+			ExternalPort:    5222,
+			ContainerPort:   11111,
 		}
 		route2 = tcp_routes.TCPRoute{
-			ExternalPort:  5223,
-			ContainerPort: 22222,
+			RouterGroupGuid: "some-guid-2",
+			ExternalPort:    5223,
+			ContainerPort:   22222,
 		}
 		route3 = tcp_routes.TCPRoute{
-			ExternalPort:  5224,
-			ContainerPort: 33333,
+			RouterGroupGuid: "some-guid-3",
+			ExternalPort:    5224,
+			ContainerPort:   33333,
 		}
 
 		routes = tcp_routes.TCPRoutes{route1, route2, route3}

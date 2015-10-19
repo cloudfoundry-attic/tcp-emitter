@@ -14,8 +14,8 @@ var _ = Describe("RoutingTableEntry", func() {
 	)
 	BeforeEach(func() {
 		source = routing_table.ExternalEndpointInfos{
-			routing_table.ExternalEndpointInfo{"routing-group-1", 6000},
-			routing_table.ExternalEndpointInfo{"routing-group-1", 6100},
+			routing_table.NewExternalEndpointInfo("routing-group-1", 6000),
+			routing_table.NewExternalEndpointInfo("routing-group-1", 6100),
 		}
 	})
 

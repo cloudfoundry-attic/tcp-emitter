@@ -169,11 +169,11 @@ func (table *routingTable) setRoutes(
 		if key.ContainerPort == route.ContainerPort {
 			if !containsExternalPort(existingEntry.ExternalEndpoints, route.ExternalPort) {
 				newExternalEndpoints = append(newExternalEndpoints,
-					NewExternalEndpointInfo(route.ExternalPort))
+					NewExternalEndpointInfo(route.RouterGroupGuid, route.ExternalPort))
 				registrationNeeded = true
 			} else {
 				newExternalEndpoints = append(newExternalEndpoints,
-					NewExternalEndpointInfo(route.ExternalPort))
+					NewExternalEndpointInfo(route.RouterGroupGuid, route.ExternalPort))
 			}
 		}
 	}

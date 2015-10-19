@@ -33,7 +33,7 @@ var _ = Describe("RoutingEvent", func() {
 		Context("valid routing event is passed", func() {
 			BeforeEach(func() {
 				externalEndpoints := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo(61000),
+					routing_table.NewExternalEndpointInfo("some-guid", 61000),
 				}
 				routableEndpoints = routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag)
 				routingEvent = routing_table.RoutingEvent{routing_table.RouteRegistrationEvent, routingKey, routableEndpoints}
@@ -57,7 +57,7 @@ var _ = Describe("RoutingEvent", func() {
 		Context("routing event with one external port is zero", func() {
 			BeforeEach(func() {
 				externalEndpoints := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo(0),
+					routing_table.NewExternalEndpointInfo("router-guid", 0),
 				}
 				routableEndpoints = routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag)
 				routingEvent = routing_table.RoutingEvent{routing_table.RouteRegistrationEvent, routingKey, routableEndpoints}
@@ -70,7 +70,7 @@ var _ = Describe("RoutingEvent", func() {
 		Context("routing event with no endpoints", func() {
 			BeforeEach(func() {
 				externalEndpoints := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo(61000),
+					routing_table.NewExternalEndpointInfo("r-g", 61000),
 				}
 				routableEndpoints = routing_table.NewRoutableEndpoints(externalEndpoints, map[routing_table.EndpointKey]routing_table.Endpoint{},
 					logGuid, modificationTag)

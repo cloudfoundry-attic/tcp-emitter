@@ -162,7 +162,7 @@ var _ = Describe("RoutingTable", func() {
 			BeforeEach(func() {
 				logGuid = "log-guid-1"
 				externalEndpoints := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo(61000),
+					routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 				}
 				key = routing_table.NewRoutingKey("process-guid-1", 5222)
 				modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
@@ -187,7 +187,7 @@ var _ = Describe("RoutingTable", func() {
 				Expect(routingEvent.Key).Should(Equal(key))
 				Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
 				externalInfo := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo(61000),
+					routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 				}
 				expectedEntry := routing_table.NewRoutableEndpoints(
 					externalInfo, endpoints, logGuid, modificationTag)
@@ -214,7 +214,7 @@ var _ = Describe("RoutingTable", func() {
 		BeforeEach(func() {
 			logGuid = "log-guid-1"
 			externalEndpoints = routing_table.ExternalEndpointInfos{
-				routing_table.NewExternalEndpointInfo(61000),
+				routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 			}
 			key = routing_table.NewRoutingKey("process-guid-1", 5222)
 			modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
@@ -241,8 +241,9 @@ var _ = Describe("RoutingTable", func() {
 				BeforeEach(func() {
 					newTcpRoutes = tcp_routes.TCPRoutes{
 						tcp_routes.TCPRoute{
-							ExternalPort:  61001,
-							ContainerPort: 5222,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    61001,
+							ContainerPort:   5222,
 						},
 					}
 				})
@@ -261,7 +262,7 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvent.Entry).Should(Equal(unregistrationExpectedEntry))
 
 					externalInfo := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo(61001),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
 					}
 					routingEvent = routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
@@ -287,16 +288,19 @@ var _ = Describe("RoutingTable", func() {
 				BeforeEach(func() {
 					tcpRoutes = tcp_routes.TCPRoutes{
 						tcp_routes.TCPRoute{
-							ExternalPort:  61000,
-							ContainerPort: 5222,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    61000,
+							ContainerPort:   5222,
 						},
 						tcp_routes.TCPRoute{
-							ExternalPort:  61001,
-							ContainerPort: 5222,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    61001,
+							ContainerPort:   5222,
 						},
 						tcp_routes.TCPRoute{
-							ExternalPort:  61002,
-							ContainerPort: 5222,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    61002,
+							ContainerPort:   5222,
 						},
 					}
 				})
@@ -310,9 +314,9 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvent.Key).Should(Equal(key))
 					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
 					externalInfo := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo(61000),
-						routing_table.NewExternalEndpointInfo(61001),
-						routing_table.NewExternalEndpointInfo(61002),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61002),
 					}
 					expectedEntry := routing_table.NewRoutableEndpoints(
 						externalInfo, endpoints, logGuid, modificationTag)
@@ -336,8 +340,8 @@ var _ = Describe("RoutingTable", func() {
 				)
 				BeforeEach(func() {
 					externalEndpoints = routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo(61000),
-						routing_table.NewExternalEndpointInfo(61001),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
 					}
 					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
 						key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
@@ -346,12 +350,14 @@ var _ = Describe("RoutingTable", func() {
 
 					newTcpRoutes = tcp_routes.TCPRoutes{
 						tcp_routes.TCPRoute{
-							ExternalPort:  61002,
-							ContainerPort: 5222,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    61002,
+							ContainerPort:   5222,
 						},
 						tcp_routes.TCPRoute{
-							ExternalPort:  61003,
-							ContainerPort: 5222,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    61003,
+							ContainerPort:   5222,
 						},
 					}
 				})
@@ -370,8 +376,8 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvent.Entry).Should(Equal(unregistrationExpectedEntry))
 
 					externalInfo := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo(61002),
-						routing_table.NewExternalEndpointInfo(61003),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61002),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61003),
 					}
 					routingEvent = routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
@@ -409,19 +415,19 @@ var _ = Describe("RoutingTable", func() {
 
 				createdExpectedEvents := func(newModificationTag *models.ModificationTag) []routing_table.RoutingEvent {
 					externalInfo1 := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo(61001),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
 					}
 					expectedEntry1 := routing_table.NewRoutableEndpoints(
 						externalInfo1, endpoints, logGuid, newModificationTag)
 
 					externalInfo2 := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo(61002),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61002),
 					}
 					expectedEntry2 := routing_table.NewRoutableEndpoints(
 						externalInfo2, endpoints2, logGuid, newModificationTag)
 
 					externalInfo3 := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo(61000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 					}
 					expectedEntry3 := routing_table.NewRoutableEndpoints(
 						externalInfo3, endpoints, logGuid, modificationTag)
@@ -457,12 +463,14 @@ var _ = Describe("RoutingTable", func() {
 
 					tcpRoutes = tcp_routes.TCPRoutes{
 						tcp_routes.TCPRoute{
-							ExternalPort:  61001,
-							ContainerPort: 5222,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    61001,
+							ContainerPort:   5222,
 						},
 						tcp_routes.TCPRoute{
-							ExternalPort:  61002,
-							ContainerPort: 5223,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    61002,
+							ContainerPort:   5223,
 						},
 					}
 				})
@@ -752,7 +760,7 @@ var _ = Describe("RoutingTable", func() {
 				Expect(routingEvent.Key).Should(Equal(key))
 				Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
 				externalInfo := []routing_table.ExternalEndpointInfo{
-					routing_table.NewExternalEndpointInfo(61000),
+					routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 				}
 				expectedEntry := routing_table.NewRoutableEndpoints(
 					externalInfo, endpoints, logGuid, modificationTag)
@@ -777,7 +785,7 @@ var _ = Describe("RoutingTable", func() {
 			BeforeEach(func() {
 				existingLogGuid = "log-guid-1"
 				existingExternalEndpoint := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo(61000),
+					routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 				}
 				existingKey = routing_table.NewRoutingKey("process-guid-1", 5222)
 				modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
@@ -798,7 +806,7 @@ var _ = Describe("RoutingTable", func() {
 				BeforeEach(func() {
 					logGuid = "log-guid-2"
 					externalEndpoints := routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo(62000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 62000),
 					}
 					key = routing_table.NewRoutingKey("process-guid-2", 6379)
 					newModificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
@@ -822,7 +830,7 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvent.Key).Should(Equal(key))
 					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
 					externalInfo := routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo(62000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 62000),
 					}
 					expectedEntry := routing_table.NewRoutableEndpoints(
 						externalInfo, endpoints, logGuid, newModificationTag)
@@ -832,7 +840,7 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvent.Key).Should(Equal(existingKey))
 					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
 					externalInfo = routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo(61000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 					}
 					expectedEntry = routing_table.NewRoutableEndpoints(
 						externalInfo, existingEndpoints, existingLogGuid, modificationTag)
@@ -846,7 +854,7 @@ var _ = Describe("RoutingTable", func() {
 				BeforeEach(func() {
 					logGuid = "log-guid-2"
 					externalEndpoints := routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo(62000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 62000),
 					}
 					newModificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
 					endpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
@@ -869,7 +877,7 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvent.Key).Should(Equal(existingKey))
 					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
 					externalInfo := routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo(62000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 62000),
 					}
 					expectedEntry := routing_table.NewRoutableEndpoints(
 						externalInfo, endpoints, logGuid, newModificationTag)
@@ -879,7 +887,7 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvent.Key).Should(Equal(existingKey))
 					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
 					externalInfo = routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo(61000),
+						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 					}
 					expectedEntry = routing_table.NewRoutableEndpoints(
 						externalInfo, existingEndpoints, existingLogGuid, modificationTag)
@@ -902,7 +910,7 @@ var _ = Describe("RoutingTable", func() {
 
 			logGuid := "log-guid-1"
 			externalEndpoints := routing_table.ExternalEndpointInfos{
-				routing_table.NewExternalEndpointInfo(61000),
+				routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 			}
 			key := routing_table.NewRoutingKey("process-guid-1", 5222)
 			modificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}

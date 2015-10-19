@@ -44,9 +44,9 @@ var _ = Describe("MappingRequestBuilder", func() {
 		routingKey1 = routing_table.NewRoutingKey("process-guid-1", 5222)
 		routingKey2 = routing_table.NewRoutingKey("process-guid-2", 5222)
 
-		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
-		extenralEndpointInfo2 := routing_table.NewExternalEndpointInfo(61001)
-		extenralEndpointInfo3 := routing_table.NewExternalEndpointInfo(61002)
+		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo("123", 61000)
+		extenralEndpointInfo2 := routing_table.NewExternalEndpointInfo("456", 61001)
+		extenralEndpointInfo3 := routing_table.NewExternalEndpointInfo("789", 61002)
 		endpointInfo1 := routing_table.ExternalEndpointInfos{extenralEndpointInfo1}
 		endpointInfo2 := routing_table.ExternalEndpointInfos{
 			extenralEndpointInfo2,
@@ -73,15 +73,15 @@ var _ = Describe("MappingRequestBuilder", func() {
 			}
 
 			expectedRegistrationRequests = []db.TcpRouteMapping{
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
+				db.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
+				db.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
 			}
 
 			expectedUnregistrationRequests = []db.TcpRouteMapping{
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-3", 62005),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-4", 62006),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-3", 62005),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-4", 62006),
+				db.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
+				db.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
+				db.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
+				db.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
 			}
 		})
 
@@ -110,12 +110,12 @@ var _ = Describe("MappingRequestBuilder", func() {
 			}
 
 			expectedRegistrationRequests = []db.TcpRouteMapping{
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-3", 62005),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-4", 62006),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-3", 62005),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-4", 62006),
+				db.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
+				db.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
+				db.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
+				db.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
+				db.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
+				db.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
 			}
 
 			expectedUnregistrationRequests = []db.TcpRouteMapping{}
@@ -145,12 +145,12 @@ var _ = Describe("MappingRequestBuilder", func() {
 			}
 
 			expectedUnregistrationRequests = []db.TcpRouteMapping{
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-2", 62004),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-3", 62005),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61001, "some-ip-4", 62006),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-3", 62005),
-				db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61002, "some-ip-4", 62006),
+				db.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
+				db.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
+				db.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
+				db.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
+				db.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
+				db.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
 			}
 
 			expectedRegistrationRequests = []db.TcpRouteMapping{}
@@ -168,7 +168,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 
 		It("returns an empty registration request", func() {
 			extenralEndpointInfo1 := routing_table.ExternalEndpointInfos{
-				routing_table.NewExternalEndpointInfo(0),
+				routing_table.NewExternalEndpointInfo("123", 0),
 			}
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(
@@ -188,8 +188,8 @@ var _ = Describe("MappingRequestBuilder", func() {
 
 		Context("and multiple external ports", func() {
 			It("disregards the entire routing event", func() {
-				extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(0)
-				extenralEndpointInfo2 := routing_table.NewExternalEndpointInfo(61000)
+				extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo("123", 0)
+				extenralEndpointInfo2 := routing_table.NewExternalEndpointInfo("123", 61000)
 				externalInfo := []routing_table.ExternalEndpointInfo{
 					extenralEndpointInfo1,
 					extenralEndpointInfo2,
@@ -216,7 +216,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 	Context("with empty endpoints in routing event", func() {
 		It("returns an empty mapping request", func() {
 			extenralEndpointInfo1 := routing_table.ExternalEndpointInfos{
-				routing_table.NewExternalEndpointInfo(0),
+				routing_table.NewExternalEndpointInfo("123", 0),
 			}
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(

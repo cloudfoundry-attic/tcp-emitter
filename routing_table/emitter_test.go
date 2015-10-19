@@ -38,10 +38,10 @@ var _ = Describe("Emitter", func() {
 
 		routingKey1 = routing_table.NewRoutingKey("process-guid-1", 5222)
 
-		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(61000)
+		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo("123", 61000)
 
 		expectedMappingRequests = []db.TcpRouteMapping{
-			db.NewTcpRouteMapping(routing_table.DefaultRouterGroupGuid, 61000, "some-ip-1", 62003),
+			db.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
 		}
 
 		routableEndpoints1 = routing_table.NewRoutableEndpoints(
@@ -159,7 +159,7 @@ var _ = Describe("Emitter", func() {
 
 			routingKey1 := routing_table.NewRoutingKey("process-guid-1", 5222)
 
-			extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo(0)
+			extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo("123", 0)
 
 			routableEndpoints1 := routing_table.NewRoutableEndpoints(
 				routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)

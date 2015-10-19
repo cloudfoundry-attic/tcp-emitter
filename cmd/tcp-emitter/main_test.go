@@ -11,7 +11,6 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/events/eventfakes"
 	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
 	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
@@ -100,8 +99,9 @@ var _ = Describe("TCP Emitter", func() {
 			desiredLRP.LogGuid = logGuid
 			tcpRoutes := tcp_routes.TCPRoutes{
 				tcp_routes.TCPRoute{
-					ExternalPort:  externalPort,
-					ContainerPort: containerPort,
+					RouterGroupGuid: "router-group-guid",
+					ExternalPort:    externalPort,
+					ContainerPort:   containerPort,
 				},
 			}
 			desiredLRP.Routes = tcpRoutes.RoutingInfo()
@@ -254,7 +254,7 @@ var _ = Describe("TCP Emitter", func() {
 		BeforeEach(func() {
 			expectedTcpRouteMapping = db.TcpRouteMapping{
 				TcpRoute: db.TcpRoute{
-					RouterGroupGuid: routing_table.DefaultRouterGroupGuid,
+					RouterGroupGuid: "router-group-guid",
 					ExternalPort:    5222,
 				},
 				HostPort: 62003,
@@ -262,7 +262,7 @@ var _ = Describe("TCP Emitter", func() {
 			}
 			notExpectedTcpRouteMapping = db.TcpRouteMapping{
 				TcpRoute: db.TcpRoute{
-					RouterGroupGuid: routing_table.DefaultRouterGroupGuid,
+					RouterGroupGuid: "router-group-guid",
 					ExternalPort:    1883,
 				},
 				HostPort: 62003,

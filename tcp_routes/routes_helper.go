@@ -11,8 +11,9 @@ const TCP_ROUTER = "tcp-router"
 type TCPRoutes []TCPRoute
 
 type TCPRoute struct {
-	ExternalPort  uint32 `json:"external_port"`
-	ContainerPort uint32 `json:"container_port"`
+	RouterGroupGuid string `json:"router_group_guid"`
+	ExternalPort    uint32 `json:"external_port"`
+	ContainerPort   uint32 `json:"container_port"`
 }
 
 func (c TCPRoutes) RoutingInfo() *models.Routes {

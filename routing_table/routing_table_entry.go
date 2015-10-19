@@ -2,10 +2,6 @@ package routing_table
 
 import "github.com/cloudfoundry-incubator/bbs/models"
 
-const (
-	DefaultRouterGroupGuid = "bad25cff-9332-48a6-8603-b619858e7992"
-)
-
 type EndpointKey struct {
 	InstanceGuid string
 	Evacuating   bool
@@ -52,9 +48,9 @@ type ExternalEndpointInfo struct {
 
 type ExternalEndpointInfos []ExternalEndpointInfo
 
-func NewExternalEndpointInfo(port uint32) ExternalEndpointInfo {
+func NewExternalEndpointInfo(routerGroupGuid string, port uint32) ExternalEndpointInfo {
 	return ExternalEndpointInfo{
-		RouterGroupGuid: DefaultRouterGroupGuid,
+		RouterGroupGuid: routerGroupGuid,
 		Port:            port,
 	}
 }

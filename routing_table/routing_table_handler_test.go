@@ -617,8 +617,9 @@ var _ = Describe("RoutingTableHandler", func() {
 					containerPort := uint32(5222)
 					tcpRoutes := tcp_routes.TCPRoutes{
 						tcp_routes.TCPRoute{
-							ExternalPort:  externalPort,
-							ContainerPort: containerPort,
+							RouterGroupGuid: "router-group-guid",
+							ExternalPort:    externalPort,
+							ContainerPort:   containerPort,
 						},
 					}
 
@@ -731,7 +732,7 @@ var _ = Describe("RoutingTableHandler", func() {
 						Expect(routingEvent.Key).Should(Equal(key))
 						Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
 						externalInfo := []routing_table.ExternalEndpointInfo{
-							routing_table.NewExternalEndpointInfo(61000),
+							routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
 						}
 						expectedEntry := routing_table.NewRoutableEndpoints(
 							externalInfo, endpoints, "log-guid", &modificationTag)
