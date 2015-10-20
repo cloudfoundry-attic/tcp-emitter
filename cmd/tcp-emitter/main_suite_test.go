@@ -133,14 +133,13 @@ var _ = BeforeEach(func() {
 	routingApiClient = routing_api.NewClient(routingAPIAddress)
 
 	tcpEmitterArgs = testrunner.Args{
-		BBSAddress:            bbsServer.URL(),
-		BBSClientCert:         createClientCert(),
-		BBSCACert:             createCACert(),
-		BBSClientKey:          createClientKey(),
-		ConfigFilePath:        createEmitterConfig(),
-		SyncInterval:          1 * time.Second,
-		ConsulCluster:         consulRunner.ConsulCluster(),
-		RoutingApiAuthEnabled: true,
+		BBSAddress:     bbsServer.URL(),
+		BBSClientCert:  createClientCert(),
+		BBSCACert:      createCACert(),
+		BBSClientKey:   createClientKey(),
+		ConfigFilePath: createEmitterConfig(),
+		SyncInterval:   1 * time.Second,
+		ConsulCluster:  consulRunner.ConsulCluster(),
 	}
 
 	consulRunner.Start()
@@ -208,6 +207,23 @@ func createEmitterConfig() string {
   client_name: "someclient"
   client_secret: "somesecret"`, oauthServerPort,
 		`routing_api:
+  uri: http://127.0.0.1`, routingAPIPort)
+	err := writeToFile([]byte(cfg), configFile)
+	Expect(err).ShouldNot(HaveOccurred())
+	Expect(fileExists(configFile)).To(BeTrue())
+	return configFile
+}
+
+func createEmitterConfigAuthDisabled() string {
+	randomConfigFileName := fmt.Sprintf("router_configurer_%d.yml", GinkgoParallelNode())
+	configFile := path.Join(os.TempDir(), randomConfigFileName)
+
+	cfg := fmt.Sprintf("%s\n  port: %s\n%s\n  port: %d\n", `oauth:
+  token_endpoint: "http://127.0.0.1"
+  client_name: "someclient"
+  client_secret: "somesecret"`, oauthServerPort,
+		`routing_api:
+  auth_disabled: true
   uri: http://127.0.0.1`, routingAPIPort)
 	err := writeToFile([]byte(cfg), configFile)
 	Expect(err).ShouldNot(HaveOccurred())

@@ -464,6 +464,7 @@ var _ = Describe("TCP Emitter", func() {
 				BeforeEach(func() {
 					tcpEmitterArgs.SessionName = "tcp-emitter-2"
 					session2 = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, false)
+
 					logger.Info("started-tcp-emitter trying to acquire the consul lock")
 				})
 
@@ -506,14 +507,13 @@ var _ = Describe("TCP Emitter", func() {
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
 				unAuthTcpEmitterArgs := testrunner.Args{
-					BBSAddress:            bbsServer.URL(),
-					BBSClientCert:         createClientCert(),
-					BBSCACert:             createCACert(),
-					BBSClientKey:          createClientKey(),
-					ConfigFilePath:        createEmitterConfig(),
-					SyncInterval:          1 * time.Second,
-					ConsulCluster:         consulRunner.ConsulCluster(),
-					RoutingApiAuthEnabled: false,
+					BBSAddress:     bbsServer.URL(),
+					BBSClientCert:  createClientCert(),
+					BBSCACert:      createCACert(),
+					BBSClientKey:   createClientKey(),
+					ConfigFilePath: createEmitterConfigAuthDisabled(),
+					SyncInterval:   1 * time.Second,
+					ConsulCluster:  consulRunner.ConsulCluster(),
 				}
 
 				allOutput := gbytes.NewBuffer()

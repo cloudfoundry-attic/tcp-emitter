@@ -2,7 +2,6 @@ package testrunner
 
 import (
 	"os/exec"
-	"strconv"
 	"time"
 
 	"github.com/tedsuo/ifrit/ginkgomon"
@@ -19,8 +18,6 @@ type Args struct {
 	ConsulCluster     string
 	LockRetryInterval time.Duration
 	SessionName       string
-
-	RoutingApiAuthEnabled bool
 }
 
 func (args Args) ArgSlice() []string {
@@ -35,7 +32,6 @@ func (args Args) ArgSlice() []string {
 		"-lockRetryInterval", "1s",
 		"-consulCluster", args.ConsulCluster,
 		"-sessionName", args.SessionName,
-		"-routingApiAuthEnabled=" + strconv.FormatBool(args.RoutingApiAuthEnabled),
 	}
 }
 

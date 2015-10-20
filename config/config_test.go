@@ -1,7 +1,7 @@
 package config_test
 
 import (
-	"github.com/cloudfoundry-incubator/cf-tcp-router/config"
+	"github.com/cloudfoundry-incubator/tcp-emitter/config"
 	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,8 +19,9 @@ var _ = Describe("Config", func() {
 					Port:          8080,
 				},
 				RoutingApi: config.RoutingApiConfig{
-					Uri:  "http://routing-api.service.cf.internal",
-					Port: 3000,
+					Uri:          "http://routing-api.service.cf.internal",
+					Port:         3000,
+					AuthDisabled: false,
 				},
 			}
 			cfg, err := config.New("fixtures/valid_config.yml")
