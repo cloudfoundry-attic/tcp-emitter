@@ -35,6 +35,9 @@ import (
 )
 
 var _ = Describe("TCP Emitter", func() {
+
+	const DefaultRouterGroupGuid = "bad25cff-9332-48a6-8603-b619858e7992"
+
 	Describe("Syncer-Watcher Integration", func() {
 		var (
 			process             ifrit.Process
@@ -99,7 +102,7 @@ var _ = Describe("TCP Emitter", func() {
 			desiredLRP.LogGuid = logGuid
 			tcpRoutes := tcp_routes.TCPRoutes{
 				tcp_routes.TCPRoute{
-					RouterGroupGuid: "router-group-guid",
+					RouterGroupGuid: DefaultRouterGroupGuid,
 					ExternalPort:    externalPort,
 					ContainerPort:   containerPort,
 				},
@@ -254,7 +257,7 @@ var _ = Describe("TCP Emitter", func() {
 		BeforeEach(func() {
 			expectedTcpRouteMapping = db.TcpRouteMapping{
 				TcpRoute: db.TcpRoute{
-					RouterGroupGuid: "router-group-guid",
+					RouterGroupGuid: DefaultRouterGroupGuid,
 					ExternalPort:    5222,
 				},
 				HostPort: 62003,
@@ -262,7 +265,7 @@ var _ = Describe("TCP Emitter", func() {
 			}
 			notExpectedTcpRouteMapping = db.TcpRouteMapping{
 				TcpRoute: db.TcpRoute{
-					RouterGroupGuid: "router-group-guid",
+					RouterGroupGuid: DefaultRouterGroupGuid,
 					ExternalPort:    1883,
 				},
 				HostPort: 62003,
