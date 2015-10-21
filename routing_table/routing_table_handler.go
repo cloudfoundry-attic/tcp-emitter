@@ -128,7 +128,7 @@ func (handler *routingTableHandler) Sync() {
 		tempRoutingTable = NewTable(handler.logger, nil)
 		handler.logger.Debug("construct-routing-table")
 		for _, desireLrp := range desiredLRPs {
-			tempRoutingTable.SetRoutes(desireLrp)
+			tempRoutingTable.AddRoutes(desireLrp)
 		}
 
 		for _, actualLrp := range runningActualLRPs {
@@ -194,7 +194,7 @@ func (handler *routingTableHandler) handleDesiredCreate(desiredLRP *models.Desir
 	logger := handler.logger.Session("handle-desired-create", desiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
-	routingEvents := handler.routingTable.SetRoutes(desiredLRP)
+	routingEvents := handler.routingTable.AddRoutes(desiredLRP)
 	handler.emit(routingEvents)
 }
 
@@ -206,7 +206,7 @@ func (handler *routingTableHandler) handleDesiredUpdate(before, after *models.De
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 
-	routingEvents := handler.routingTable.SetRoutes(after)
+	routingEvents := handler.routingTable.UpdateRoutes(before, after)
 	handler.emit(routingEvents)
 }
 

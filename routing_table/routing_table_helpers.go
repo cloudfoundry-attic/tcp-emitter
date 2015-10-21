@@ -28,8 +28,8 @@ func EndpointsFromActual(actualGrp *models.ActualLRPGroup) (map[uint32]Endpoint,
 	return endpoints, nil
 }
 
-func RoutingKeysFromActual(actualGrp *models.ActualLRPGroup) []RoutingKey {
-	keys := []RoutingKey{}
+func RoutingKeysFromActual(actualGrp *models.ActualLRPGroup) RoutingKeys {
+	keys := RoutingKeys{}
 	actual, _ := actualGrp.Resolve()
 	for _, portMapping := range actual.Ports {
 		keys = append(keys, NewRoutingKey(actual.ProcessGuid, portMapping.ContainerPort))
@@ -38,8 +38,8 @@ func RoutingKeysFromActual(actualGrp *models.ActualLRPGroup) []RoutingKey {
 	return keys
 }
 
-func RoutingKeysFromDesired(desired *models.DesiredLRP) []RoutingKey {
-	keys := []RoutingKey{}
+func RoutingKeysFromDesired(desired *models.DesiredLRP) RoutingKeys {
+	keys := RoutingKeys{}
 	for _, containerPort := range desired.Ports {
 		keys = append(keys, NewRoutingKey(desired.ProcessGuid, containerPort))
 	}

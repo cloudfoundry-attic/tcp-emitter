@@ -63,15 +63,15 @@ var _ = Describe("RoutingTableHandler", func() {
 				routingTableHandler.HandleEvent(models.NewDesiredLRPCreatedEvent(desiredLRP))
 			})
 
-			It("invokes SetRoutes on RoutingTable", func() {
-				Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(1))
-				lrp := fakeRoutingTable.SetRoutesArgsForCall(0)
+			It("invokes AddRoutes on RoutingTable", func() {
+				Expect(fakeRoutingTable.AddRoutesCallCount()).Should(Equal(1))
+				lrp := fakeRoutingTable.AddRoutesArgsForCall(0)
 				Expect(lrp).Should(Equal(desiredLRP))
 			})
 
 			Context("when there are routing events", func() {
 				BeforeEach(func() {
-					fakeRoutingTable.SetRoutesReturns(routingEvents)
+					fakeRoutingTable.AddRoutesReturns(routingEvents)
 				})
 
 				It("invokes Emit on Emitter", func() {
@@ -83,7 +83,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			Context("when there are no routing events", func() {
 				BeforeEach(func() {
-					fakeRoutingTable.SetRoutesReturns(routing_table.RoutingEvents{})
+					fakeRoutingTable.AddRoutesReturns(routing_table.RoutingEvents{})
 				})
 
 				It("does not invoke Emit on Emitter", func() {
@@ -116,15 +116,16 @@ var _ = Describe("RoutingTableHandler", func() {
 				routingTableHandler.HandleEvent(models.NewDesiredLRPChangedEvent(desiredLRP, after))
 			})
 
-			It("invokes SetRoutes on RoutingTable", func() {
-				Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(1))
-				lrp := fakeRoutingTable.SetRoutesArgsForCall(0)
-				Expect(lrp).Should(Equal(after))
+			It("invokes UpdateRoutes on RoutingTable", func() {
+				Expect(fakeRoutingTable.UpdateRoutesCallCount()).Should(Equal(1))
+				beforeLrp, afterLrp := fakeRoutingTable.UpdateRoutesArgsForCall(0)
+				Expect(beforeLrp).Should(Equal(desiredLRP))
+				Expect(afterLrp).Should(Equal(after))
 			})
 
 			Context("when there are routing events", func() {
 				BeforeEach(func() {
-					fakeRoutingTable.SetRoutesReturns(routingEvents)
+					fakeRoutingTable.UpdateRoutesReturns(routingEvents)
 				})
 
 				It("invokes Emit on Emitter", func() {
@@ -136,7 +137,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			Context("when there are no routing events", func() {
 				BeforeEach(func() {
-					fakeRoutingTable.SetRoutesReturns(routing_table.RoutingEvents{})
+					fakeRoutingTable.UpdateRoutesReturns(routing_table.RoutingEvents{})
 				})
 
 				It("does not invoke Emit on Emitter", func() {
@@ -160,7 +161,7 @@ var _ = Describe("RoutingTableHandler", func() {
 				routingTableHandler.HandleEvent(models.NewDesiredLRPRemovedEvent(desiredLRP))
 			})
 
-			It("does not invoke SetRoutes on RoutingTable", func() {
+			It("does not invoke AddRoutes on RoutingTable", func() {
 				Expect(fakeRoutingTable.RemoveRoutesCallCount()).Should(Equal(1))
 				Expect(fakeEmitter.EmitCallCount()).Should(Equal(1))
 				lrp := fakeRoutingTable.RemoveRoutesArgsForCall(0)
@@ -554,14 +555,14 @@ var _ = Describe("RoutingTableHandler", func() {
 				go invokeSync(doneChannel)
 				Eventually(routingTableHandler.Syncing).Should(BeTrue())
 
-				Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
+				Expect(fakeRoutingTable.AddRoutesCallCount()).Should(Equal(0))
 				routingTableHandler.HandleEvent(models.NewDesiredLRPCreatedEvent(desiredLRP))
-				Consistently(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
+				Consistently(fakeRoutingTable.AddRoutesCallCount()).Should(Equal(0))
 				Eventually(logger).Should(gbytes.Say("test.caching-event"))
 
 				close(syncChannel)
 				Eventually(routingTableHandler.Syncing).Should(BeFalse())
-				Eventually(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(1))
+				Eventually(fakeRoutingTable.AddRoutesCallCount()).Should(Equal(1))
 				Eventually(doneChannel).Should(BeClosed())
 				Expect(fakeRoutingTable.SwapCallCount()).Should(Equal(0))
 			})
@@ -703,14 +704,14 @@ var _ = Describe("RoutingTableHandler", func() {
 						go invokeSync(doneChannel)
 						Eventually(routingTableHandler.Syncing).Should(BeTrue())
 
-						Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
+						Expect(fakeRoutingTable.AddRoutesCallCount()).Should(Equal(0))
 						routingTableHandler.HandleEvent(models.NewActualLRPChangedEvent(actualLRP, afterActualLRP))
-						Consistently(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
+						Consistently(fakeRoutingTable.AddRoutesCallCount()).Should(Equal(0))
 						Eventually(logger).Should(gbytes.Say("test.caching-event"))
 
 						close(syncChannel)
 						Eventually(routingTableHandler.Syncing).Should(BeFalse())
-						Expect(fakeRoutingTable.SetRoutesCallCount()).Should(Equal(0))
+						Expect(fakeRoutingTable.AddRoutesCallCount()).Should(Equal(0))
 						Expect(fakeRoutingTable.SwapCallCount()).Should(Equal(1))
 						Expect(fakeEmitter.EmitCallCount()).Should(Equal(1))
 

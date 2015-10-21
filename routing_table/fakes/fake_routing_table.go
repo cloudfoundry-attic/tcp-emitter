@@ -15,12 +15,21 @@ type FakeRoutingTable struct {
 	routeCountReturns struct {
 		result1 int
 	}
-	SetRoutesStub        func(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents
-	setRoutesMutex       sync.RWMutex
-	setRoutesArgsForCall []struct {
+	AddRoutesStub        func(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents
+	addRoutesMutex       sync.RWMutex
+	addRoutesArgsForCall []struct {
 		desiredLRP *models.DesiredLRP
 	}
-	setRoutesReturns struct {
+	addRoutesReturns struct {
+		result1 routing_table.RoutingEvents
+	}
+	UpdateRoutesStub        func(beforeLRP, afterLRP *models.DesiredLRP) routing_table.RoutingEvents
+	updateRoutesMutex       sync.RWMutex
+	updateRoutesArgsForCall []struct {
+		beforeLRP *models.DesiredLRP
+		afterLRP  *models.DesiredLRP
+	}
+	updateRoutesReturns struct {
 		result1 routing_table.RoutingEvents
 	}
 	RemoveRoutesStub        func(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents
@@ -87,34 +96,67 @@ func (fake *FakeRoutingTable) RouteCountReturns(result1 int) {
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) SetRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
-	fake.setRoutesMutex.Lock()
-	fake.setRoutesArgsForCall = append(fake.setRoutesArgsForCall, struct {
+func (fake *FakeRoutingTable) AddRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
+	fake.addRoutesMutex.Lock()
+	fake.addRoutesArgsForCall = append(fake.addRoutesArgsForCall, struct {
 		desiredLRP *models.DesiredLRP
 	}{desiredLRP})
-	fake.setRoutesMutex.Unlock()
-	if fake.SetRoutesStub != nil {
-		return fake.SetRoutesStub(desiredLRP)
+	fake.addRoutesMutex.Unlock()
+	if fake.AddRoutesStub != nil {
+		return fake.AddRoutesStub(desiredLRP)
 	} else {
-		return fake.setRoutesReturns.result1
+		return fake.addRoutesReturns.result1
 	}
 }
 
-func (fake *FakeRoutingTable) SetRoutesCallCount() int {
-	fake.setRoutesMutex.RLock()
-	defer fake.setRoutesMutex.RUnlock()
-	return len(fake.setRoutesArgsForCall)
+func (fake *FakeRoutingTable) AddRoutesCallCount() int {
+	fake.addRoutesMutex.RLock()
+	defer fake.addRoutesMutex.RUnlock()
+	return len(fake.addRoutesArgsForCall)
 }
 
-func (fake *FakeRoutingTable) SetRoutesArgsForCall(i int) *models.DesiredLRP {
-	fake.setRoutesMutex.RLock()
-	defer fake.setRoutesMutex.RUnlock()
-	return fake.setRoutesArgsForCall[i].desiredLRP
+func (fake *FakeRoutingTable) AddRoutesArgsForCall(i int) *models.DesiredLRP {
+	fake.addRoutesMutex.RLock()
+	defer fake.addRoutesMutex.RUnlock()
+	return fake.addRoutesArgsForCall[i].desiredLRP
 }
 
-func (fake *FakeRoutingTable) SetRoutesReturns(result1 routing_table.RoutingEvents) {
-	fake.SetRoutesStub = nil
-	fake.setRoutesReturns = struct {
+func (fake *FakeRoutingTable) AddRoutesReturns(result1 routing_table.RoutingEvents) {
+	fake.AddRoutesStub = nil
+	fake.addRoutesReturns = struct {
+		result1 routing_table.RoutingEvents
+	}{result1}
+}
+
+func (fake *FakeRoutingTable) UpdateRoutes(beforeLRP *models.DesiredLRP, afterLRP *models.DesiredLRP) routing_table.RoutingEvents {
+	fake.updateRoutesMutex.Lock()
+	fake.updateRoutesArgsForCall = append(fake.updateRoutesArgsForCall, struct {
+		beforeLRP *models.DesiredLRP
+		afterLRP  *models.DesiredLRP
+	}{beforeLRP, afterLRP})
+	fake.updateRoutesMutex.Unlock()
+	if fake.UpdateRoutesStub != nil {
+		return fake.UpdateRoutesStub(beforeLRP, afterLRP)
+	} else {
+		return fake.updateRoutesReturns.result1
+	}
+}
+
+func (fake *FakeRoutingTable) UpdateRoutesCallCount() int {
+	fake.updateRoutesMutex.RLock()
+	defer fake.updateRoutesMutex.RUnlock()
+	return len(fake.updateRoutesArgsForCall)
+}
+
+func (fake *FakeRoutingTable) UpdateRoutesArgsForCall(i int) (*models.DesiredLRP, *models.DesiredLRP) {
+	fake.updateRoutesMutex.RLock()
+	defer fake.updateRoutesMutex.RUnlock()
+	return fake.updateRoutesArgsForCall[i].beforeLRP, fake.updateRoutesArgsForCall[i].afterLRP
+}
+
+func (fake *FakeRoutingTable) UpdateRoutesReturns(result1 routing_table.RoutingEvents) {
+	fake.UpdateRoutesStub = nil
+	fake.updateRoutesReturns = struct {
 		result1 routing_table.RoutingEvents
 	}{result1}
 }

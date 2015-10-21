@@ -113,4 +113,79 @@ var _ = Describe("RoutingTableEntry", func() {
 			})
 		})
 	})
+
+	Context("RoutingKeys Remove", func() {
+		var (
+			sourceRoutingKeys routing_table.RoutingKeys
+		)
+
+		BeforeEach(func() {
+			sourceRoutingKeys = routing_table.RoutingKeys{
+				routing_table.RoutingKey{"process-guid-1", 5000},
+				routing_table.RoutingKey{"process-guid-2", 5001},
+			}
+		})
+
+		Context("when removing all the current elements", func() {
+			It("returns an empty set", func() {
+				deletingRoutingKeys := routing_table.RoutingKeys{
+					routing_table.RoutingKey{"process-guid-1", 5000},
+					routing_table.RoutingKey{"process-guid-2", 5001},
+				}
+				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
+				Expect(resultSet).Should(Equal(routing_table.RoutingKeys{}))
+			})
+		})
+
+		Context("when removing some of the current elements", func() {
+			It("returns the remaining set", func() {
+				deletingRoutingKeys := routing_table.RoutingKeys{
+					routing_table.RoutingKey{"process-guid-2", 5001},
+				}
+				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
+				expectedRoutingKeys := routing_table.RoutingKeys{
+					routing_table.RoutingKey{"process-guid-1", 5000},
+				}
+				Expect(resultSet).Should(Equal(expectedRoutingKeys))
+			})
+		})
+
+		Context("when removing none of the current elements", func() {
+			It("returns the same set", func() {
+				deletingRoutingKeys := routing_table.RoutingKeys{
+					routing_table.RoutingKey{"process-guid-3", 5002},
+				}
+				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
+				expectedRoutingKeys := routing_table.RoutingKeys{
+					routing_table.RoutingKey{"process-guid-1", 5000},
+					routing_table.RoutingKey{"process-guid-2", 5001},
+				}
+				Expect(resultSet).Should(Equal(expectedRoutingKeys))
+			})
+		})
+
+		Context("when removing an empty set", func() {
+			It("returns the same set", func() {
+				deletingRoutingKeys := routing_table.RoutingKeys{}
+				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
+				expectedRoutingKeys := routing_table.RoutingKeys{
+					routing_table.RoutingKey{"process-guid-1", 5000},
+					routing_table.RoutingKey{"process-guid-2", 5001},
+				}
+				Expect(resultSet).Should(Equal(expectedRoutingKeys))
+			})
+		})
+
+		Context("when removing from an empty set", func() {
+			It("returns the same set", func() {
+				sourceRoutingKeys = routing_table.RoutingKeys{}
+				deletingRoutingKeys := routing_table.RoutingKeys{
+					routing_table.RoutingKey{"process-guid-3", 5002},
+				}
+				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
+				Expect(resultSet).Should(Equal(routing_table.RoutingKeys{}))
+			})
+		})
+	})
+
 })

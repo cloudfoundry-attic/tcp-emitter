@@ -90,6 +90,8 @@ func NewRoutableEndpoints(
 	}
 }
 
+type RoutingKeys []RoutingKey
+
 type RoutingKey struct {
 	ProcessGuid   string
 	ContainerPort uint32
@@ -120,4 +122,23 @@ func (setA ExternalEndpointInfos) Remove(setB ExternalEndpointInfos) ExternalEnd
 		}
 	}
 	return diffSet
+}
+
+func (lhs RoutingKeys) Remove(rhs RoutingKeys) RoutingKeys {
+	result := RoutingKeys{}
+	for _, lhsKey := range lhs {
+		if !rhs.containsRoutingKey(lhsKey) {
+			result = append(result, lhsKey)
+		}
+	}
+	return result
+}
+
+func (lhs RoutingKeys) containsRoutingKey(routingKey RoutingKey) bool {
+	for _, lhsKey := range lhs {
+		if lhsKey == routingKey {
+			return true
+		}
+	}
+	return false
 }

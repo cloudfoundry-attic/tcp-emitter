@@ -13,7 +13,8 @@ import (
 type RoutingTable interface {
 	RouteCount() int
 
-	SetRoutes(desiredLRP *models.DesiredLRP) RoutingEvents
+	AddRoutes(desiredLRP *models.DesiredLRP) RoutingEvents
+	UpdateRoutes(beforeLRP, afterLRP *models.DesiredLRP) RoutingEvents
 	RemoveRoutes(desiredLRP *models.DesiredLRP) RoutingEvents
 
 	AddEndpoint(actualLRP *models.ActualLRPGroup) RoutingEvents
@@ -97,16 +98,20 @@ func (table *routingTable) RouteCount() int {
 	return len(table.entries)
 }
 
-func (table *routingTable) SetRoutes(desiredLRP *models.DesiredLRP) RoutingEvents {
-	logger := table.logger.Session("SetRoutes", lager.Data{"desired_lrp": desiredLRP})
+func (table *routingTable) AddRoutes(desiredLRP *models.DesiredLRP) RoutingEvents {
+	logger := table.logger.Session("AddRoutes", lager.Data{"desired_lrp": desiredLRP})
 	logger.Debug("starting")
 	defer logger.Debug("completed")
 
-	routingKeys := RoutingKeysFromDesired(desiredLRP)
-	routes, _ := tcp_routes.TCPRoutesFromRoutingInfo(desiredLRP.Routes)
-
 	table.Lock()
 	defer table.Unlock()
+
+	return table.addRoutes(logger, desiredLRP)
+}
+
+func (table *routingTable) addRoutes(logger lager.Logger, desiredLRP *models.DesiredLRP) RoutingEvents {
+	routingKeys := RoutingKeysFromDesired(desiredLRP)
+	routes, _ := tcp_routes.TCPRoutesFromRoutingInfo(desiredLRP.Routes)
 
 	routingEvents := RoutingEvents{}
 	for _, key := range routingKeys {
@@ -115,10 +120,29 @@ func (table *routingTable) SetRoutes(desiredLRP *models.DesiredLRP) RoutingEvent
 		if !existingModificationTag.SucceededBy(desiredLRP.ModificationTag) {
 			continue
 		}
-		routingEvents = append(routingEvents, table.setRoutes(logger, existingEntry,
+		routingEvents = append(routingEvents, table.mergeRoutes(logger, existingEntry,
 			routes, key, desiredLRP.LogGuid, desiredLRP.ModificationTag)...)
 	}
+	return routingEvents
+}
 
+func (table *routingTable) UpdateRoutes(beforeLRP, afterLRP *models.DesiredLRP) RoutingEvents {
+	logger := table.logger.Session("UpdateRoutes", lager.Data{"before_lrp": beforeLRP, "after_lrp": afterLRP})
+	logger.Debug("starting")
+	defer logger.Debug("completed")
+
+	beforeRoutingKeys := RoutingKeysFromDesired(beforeLRP)
+	afterRoutingKeys := RoutingKeysFromDesired(afterLRP)
+
+	deletedRoutingKeys := beforeRoutingKeys.Remove(afterRoutingKeys)
+	logger.Debug("keys-to-be-deleted", lager.Data{"count": len(deletedRoutingKeys)})
+
+	table.Lock()
+	defer table.Unlock()
+
+	routingEvents := table.addRoutes(logger, afterLRP)
+	routingEvents = append(routingEvents,
+		table.removeRoutingKeys(logger, deletedRoutingKeys, afterLRP.ModificationTag)...)
 	return routingEvents
 }
 
@@ -132,11 +156,17 @@ func (table *routingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) RoutingEv
 	table.Lock()
 	defer table.Unlock()
 
+	routingEvents := table.removeRoutingKeys(logger, routingKeys, desiredLRP.ModificationTag)
+	return routingEvents
+}
+
+func (table *routingTable) removeRoutingKeys(logger lager.Logger, routingKeys RoutingKeys,
+	modificationTag *models.ModificationTag) RoutingEvents {
 	routingEvents := RoutingEvents{}
 	for _, key := range routingKeys {
 		if existingEntry, ok := table.entries[key]; ok {
 			existingModificationTag := existingEntry.ModificationTag
-			if !existingModificationTag.SucceededBy(desiredLRP.ModificationTag) {
+			if !existingModificationTag.SucceededBy(modificationTag) {
 				continue
 			}
 			if len(existingEntry.Endpoints) > 0 {
@@ -154,7 +184,7 @@ func (table *routingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) RoutingEv
 	return routingEvents
 }
 
-func (table *routingTable) setRoutes(
+func (table *routingTable) mergeRoutes(
 	logger lager.Logger,
 	existingEntry RoutableEndpoints,
 	routes tcp_routes.TCPRoutes,
@@ -187,6 +217,7 @@ func (table *routingTable) setRoutes(
 		updatedEntry.ModificationTag = modificationTag
 		table.entries[key] = updatedEntry
 		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, updatedEntry, RouteRegistrationEvent)...)
+		logger.Debug("routing-table-entry-updated", lager.Data{"key": key})
 	}
 
 	unregistrationEntry := existingEntry.RemoveExternalEndpoints(newExternalEndpoints)
