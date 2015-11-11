@@ -7,7 +7,7 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
-	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
+	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"

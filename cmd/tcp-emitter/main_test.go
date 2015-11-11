@@ -13,7 +13,7 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
-	"github.com/cloudfoundry-incubator/tcp-emitter/tcp_routes"
+	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pivotal-golang/clock/fakeclock"
