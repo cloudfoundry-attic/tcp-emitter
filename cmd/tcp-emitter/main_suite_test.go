@@ -198,14 +198,18 @@ max_concurrent_etcd_requests: 10`),
 	return configFilePath
 }
 
-func createEmitterConfig() string {
+func createEmitterConfig(uaaPorts ...string) string {
 	randomConfigFileName := fmt.Sprintf("router_configurer_%d.yml", GinkgoParallelNode())
 	configFile := path.Join(os.TempDir(), randomConfigFileName)
+	uaaPort := oauthServerPort
+	if len(uaaPorts) > 0 {
+		uaaPort = uaaPorts[0]
+	}
 
 	cfg := fmt.Sprintf("%s\n  port: %s\n%s\n  port: %d\n", `oauth:
   token_endpoint: "http://127.0.0.1"
   client_name: "someclient"
-  client_secret: "somesecret"`, oauthServerPort,
+  client_secret: "somesecret"`, uaaPort,
 		`routing_api:
   uri: http://127.0.0.1`, routingAPIPort)
 	err := writeToFile([]byte(cfg), configFile)

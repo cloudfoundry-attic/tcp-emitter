@@ -11,9 +11,9 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/events/eventfakes"
 	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
+	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
-	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pivotal-golang/clock/fakeclock"
@@ -324,6 +324,30 @@ var _ = Describe("TCP Emitter", func() {
 
 			It("does not use the secure bbs client", func() {
 				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("setting-up-secure-bbs-client"))
+			})
+		})
+
+		Context("when there is an error fetching token from uaa", func() {
+			var (
+				session *gexec.Session
+			)
+
+			BeforeEach(func() {
+				tcpEmitterArgs := testrunner.Args{
+					BBSAddress:     bbsServer.URL(),
+					BBSClientCert:  "",
+					BBSCACert:      "",
+					BBSClientKey:   "",
+					ConfigFilePath: createEmitterConfig("33333"),
+					SyncInterval:   1 * time.Second,
+					ConsulCluster:  consulRunner.ConsulCluster(),
+				}
+				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, false)
+			})
+
+			It("exits with error", func() {
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("error-fetching-oauth-token"))
+				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 			})
 		})
 

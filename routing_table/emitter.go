@@ -2,6 +2,7 @@ package routing_table
 
 import (
 	"github.com/cloudfoundry-incubator/routing-api"
+	"github.com/cloudfoundry-incubator/routing-api/db"
 	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
 	"github.com/pivotal-golang/lager"
 )
@@ -29,21 +30,34 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 	emitter.logRoutingEvents(routingEvents)
 	defer emitter.logger.Debug("complete-emit")
 
-	token, err := emitter.tokenFetcher.FetchToken()
-	if err != nil {
-		emitter.logger.Error("unable-to-get-token", err)
-		return err
+	registrationMappingRequests, unregistrationMappingRequests := CreateMappingRequests(emitter.logger, routingEvents)
+	useCachedToken := true
+	for count := 0; count < 2; count++ {
+		token, err := emitter.tokenFetcher.FetchToken(useCachedToken)
+		if err != nil {
+			emitter.logger.Error("unable-to-get-token", err)
+			return err
+		}
+		emitter.routingApiClient.SetToken(token.AccessToken)
+		err = emitter.emit(registrationMappingRequests, unregistrationMappingRequests)
+		if err != nil && err.Error() == "unauthorized" {
+			useCachedToken = false
+			emitter.logger.Info("retrying-emit")
+		} else {
+			break
+		}
 	}
 
-	registrationMappingRequests, unregistrationMappingRequests := CreateMappingRequests(emitter.logger, routingEvents)
+	return nil
+}
 
-	emitter.routingApiClient.SetToken(token.AccessToken)
-
+func (emitter *tcpEmitter) emit(registrationMappingRequests, unregistrationMappingRequests []db.TcpRouteMapping) error {
 	emitted := true
 	if len(registrationMappingRequests) > 0 {
-		if err = emitter.routingApiClient.UpsertTcpRouteMappings(registrationMappingRequests); err != nil {
+		if err := emitter.routingApiClient.UpsertTcpRouteMappings(registrationMappingRequests); err != nil {
 			emitted = false
 			emitter.logger.Error("unable-to-upsert", err)
+			return err
 		} else {
 			emitter.logger.Debug("successfully-emitted-registration-events",
 				lager.Data{"number-of-registration-events": len(registrationMappingRequests)})
@@ -51,9 +65,10 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 	}
 
 	if len(unregistrationMappingRequests) > 0 {
-		if err = emitter.routingApiClient.DeleteTcpRouteMappings(unregistrationMappingRequests); err != nil {
+		if err := emitter.routingApiClient.DeleteTcpRouteMappings(unregistrationMappingRequests); err != nil {
 			emitted = false
 			emitter.logger.Error("unable-to-delete", err)
+			return err
 		} else {
 			emitter.logger.Debug("successfully-emitted-unregistration-events",
 				lager.Data{"number-of-unregistration-events": len(unregistrationMappingRequests)})

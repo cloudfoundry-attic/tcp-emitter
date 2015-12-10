@@ -100,20 +100,34 @@ var _ = Describe("Emitter", func() {
 			})
 		})
 
-		Context("when routing API Upsert returns error", func() {
+		Context("when routing API Upsert returns an error other than unauthorized", func() {
 			BeforeEach(func() {
 				routingApiClient.UpsertTcpRouteMappingsReturns(errors.New("kabooom"))
 			})
 
-			It("returns error", func() {
+			It("logs the error", func() {
 				err := emitter.Emit(routingEvents)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(logger).To(gbytes.Say("test.unable-to-upsert"))
+				Expect(logger).To(gbytes.Say("test.unable-to-upsert.*kabooom"))
 			})
 		})
 
-		Context("when routing API Delete returns error", func() {
+		Context("when routing API Upsert returns an unauthorized error", func() {
+			BeforeEach(func() {
+				routingApiClient.UpsertTcpRouteMappingsReturns(errors.New("unauthorized"))
+			})
 
+			It("retries once and logs the error", func() {
+				err := emitter.Emit(routingEvents)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(routingApiClient.UpsertTcpRouteMappingsCallCount()).To(Equal(2))
+				Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(2))
+				Expect(routingApiClient.SetTokenCallCount()).To(Equal(2))
+				Expect(logger).To(gbytes.Say("test.unable-to-upsert.*unauthorized"))
+			})
+		})
+
+		Context("when routing API Delete returns an error other than unauthorized", func() {
 			BeforeEach(func() {
 				routingApiClient.DeleteTcpRouteMappingsReturns(errors.New("kabooom"))
 				routingEvents = routing_table.RoutingEvents{
@@ -125,10 +139,32 @@ var _ = Describe("Emitter", func() {
 				}
 			})
 
-			It("returns error", func() {
+			It("logs error", func() {
 				err := emitter.Emit(routingEvents)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(logger).To(gbytes.Say("test.unable-to-delete"))
+				Expect(logger).To(gbytes.Say("test.unable-to-delete.*kabooom"))
+			})
+		})
+
+		Context("when routing API Delete returns an error other than unauthorized", func() {
+			BeforeEach(func() {
+				routingApiClient.DeleteTcpRouteMappingsReturns(errors.New("unauthorized"))
+				routingEvents = routing_table.RoutingEvents{
+					routing_table.RoutingEvent{
+						EventType: routing_table.RouteUnregistrationEvent,
+						Key:       routingKey1,
+						Entry:     routableEndpoints1,
+					},
+				}
+			})
+
+			It("logs error", func() {
+				err := emitter.Emit(routingEvents)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(routingApiClient.DeleteTcpRouteMappingsCallCount()).To(Equal(2))
+				Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(2))
+				Expect(routingApiClient.SetTokenCallCount()).To(Equal(2))
+				Expect(logger).To(gbytes.Say("test.unable-to-delete.*unauthorized"))
 			})
 		})
 

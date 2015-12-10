@@ -30,6 +30,7 @@ func (args Args) ArgSlice() []string {
 		"-syncInterval=" + args.SyncInterval.String(),
 		"-logLevel=debug",
 		"-lockRetryInterval", "1s",
+		"-tokenFetchRetryInterval", "1s",
 		"-consulCluster", args.ConsulCluster,
 		"-sessionName", args.SessionName,
 	}
