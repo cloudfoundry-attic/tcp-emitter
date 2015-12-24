@@ -36,7 +36,7 @@ var _ = Describe("RoutingEvent", func() {
 					routing_table.NewExternalEndpointInfo("some-guid", 61000),
 				}
 				routableEndpoints = routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag)
-				routingEvent = routing_table.RoutingEvent{routing_table.RouteRegistrationEvent, routingKey, routableEndpoints}
+				routingEvent = routing_table.RoutingEvent{EventType: routing_table.RouteRegistrationEvent, Key: routingKey, Entry: routableEndpoints}
 			})
 			It("returns true", func() {
 				Expect(routingEvent.Valid()).To(BeTrue())
@@ -47,7 +47,7 @@ var _ = Describe("RoutingEvent", func() {
 			BeforeEach(func() {
 				externalEndpoints := routing_table.ExternalEndpointInfos{}
 				routableEndpoints = routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag)
-				routingEvent = routing_table.RoutingEvent{routing_table.RouteRegistrationEvent, routingKey, routableEndpoints}
+				routingEvent = routing_table.RoutingEvent{EventType: routing_table.RouteRegistrationEvent, Key: routingKey, Entry: routableEndpoints}
 			})
 			It("returns false", func() {
 				Expect(routingEvent.Valid()).To(BeFalse())
@@ -60,7 +60,7 @@ var _ = Describe("RoutingEvent", func() {
 					routing_table.NewExternalEndpointInfo("router-guid", 0),
 				}
 				routableEndpoints = routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag)
-				routingEvent = routing_table.RoutingEvent{routing_table.RouteRegistrationEvent, routingKey, routableEndpoints}
+				routingEvent = routing_table.RoutingEvent{EventType: routing_table.RouteRegistrationEvent, Key: routingKey, Entry: routableEndpoints}
 			})
 			It("returns false", func() {
 				Expect(routingEvent.Valid()).To(BeFalse())
@@ -74,7 +74,7 @@ var _ = Describe("RoutingEvent", func() {
 				}
 				routableEndpoints = routing_table.NewRoutableEndpoints(externalEndpoints, map[routing_table.EndpointKey]routing_table.Endpoint{},
 					logGuid, modificationTag)
-				routingEvent = routing_table.RoutingEvent{routing_table.RouteRegistrationEvent, routingKey, routableEndpoints}
+				routingEvent = routing_table.RoutingEvent{EventType: routing_table.RouteRegistrationEvent, Key: routingKey, Entry: routableEndpoints}
 			})
 			It("returns false", func() {
 				Expect(routingEvent.Valid()).To(BeFalse())

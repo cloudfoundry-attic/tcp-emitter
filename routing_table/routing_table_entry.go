@@ -3,19 +3,19 @@ package routing_table
 import "github.com/cloudfoundry-incubator/bbs/models"
 
 type EndpointKey struct {
-	InstanceGuid string
+	InstanceGUID string
 	Evacuating   bool
 }
 
-func NewEndpointKey(instanceGuid string, evacuating bool) EndpointKey {
+func NewEndpointKey(instanceGUID string, evacuating bool) EndpointKey {
 	return EndpointKey{
-		InstanceGuid: instanceGuid,
+		InstanceGUID: instanceGUID,
 		Evacuating:   evacuating,
 	}
 }
 
 type Endpoint struct {
-	InstanceGuid    string
+	InstanceGUID    string
 	Host            string
 	Port            uint32
 	ContainerPort   uint32
@@ -24,15 +24,15 @@ type Endpoint struct {
 }
 
 func (e Endpoint) key() EndpointKey {
-	return EndpointKey{InstanceGuid: e.InstanceGuid, Evacuating: e.Evacuating}
+	return EndpointKey{InstanceGUID: e.InstanceGUID, Evacuating: e.Evacuating}
 }
 
 func NewEndpoint(
-	instanceGuid string, evacuating bool,
+	instanceGUID string, evacuating bool,
 	host string, port, containerPort uint32,
 	modificationTag *models.ModificationTag) Endpoint {
 	return Endpoint{
-		InstanceGuid:    instanceGuid,
+		InstanceGUID:    instanceGUID,
 		Evacuating:      evacuating,
 		Host:            host,
 		Port:            port,
@@ -42,15 +42,15 @@ func NewEndpoint(
 }
 
 type ExternalEndpointInfo struct {
-	RouterGroupGuid string
+	RouterGroupGUID string
 	Port            uint32
 }
 
 type ExternalEndpointInfos []ExternalEndpointInfo
 
-func NewExternalEndpointInfo(routerGroupGuid string, port uint32) ExternalEndpointInfo {
+func NewExternalEndpointInfo(routerGroupGUID string, port uint32) ExternalEndpointInfo {
 	return ExternalEndpointInfo{
-		RouterGroupGuid: routerGroupGuid,
+		RouterGroupGUID: routerGroupGUID,
 		Port:            port,
 	}
 }
@@ -58,7 +58,7 @@ func NewExternalEndpointInfo(routerGroupGuid string, port uint32) ExternalEndpoi
 type RoutableEndpoints struct {
 	ExternalEndpoints ExternalEndpointInfos
 	Endpoints         map[EndpointKey]Endpoint
-	LogGuid           string
+	LogGUID           string
 	ModificationTag   *models.ModificationTag
 }
 
@@ -66,7 +66,7 @@ func (entry RoutableEndpoints) copy() RoutableEndpoints {
 	clone := RoutableEndpoints{
 		ExternalEndpoints: entry.ExternalEndpoints,
 		Endpoints:         map[EndpointKey]Endpoint{},
-		LogGuid:           entry.LogGuid,
+		LogGUID:           entry.LogGUID,
 		ModificationTag:   entry.ModificationTag,
 	}
 
@@ -80,12 +80,12 @@ func (entry RoutableEndpoints) copy() RoutableEndpoints {
 func NewRoutableEndpoints(
 	externalEndPoint ExternalEndpointInfos,
 	endpoints map[EndpointKey]Endpoint,
-	logGuid string,
+	logGUID string,
 	modificationTag *models.ModificationTag) RoutableEndpoints {
 	return RoutableEndpoints{
 		ExternalEndpoints: externalEndPoint,
 		Endpoints:         endpoints,
-		LogGuid:           logGuid,
+		LogGUID:           logGUID,
 		ModificationTag:   modificationTag,
 	}
 }
@@ -93,22 +93,22 @@ func NewRoutableEndpoints(
 type RoutingKeys []RoutingKey
 
 type RoutingKey struct {
-	ProcessGuid   string
+	ProcessGUID   string
 	ContainerPort uint32
 }
 
-func NewRoutingKey(processGuid string, containerPort uint32) RoutingKey {
+func NewRoutingKey(processGUID string, containerPort uint32) RoutingKey {
 	return RoutingKey{
-		ProcessGuid:   processGuid,
+		ProcessGUID:   processGUID,
 		ContainerPort: containerPort,
 	}
 }
 
-// this function returns the entryA with the external externalEndpoints substracted from its internal collection
-// Ex; Given, entryA { externalEndpoints={p1,p2,p4} } and externalEndpoints = {p2,p3} ==> entryA { externalEndpoints={p1,p4} }
-func (entryA RoutableEndpoints) RemoveExternalEndpoints(externalEndpoints ExternalEndpointInfos) RoutableEndpoints {
-	subtractedExternalEndpoints := entryA.ExternalEndpoints.Remove(externalEndpoints)
-	resultEntry := entryA.copy()
+// this function returns the entry with the external externalEndpoints substracted from its internal collection
+// Ex; Given, entry { externalEndpoints={p1,p2,p4} } and externalEndpoints = {p2,p3} ==> entryA { externalEndpoints={p1,p4} }
+func (entry RoutableEndpoints) RemoveExternalEndpoints(externalEndpoints ExternalEndpointInfos) RoutableEndpoints {
+	subtractedExternalEndpoints := entry.ExternalEndpoints.Remove(externalEndpoints)
+	resultEntry := entry.copy()
 	resultEntry.ExternalEndpoints = subtractedExternalEndpoints
 	return resultEntry
 }
@@ -118,7 +118,7 @@ func (setA ExternalEndpointInfos) Remove(setB ExternalEndpointInfos) ExternalEnd
 	diffSet := ExternalEndpointInfos{}
 	for _, externalEndpoint := range setA {
 		if !containsExternalPort(setB, externalEndpoint.Port) {
-			diffSet = append(diffSet, ExternalEndpointInfo{externalEndpoint.RouterGroupGuid, externalEndpoint.Port})
+			diffSet = append(diffSet, ExternalEndpointInfo{externalEndpoint.RouterGroupGUID, externalEndpoint.Port})
 		}
 	}
 	return diffSet

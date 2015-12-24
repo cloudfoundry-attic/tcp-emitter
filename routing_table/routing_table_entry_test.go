@@ -23,8 +23,8 @@ var _ = Describe("RoutingTableEntry", func() {
 		Context("when removing all the current elements", func() {
 			It("returns an empty set", func() {
 				deletingSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6000},
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6100},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6000},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6100},
 				}
 				resultSet := source.Remove(deletingSet)
 				Expect(resultSet).Should(Equal(routing_table.ExternalEndpointInfos{}))
@@ -34,11 +34,11 @@ var _ = Describe("RoutingTableEntry", func() {
 		Context("when removing some of the current elements", func() {
 			It("returns the remaining set", func() {
 				deletingSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6100},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6100},
 				}
 				resultSet := source.Remove(deletingSet)
 				expectedSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6000},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6000},
 				}
 				Expect(resultSet).Should(Equal(expectedSet))
 			})
@@ -47,12 +47,12 @@ var _ = Describe("RoutingTableEntry", func() {
 		Context("when removing none of the current elements", func() {
 			It("returns the same set", func() {
 				deletingSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6200},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6200},
 				}
 				resultSet := source.Remove(deletingSet)
 				expectedSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6000},
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6100},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6000},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6100},
 				}
 				Expect(resultSet).Should(Equal(expectedSet))
 			})
@@ -63,8 +63,8 @@ var _ = Describe("RoutingTableEntry", func() {
 				deletingSet := routing_table.ExternalEndpointInfos{}
 				resultSet := source.Remove(deletingSet)
 				expectedSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6000},
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6100},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6000},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6100},
 				}
 				Expect(resultSet).Should(Equal(expectedSet))
 			})
@@ -74,7 +74,7 @@ var _ = Describe("RoutingTableEntry", func() {
 			It("returns the same set", func() {
 				source = routing_table.ExternalEndpointInfos{}
 				deletingSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6100},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6100},
 				}
 				resultSet := source.Remove(deletingSet)
 				Expect(resultSet).Should(Equal(routing_table.ExternalEndpointInfos{}))
@@ -102,11 +102,11 @@ var _ = Describe("RoutingTableEntry", func() {
 		Context("when removing some of the current elements", func() {
 			It("returns the remaining set", func() {
 				deletingSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6100},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6100},
 				}
 				resultEntry := sourceEntry.RemoveExternalEndpoints(deletingSet)
 				expectedSet := routing_table.ExternalEndpointInfos{
-					routing_table.ExternalEndpointInfo{"routing-group-1", 6000},
+					routing_table.ExternalEndpointInfo{RouterGroupGUID: "routing-group-1", Port: 6000},
 				}
 				expectedEntry := routing_table.NewRoutableEndpoints(expectedSet, endpoints, "log-guid-1", modificationTag)
 				Expect(resultEntry).Should(Equal(expectedEntry))
@@ -121,16 +121,16 @@ var _ = Describe("RoutingTableEntry", func() {
 
 		BeforeEach(func() {
 			sourceRoutingKeys = routing_table.RoutingKeys{
-				routing_table.RoutingKey{"process-guid-1", 5000},
-				routing_table.RoutingKey{"process-guid-2", 5001},
+				routing_table.RoutingKey{ProcessGUID: "process-guid-1", ContainerPort: 5000},
+				routing_table.RoutingKey{ProcessGUID: "process-guid-2", ContainerPort: 5001},
 			}
 		})
 
 		Context("when removing all the current elements", func() {
 			It("returns an empty set", func() {
 				deletingRoutingKeys := routing_table.RoutingKeys{
-					routing_table.RoutingKey{"process-guid-1", 5000},
-					routing_table.RoutingKey{"process-guid-2", 5001},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-1", ContainerPort: 5000},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-2", ContainerPort: 5001},
 				}
 				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
 				Expect(resultSet).Should(Equal(routing_table.RoutingKeys{}))
@@ -140,11 +140,11 @@ var _ = Describe("RoutingTableEntry", func() {
 		Context("when removing some of the current elements", func() {
 			It("returns the remaining set", func() {
 				deletingRoutingKeys := routing_table.RoutingKeys{
-					routing_table.RoutingKey{"process-guid-2", 5001},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-2", ContainerPort: 5001},
 				}
 				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
 				expectedRoutingKeys := routing_table.RoutingKeys{
-					routing_table.RoutingKey{"process-guid-1", 5000},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-1", ContainerPort: 5000},
 				}
 				Expect(resultSet).Should(Equal(expectedRoutingKeys))
 			})
@@ -153,12 +153,12 @@ var _ = Describe("RoutingTableEntry", func() {
 		Context("when removing none of the current elements", func() {
 			It("returns the same set", func() {
 				deletingRoutingKeys := routing_table.RoutingKeys{
-					routing_table.RoutingKey{"process-guid-3", 5002},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-3", ContainerPort: 5002},
 				}
 				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
 				expectedRoutingKeys := routing_table.RoutingKeys{
-					routing_table.RoutingKey{"process-guid-1", 5000},
-					routing_table.RoutingKey{"process-guid-2", 5001},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-1", ContainerPort: 5000},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-2", ContainerPort: 5001},
 				}
 				Expect(resultSet).Should(Equal(expectedRoutingKeys))
 			})
@@ -169,8 +169,8 @@ var _ = Describe("RoutingTableEntry", func() {
 				deletingRoutingKeys := routing_table.RoutingKeys{}
 				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
 				expectedRoutingKeys := routing_table.RoutingKeys{
-					routing_table.RoutingKey{"process-guid-1", 5000},
-					routing_table.RoutingKey{"process-guid-2", 5001},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-1", ContainerPort: 5000},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-2", ContainerPort: 5001},
 				}
 				Expect(resultSet).Should(Equal(expectedRoutingKeys))
 			})
@@ -180,7 +180,7 @@ var _ = Describe("RoutingTableEntry", func() {
 			It("returns the same set", func() {
 				sourceRoutingKeys = routing_table.RoutingKeys{}
 				deletingRoutingKeys := routing_table.RoutingKeys{
-					routing_table.RoutingKey{"process-guid-3", 5002},
+					routing_table.RoutingKey{ProcessGUID: "process-guid-3", ContainerPort: 5002},
 				}
 				resultSet := sourceRoutingKeys.Remove(deletingRoutingKeys)
 				Expect(resultSet).Should(Equal(routing_table.RoutingKeys{}))

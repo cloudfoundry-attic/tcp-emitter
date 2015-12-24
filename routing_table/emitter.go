@@ -14,14 +14,14 @@ type Emitter interface {
 
 type tcpEmitter struct {
 	logger           lager.Logger
-	routingApiClient routing_api.Client
+	routingAPIClient routing_api.Client
 	tokenFetcher     token_fetcher.TokenFetcher
 }
 
-func NewEmitter(logger lager.Logger, routingApiClient routing_api.Client, tokenFetcher token_fetcher.TokenFetcher) Emitter {
+func NewEmitter(logger lager.Logger, routingAPIClient routing_api.Client, tokenFetcher token_fetcher.TokenFetcher) Emitter {
 	return &tcpEmitter{
 		logger:           logger,
-		routingApiClient: routingApiClient,
+		routingAPIClient: routingAPIClient,
 		tokenFetcher:     tokenFetcher,
 	}
 }
@@ -38,7 +38,7 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 			emitter.logger.Error("unable-to-get-token", err)
 			return err
 		}
-		emitter.routingApiClient.SetToken(token.AccessToken)
+		emitter.routingAPIClient.SetToken(token.AccessToken)
 		err = emitter.emit(registrationMappingRequests, unregistrationMappingRequests)
 		if err != nil && err.Error() == "unauthorized" {
 			useCachedToken = false
@@ -54,25 +54,25 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 func (emitter *tcpEmitter) emit(registrationMappingRequests, unregistrationMappingRequests []db.TcpRouteMapping) error {
 	emitted := true
 	if len(registrationMappingRequests) > 0 {
-		if err := emitter.routingApiClient.UpsertTcpRouteMappings(registrationMappingRequests); err != nil {
+		if err := emitter.routingAPIClient.UpsertTcpRouteMappings(registrationMappingRequests); err != nil {
 			emitted = false
 			emitter.logger.Error("unable-to-upsert", err)
 			return err
-		} else {
-			emitter.logger.Debug("successfully-emitted-registration-events",
-				lager.Data{"number-of-registration-events": len(registrationMappingRequests)})
 		}
+		emitter.logger.Debug("successfully-emitted-registration-events",
+			lager.Data{"number-of-registration-events": len(registrationMappingRequests)})
+
 	}
 
 	if len(unregistrationMappingRequests) > 0 {
-		if err := emitter.routingApiClient.DeleteTcpRouteMappings(unregistrationMappingRequests); err != nil {
+		if err := emitter.routingAPIClient.DeleteTcpRouteMappings(unregistrationMappingRequests); err != nil {
 			emitted = false
 			emitter.logger.Error("unable-to-delete", err)
 			return err
-		} else {
-			emitter.logger.Debug("successfully-emitted-unregistration-events",
-				lager.Data{"number-of-unregistration-events": len(unregistrationMappingRequests)})
 		}
+		emitter.logger.Debug("successfully-emitted-unregistration-events",
+			lager.Data{"number-of-unregistration-events": len(unregistrationMappingRequests)})
+
 	}
 
 	if emitted {

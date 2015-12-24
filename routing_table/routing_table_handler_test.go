@@ -5,9 +5,9 @@ import (
 
 	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
+	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
-	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -722,7 +722,7 @@ var _ = Describe("RoutingTableHandler", func() {
 						routingEvent := routingEvents[0]
 
 						key := routing_table.RoutingKey{
-							ProcessGuid:   "process-guid-1",
+							ProcessGUID:   "process-guid-1",
 							ContainerPort: 5222,
 						}
 						endpoints := map[routing_table.EndpointKey]routing_table.Endpoint{

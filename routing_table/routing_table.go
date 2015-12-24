@@ -189,7 +189,7 @@ func (table *routingTable) mergeRoutes(
 	existingEntry RoutableEndpoints,
 	routes tcp_routes.TCPRoutes,
 	key RoutingKey,
-	logGuid string,
+	logGUID string,
 	modificationTag *models.ModificationTag) RoutingEvents {
 	var registrationNeeded bool
 
@@ -213,7 +213,7 @@ func (table *routingTable) mergeRoutes(
 	if registrationNeeded {
 		updatedEntry := existingEntry.copy()
 		updatedEntry.ExternalEndpoints = newExternalEndpoints
-		updatedEntry.LogGuid = logGuid
+		updatedEntry.LogGUID = logGUID
 		updatedEntry.ModificationTag = modificationTag
 		table.entries[key] = updatedEntry
 		routingEvents = append(routingEvents, table.createRoutingEvent(logger, key, updatedEntry, RouteRegistrationEvent)...)
@@ -361,7 +361,7 @@ func (table *routingTable) createRoutingEvent(logger lager.Logger, key RoutingKe
 func (table *routingTable) getDeletedEntry(existingEntry, newEntry RoutableEndpoints) RoutableEndpoints {
 	// Assuming ExternalEndpoints for both existingEntry, newEntry are the same.
 	gapEntry := existingEntry.copy()
-	for endpointKey, _ := range existingEntry.Endpoints {
+	for endpointKey := range existingEntry.Endpoints {
 		if _, ok := newEntry.Endpoints[endpointKey]; ok {
 			delete(gapEntry.Endpoints, endpointKey)
 		}

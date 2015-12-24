@@ -12,7 +12,7 @@ type FakeRoutingTable struct {
 	RouteCountStub        func() int
 	routeCountMutex       sync.RWMutex
 	routeCountArgsForCall []struct{}
-	routeCountReturns struct {
+	routeCountReturns     struct {
 		result1 int
 	}
 	AddRoutesStub        func(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents
@@ -67,7 +67,7 @@ type FakeRoutingTable struct {
 	GetRoutingEventsStub        func() routing_table.RoutingEvents
 	getRoutingEventsMutex       sync.RWMutex
 	getRoutingEventsArgsForCall []struct{}
-	getRoutingEventsReturns struct {
+	getRoutingEventsReturns     struct {
 		result1 routing_table.RoutingEvents
 	}
 }
@@ -78,9 +78,8 @@ func (fake *FakeRoutingTable) RouteCount() int {
 	fake.routeCountMutex.Unlock()
 	if fake.RouteCountStub != nil {
 		return fake.RouteCountStub()
-	} else {
-		return fake.routeCountReturns.result1
 	}
+	return fake.routeCountReturns.result1
 }
 
 func (fake *FakeRoutingTable) RouteCountCallCount() int {

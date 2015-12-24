@@ -7,7 +7,7 @@ import (
 	"github.com/cloudfoundry-incubator/routing-api/db"
 	"github.com/cloudfoundry-incubator/routing-api/fake_routing_api"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
-	"github.com/cloudfoundry-incubator/uaa-token-fetcher"
+	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
 	testTokenFetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher/fakes"
 
 	. "github.com/onsi/ginkgo"
@@ -57,7 +57,7 @@ var _ = Describe("Emitter", func() {
 
 		routingApiClient = new(fake_routing_api.FakeClient)
 		tokenFetcher = &testTokenFetcher.FakeTokenFetcher{}
-		tokenFetcher.FetchTokenReturns(&token_fetcher.Token{"some-token", 1234}, nil)
+		tokenFetcher.FetchTokenReturns(&token_fetcher.Token{AccessToken: "some-token", ExpireTime: 1234}, nil)
 		emitter = routing_table.NewEmitter(logger, routingApiClient, tokenFetcher)
 	})
 

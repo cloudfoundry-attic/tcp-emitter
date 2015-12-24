@@ -29,11 +29,11 @@ import (
 )
 
 const (
-	TCP_EMITTER_LOCK_PATH          = "tcp_emitter_lock"
+	tcpEmitterLockPath             = "tcp_emitter_lock"
 	dropsondeDestination           = "localhost:3457"
 	dropsondeOrigin                = "tcp_emitter"
-	DefaultTokenFetchRetryInterval = 5 * time.Second
-	DefaultTokenFetchNumRetries    = uint(3)
+	defaultTokenFetchRetryInterval = 5 * time.Second
+	defaultTokenFetchNumRetries    = uint(3)
 )
 
 var bbsAddress = flag.String(
@@ -104,13 +104,13 @@ var sessionName = flag.String(
 
 var tokenFetchMaxRetries = flag.Uint(
 	"tokenFetchMaxRetries",
-	DefaultTokenFetchNumRetries,
+	defaultTokenFetchNumRetries,
 	"Maximum number of retries the Token Fetcher will use every time FetchToken is called",
 )
 
 var tokenFetchRetryInterval = flag.Duration(
 	"tokenFetchRetryInterval",
-	DefaultTokenFetchRetryInterval,
+	defaultTokenFetchRetryInterval,
 	"interval to wait before TokenFetcher retries to fetch a token",
 )
 
@@ -132,7 +132,7 @@ func main() {
 
 	initializeDropsonde(logger)
 
-	bbsUrl, err := url.Parse(*bbsAddress)
+	bbsURL, err := url.Parse(*bbsAddress)
 	if err != nil {
 		logger.Error("invalid-bbs-address", err)
 		os.Exit(1)
@@ -140,12 +140,12 @@ func main() {
 
 	var bbsClient bbs.Client
 
-	if bbsUrl.Scheme == "http" {
+	if bbsURL.Scheme == "http" {
 		logger.Info("setting-up-non-secure-bbs-client")
-		bbsClient = bbs.NewClient(bbsUrl.String())
-	} else if bbsUrl.Scheme == "https" {
+		bbsClient = bbs.NewClient(bbsURL.String())
+	} else if bbsURL.Scheme == "https" {
 		logger.Info("setting-up-secure-bbs-client")
-		bbsClient, err = bbs.NewSecureClient(bbsUrl.String(), *bbsCACert, *bbsClientCert, *bbsClientKey)
+		bbsClient, err = bbs.NewSecureClient(bbsURL.String(), *bbsCACert, *bbsClientCert, *bbsClientKey)
 		if err != nil {
 			logger.Error("failed-to-configure-bbs-client", err)
 			os.Exit(1)
@@ -171,11 +171,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	routingApiAddress := fmt.Sprintf("%s:%d", cfg.RoutingApi.Uri, cfg.RoutingApi.Port)
-	logger.Debug("creating-routing-api-client", lager.Data{"api-location": routingApiAddress})
-	routingApiClient := routing_api.NewClient(routingApiAddress)
+	routingAPIAddress := fmt.Sprintf("%s:%d", cfg.RoutingAPI.URI, cfg.RoutingAPI.Port)
+	logger.Debug("creating-routing-api-client", lager.Data{"api-location": routingAPIAddress})
+	routingAPIClient := routing_api.NewClient(routingAPIAddress)
 
-	emitter := routing_table.NewEmitter(logger, routingApiClient, tokenFetcher)
+	emitter := routing_table.NewEmitter(logger, routingAPIClient, tokenFetcher)
 	routingTable := routing_table.NewTable(logger, nil)
 	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, bbsClient)
 	syncChannel := make(chan struct{})
@@ -213,7 +213,7 @@ func main() {
 }
 
 func createTokenFetcher(logger lager.Logger, cfg *config.Config, klok clock.Clock) (token_fetcher.TokenFetcher, error) {
-	if cfg.RoutingApi.AuthDisabled {
+	if cfg.RoutingAPI.AuthDisabled {
 		logger.Debug("creating-noop-token-fetcher")
 		tknFetcher := token_fetcher.NewNoOpTokenFetcher()
 		return tknFetcher, nil
@@ -231,7 +231,7 @@ func createTokenFetcher(logger lager.Logger, cfg *config.Config, klok clock.Cloc
 func initializeDropsonde(logger lager.Logger) {
 	err := dropsonde.Initialize(dropsondeDestination, dropsondeOrigin)
 	if err != nil {
-		logger.Error("failed to initialize dropsonde: %v", err)
+		logger.Error("failed-to-initialize-dropsonde", err)
 	}
 }
 
@@ -259,14 +259,14 @@ func newLockRunner(
 	consulSession *consuladapter.Session,
 	clock clock.Clock,
 	lockRetryInterval time.Duration) ifrit.Runner {
-	lockSchemaPath := locket.LockSchemaPath(TCP_EMITTER_LOCK_PATH)
+	lockSchemaPath := locket.LockSchemaPath(tcpEmitterLockPath)
 
 	tcpEmitterUUID, err := uuid.NewV4()
 	if err != nil {
 		logger.Fatal("Couldn't generate tcp Emitter UUID", err)
 	}
-	tcpEmitterId := []byte(tcpEmitterUUID.String())
+	tcpEmitterID := []byte(tcpEmitterUUID.String())
 
 	return locket.NewLock(consulSession, lockSchemaPath,
-		tcpEmitterId, clock, lockRetryInterval, logger)
+		tcpEmitterID, clock, lockRetryInterval, logger)
 }

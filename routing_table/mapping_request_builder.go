@@ -22,7 +22,7 @@ func mapRoutingEvent(routingEvent RoutingEvent) *[]db.TcpRouteMapping {
 	mappingRequests := make([]db.TcpRouteMapping, 0)
 	for _, externalEndpoint := range routingEvent.Entry.ExternalEndpoints {
 		for _, endpoint := range routingEvent.Entry.Endpoints {
-			mappingRequests = append(mappingRequests, db.NewTcpRouteMapping(externalEndpoint.RouterGroupGuid, uint16(externalEndpoint.Port),
+			mappingRequests = append(mappingRequests, db.NewTcpRouteMapping(externalEndpoint.RouterGroupGUID, uint16(externalEndpoint.Port),
 				endpoint.Host, uint16(endpoint.Port)))
 		}
 	}
