@@ -70,18 +70,23 @@ var _ = Describe("Syncer", func() {
 	Context("on startup", func() {
 		var (
 			watchChannel chan struct{}
+			readyChannel chan struct{}
 		)
 		BeforeEach(func() {
 			watchChannel = make(chan struct{})
+			readyChannel = make(chan struct{})
 			go func() {
+				close(readyChannel)
 				select {
 				case <-syncChannel:
+					logger.Debug("received-sync")
 					watchChannel <- struct{}{}
 				}
 
 			}()
 		})
 		It("should sync", func() {
+			Eventually(readyChannel).Should(BeClosed())
 			process = ifrit.Invoke(syncerRunner)
 			Eventually(watchChannel).Should(Receive())
 		})
