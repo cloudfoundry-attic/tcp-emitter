@@ -229,7 +229,6 @@ var _ = Describe("TCP Emitter", func() {
 
 		checkEmitterWorks := func(session *gexec.Session) {
 			Eventually(eventsEndpointRequests, 5*time.Second).Should(BeNumerically(">=", 1))
-			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
 			Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("unable-to-upsert"))
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-emitted-events"))
