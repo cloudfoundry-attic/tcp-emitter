@@ -43,9 +43,6 @@ func NewWatcher(
 
 func (watcher *Watcher) Run(signals <-chan os.Signal, ready chan<- struct{}) error {
 	watcher.logger.Debug("starting")
-
-	close(ready)
-	watcher.logger.Debug("started")
 	defer watcher.logger.Debug("finished")
 
 	eventChan := make(chan models.Event)
@@ -86,6 +83,9 @@ func (watcher *Watcher) Run(signals <-chan os.Signal, ready chan<- struct{}) err
 			}
 		}
 	}()
+	watcher.logger.Debug("listening-on-channels")
+	close(ready)
+	watcher.logger.Debug("started")
 
 	for {
 		select {

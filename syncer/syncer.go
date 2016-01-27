@@ -35,6 +35,7 @@ func (s *Syncer) Run(signals <-chan os.Signal, ready chan<- struct{}) error {
 	close(ready)
 	s.logger.Info("started")
 
+	s.logger.Debug("starting-initial-sync")
 	s.sync()
 
 	//now keep emitting at the desired interval, syncing with etcd every syncInterval

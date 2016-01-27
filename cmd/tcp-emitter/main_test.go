@@ -127,7 +127,7 @@ var _ = Describe("TCP Emitter", func() {
 			}
 		}
 
-		setupBbsServer := func(server *ghttp.Server, includeSecondLRP bool, exitChannel chan struct{}) {
+		setupBbsServer := func(server *ghttp.Server, includeSecondLRP, emitEvents bool, exitChannel chan struct{}) {
 			server.RouteToHandler("POST", "/v1/actual_lrp_groups/list",
 				func(w http.ResponseWriter, req *http.Request) {
 					actualLRP1 := getActualLRP("some-guid", "instance-guid", "some-ip", 5222)
@@ -358,7 +358,7 @@ var _ = Describe("TCP Emitter", func() {
 			)
 			BeforeEach(func() {
 				exitChannel = make(chan struct{})
-				setupBbsServer(bbsServer, true, exitChannel)
+				setupBbsServer(bbsServer, true, true, exitChannel)
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
 				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
@@ -393,7 +393,7 @@ var _ = Describe("TCP Emitter", func() {
 
 			BeforeEach(func() {
 				exitChannel = make(chan struct{})
-				setupBbsServer(bbsServer, false, exitChannel)
+				setupBbsServer(bbsServer, false, true, exitChannel)
 				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 				logger.Info("started-tcp-emitter")
 			})
@@ -461,7 +461,7 @@ var _ = Describe("TCP Emitter", func() {
 			)
 			BeforeEach(func() {
 				exitChannel = make(chan struct{})
-				setupBbsServer(bbsServer, false, exitChannel)
+				setupBbsServer(bbsServer, false, true, exitChannel)
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
 				session1 = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
@@ -529,7 +529,7 @@ var _ = Describe("TCP Emitter", func() {
 			)
 			BeforeEach(func() {
 				exitChannel = make(chan struct{})
-				setupBbsServer(bbsServer, true, exitChannel)
+				setupBbsServer(bbsServer, true, false, exitChannel)
 				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
 				unAuthTcpEmitterArgs := testrunner.Args{
