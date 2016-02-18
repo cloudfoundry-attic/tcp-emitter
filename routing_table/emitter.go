@@ -3,7 +3,7 @@ package routing_table
 import (
 	"github.com/cloudfoundry-incubator/routing-api"
 	"github.com/cloudfoundry-incubator/routing-api/db"
-	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
+	uaaclient "github.com/cloudfoundry-incubator/uaa-go-client"
 	"github.com/pivotal-golang/lager"
 )
 
@@ -15,14 +15,14 @@ type Emitter interface {
 type tcpEmitter struct {
 	logger           lager.Logger
 	routingAPIClient routing_api.Client
-	tokenFetcher     token_fetcher.TokenFetcher
+	uaaClient        uaaclient.Client
 }
 
-func NewEmitter(logger lager.Logger, routingAPIClient routing_api.Client, tokenFetcher token_fetcher.TokenFetcher) Emitter {
+func NewEmitter(logger lager.Logger, routingAPIClient routing_api.Client, uaaClient uaaclient.Client) Emitter {
 	return &tcpEmitter{
 		logger:           logger,
 		routingAPIClient: routingAPIClient,
-		tokenFetcher:     tokenFetcher,
+		uaaClient:        uaaClient,
 	}
 }
 
@@ -33,7 +33,7 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 	registrationMappingRequests, unregistrationMappingRequests := CreateMappingRequests(emitter.logger, routingEvents)
 	useCachedToken := true
 	for count := 0; count < 2; count++ {
-		token, err := emitter.tokenFetcher.FetchToken(useCachedToken)
+		token, err := emitter.uaaClient.FetchToken(useCachedToken)
 		if err != nil {
 			emitter.logger.Error("unable-to-get-token", err)
 			return err

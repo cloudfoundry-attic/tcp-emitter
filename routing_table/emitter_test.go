@@ -7,8 +7,8 @@ import (
 	"github.com/cloudfoundry-incubator/routing-api/db"
 	"github.com/cloudfoundry-incubator/routing-api/fake_routing_api"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
-	token_fetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher"
-	testTokenFetcher "github.com/cloudfoundry-incubator/uaa-token-fetcher/fakes"
+	testUaaClient "github.com/cloudfoundry-incubator/uaa-go-client/fakes"
+	"github.com/cloudfoundry-incubator/uaa-go-client/schema"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,7 +20,7 @@ var _ = Describe("Emitter", func() {
 	var (
 		emitter                 routing_table.Emitter
 		routingApiClient        *fake_routing_api.FakeClient
-		tokenFetcher            *testTokenFetcher.FakeTokenFetcher
+		uaaClient               *testUaaClient.FakeClient
 		routingEvents           routing_table.RoutingEvents
 		expectedMappingRequests []db.TcpRouteMapping
 		routingKey1             routing_table.RoutingKey
@@ -56,9 +56,9 @@ var _ = Describe("Emitter", func() {
 		}
 
 		routingApiClient = new(fake_routing_api.FakeClient)
-		tokenFetcher = &testTokenFetcher.FakeTokenFetcher{}
-		tokenFetcher.FetchTokenReturns(&token_fetcher.Token{AccessToken: "some-token", ExpireTime: 1234}, nil)
-		emitter = routing_table.NewEmitter(logger, routingApiClient, tokenFetcher)
+		uaaClient = &testUaaClient.FakeClient{}
+		uaaClient.FetchTokenReturns(&schema.Token{AccessToken: "some-token", ExpiresIn: 1234}, nil)
+		emitter = routing_table.NewEmitter(logger, routingApiClient, uaaClient)
 	})
 
 	Context("when valid routing events are provided", func() {
@@ -70,7 +70,7 @@ var _ = Describe("Emitter", func() {
 					err := emitter.Emit(routingEvents)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(routingApiClient.UpsertTcpRouteMappingsCallCount()).To(Equal(1))
-					Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(1))
+					Expect(uaaClient.FetchTokenCallCount()).To(Equal(1))
 					Expect(routingApiClient.SetTokenCallCount()).To(Equal(1))
 					Expect(routingApiClient.SetTokenArgsForCall(0)).To(Equal("some-token"))
 					mappingRequests := routingApiClient.UpsertTcpRouteMappingsArgsForCall(0)
@@ -91,7 +91,7 @@ var _ = Describe("Emitter", func() {
 					err := emitter.Emit(routingEvents)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(routingApiClient.DeleteTcpRouteMappingsCallCount()).To(Equal(1))
-					Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(1))
+					Expect(uaaClient.FetchTokenCallCount()).To(Equal(1))
 					Expect(routingApiClient.SetTokenCallCount()).To(Equal(1))
 					Expect(routingApiClient.SetTokenArgsForCall(0)).To(Equal("some-token"))
 					mappingRequests := routingApiClient.DeleteTcpRouteMappingsArgsForCall(0)
@@ -121,7 +121,7 @@ var _ = Describe("Emitter", func() {
 				err := emitter.Emit(routingEvents)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(routingApiClient.UpsertTcpRouteMappingsCallCount()).To(Equal(2))
-				Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(2))
+				Expect(uaaClient.FetchTokenCallCount()).To(Equal(2))
 				Expect(routingApiClient.SetTokenCallCount()).To(Equal(2))
 				Expect(logger).To(gbytes.Say("test.unable-to-upsert.*unauthorized"))
 			})
@@ -162,7 +162,7 @@ var _ = Describe("Emitter", func() {
 				err := emitter.Emit(routingEvents)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(routingApiClient.DeleteTcpRouteMappingsCallCount()).To(Equal(2))
-				Expect(tokenFetcher.FetchTokenCallCount()).To(Equal(2))
+				Expect(uaaClient.FetchTokenCallCount()).To(Equal(2))
 				Expect(routingApiClient.SetTokenCallCount()).To(Equal(2))
 				Expect(logger).To(gbytes.Say("test.unable-to-delete.*unauthorized"))
 			})
@@ -170,7 +170,7 @@ var _ = Describe("Emitter", func() {
 
 		Context("when token fetcher returns error", func() {
 			BeforeEach(func() {
-				tokenFetcher.FetchTokenReturns(nil, errors.New("kabooom"))
+				uaaClient.FetchTokenReturns(nil, errors.New("kabooom"))
 			})
 
 			It("returns error", func() {
