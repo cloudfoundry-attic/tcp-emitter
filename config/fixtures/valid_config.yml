@@ -1,9 +1,9 @@
 oauth:
-  uaa_internal_hostname: "uaa.service.cf.internal"
+  token_endpoint: "uaa.service.cf.internal"
   client_name: "someclient"
   client_secret: "somesecret"
-  uaa_tls_port: 8443
-  skip_uaa_tls_verification: true
+  port: 8443
+  skip_oauth_tls_verification: true
 
 routing_api:
   uri: http://routing-api.service.cf.internal

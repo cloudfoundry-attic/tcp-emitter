@@ -13,11 +13,11 @@ type RoutingAPIConfig struct {
 }
 
 type OAuthConfig struct {
-	UaaInternalHostname    string `yaml:"uaa_internal_hostname"`
-	UaaTLSPort             int    `yaml:"uaa_tls_port"`
-	SkipUaaTLSVerification bool   `yaml:"skip_uaa_tls_verification"`
-	ClientName             string `yaml:"client_name"`
-	ClientSecret           string `yaml:"client_secret"`
+	TokenEndpoint            string `yaml:"token_endpoint"`
+	Port                     int    `yaml:"port"`
+	SkipOAuthTLSVerification bool   `yaml:"skip_oauth_tls_verification"`
+	ClientName               string `yaml:"client_name"`
+	ClientSecret             string `yaml:"client_secret"`
 }
 
 type Config struct {

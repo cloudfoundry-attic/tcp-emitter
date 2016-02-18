@@ -218,17 +218,17 @@ func newUaaClient(logger lager.Logger, c *config.Config, klok clock.Clock) uaacl
 	}
 	logger.Debug("creating-uaa-token-fetcher")
 
-	if c.OAuth.UaaTLSPort == -1 {
-		logger.Fatal("uaa-tls-not-enabled", errors.New("TcpEmitter requires to communicate with UAA over TLS"), lager.Data{"uaa-internal-hostname": c.OAuth.UaaInternalHostname, "uaa-tls-port": c.OAuth.UaaTLSPort})
+	if c.OAuth.Port == -1 {
+		logger.Fatal("tls-not-enabled", errors.New("TcpEmitter requires to communicate with UAA over TLS"), lager.Data{"token-endpoint": c.OAuth.TokenEndpoint, "port": c.OAuth.Port})
 	}
 
 	scheme := "https"
-	tokenURL := fmt.Sprintf("%s://%s:%d", scheme, c.OAuth.UaaInternalHostname, c.OAuth.UaaTLSPort)
+	tokenURL := fmt.Sprintf("%s://%s:%d", scheme, c.OAuth.TokenEndpoint, c.OAuth.Port)
 	logger.Info(fmt.Sprintf("using-%s-scheme-for-uaa", scheme))
 
 	cfg := &uaaconfig.Config{
 		UaaEndpoint:           tokenURL,
-		SkipVerification:      c.OAuth.SkipUaaTLSVerification,
+		SkipVerification:      c.OAuth.SkipOAuthTLSVerification,
 		ClientName:            c.OAuth.ClientName,
 		ClientSecret:          c.OAuth.ClientSecret,
 		MaxNumberOfRetries:    uint32(*tokenFetchMaxRetries),

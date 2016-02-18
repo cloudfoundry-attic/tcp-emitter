@@ -206,9 +206,9 @@ func createEmitterConfig(uaaPorts ...string) string {
 		uaaPort = uaaPorts[0]
 	}
 
-	cfg := fmt.Sprintf("%s\n  uaa_tls_port: %s\n%s\n  port: %d\n", `oauth:
-  uaa_internal_hostname: "127.0.0.1"
-  skip_uaa_tls_verification: true
+	cfg := fmt.Sprintf("%s\n  port: %s\n%s\n  port: %d\n", `oauth:
+  token_endpoint: "127.0.0.1"
+  skip_oauth_tls_verification: true
   client_name: "someclient"
   client_secret: "somesecret"`, uaaPort,
 		`routing_api:
@@ -223,9 +223,9 @@ func createEmitterConfigAuthDisabled() string {
 	randomConfigFileName := fmt.Sprintf("router_configurer_%d.yml", GinkgoParallelNode())
 	configFile := path.Join(os.TempDir(), randomConfigFileName)
 
-	cfg := fmt.Sprintf("%s\n  uaa_tls_port: %s\n%s\n  port: %d\n", `oauth:
-  uaa_internal_hostname: "127.0.0.1"
-  skip_uaa_tls_verification: true
+	cfg := fmt.Sprintf("%s\n  port: %s\n%s\n  port: %d\n", `oauth:
+  token_endpoint: "127.0.0.1"
+  skip_oauth_tls_verification: true
   client_name: "someclient"
   client_secret: "somesecret"`, oauthServerPort,
 		`routing_api:
