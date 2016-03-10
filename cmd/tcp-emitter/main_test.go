@@ -559,7 +559,7 @@ var _ = Describe("TCP Emitter", func() {
 			})
 
 			It("does not call oauth server to get the auth token", func() {
-				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("creating-noop-token-fetcher"))
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("creating-noop-uaa-client"))
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
 				Eventually(session.Out, 2*time.Second).Should(gbytes.Say("successfully-emitted-registration-events"))
 				checkTcpRouteMapping(expectedTcpRouteMapping, true)
