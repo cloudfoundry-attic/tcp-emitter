@@ -2,7 +2,7 @@ package routing_table
 
 import (
 	"github.com/cloudfoundry-incubator/routing-api"
-	"github.com/cloudfoundry-incubator/routing-api/db"
+	"github.com/cloudfoundry-incubator/routing-api/models"
 	uaaclient "github.com/cloudfoundry-incubator/uaa-go-client"
 	"github.com/pivotal-golang/lager"
 )
@@ -51,7 +51,7 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 	return nil
 }
 
-func (emitter *tcpEmitter) emit(registrationMappingRequests, unregistrationMappingRequests []db.TcpRouteMapping) error {
+func (emitter *tcpEmitter) emit(registrationMappingRequests, unregistrationMappingRequests []models.TcpRouteMapping) error {
 	emitted := true
 	if len(registrationMappingRequests) > 0 {
 		if err := emitter.routingAPIClient.UpsertTcpRouteMappings(registrationMappingRequests); err != nil {

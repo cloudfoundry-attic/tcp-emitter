@@ -2,7 +2,7 @@ package routing_table_test
 
 import (
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/routing-api/db"
+	apimodels "github.com/cloudfoundry-incubator/routing-api/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -12,8 +12,8 @@ var _ = Describe("MappingRequestBuilder", func() {
 
 	var (
 		routingEvents                  routing_table.RoutingEvents
-		expectedRegistrationRequests   []db.TcpRouteMapping
-		expectedUnregistrationRequests []db.TcpRouteMapping
+		expectedRegistrationRequests   []apimodels.TcpRouteMapping
+		expectedUnregistrationRequests []apimodels.TcpRouteMapping
 		endpoints1                     map[routing_table.EndpointKey]routing_table.Endpoint
 		endpoints2                     map[routing_table.EndpointKey]routing_table.Endpoint
 		routingKey1                    routing_table.RoutingKey
@@ -72,16 +72,16 @@ var _ = Describe("MappingRequestBuilder", func() {
 				},
 			}
 
-			expectedRegistrationRequests = []db.TcpRouteMapping{
-				db.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
-				db.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
+			expectedRegistrationRequests = []apimodels.TcpRouteMapping{
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
 			}
 
-			expectedUnregistrationRequests = []db.TcpRouteMapping{
-				db.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
-				db.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
-				db.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
-				db.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
+			expectedUnregistrationRequests = []apimodels.TcpRouteMapping{
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
 			}
 		})
 
@@ -109,16 +109,16 @@ var _ = Describe("MappingRequestBuilder", func() {
 				},
 			}
 
-			expectedRegistrationRequests = []db.TcpRouteMapping{
-				db.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
-				db.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
-				db.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
-				db.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
-				db.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
-				db.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
+			expectedRegistrationRequests = []apimodels.TcpRouteMapping{
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
 			}
 
-			expectedUnregistrationRequests = []db.TcpRouteMapping{}
+			expectedUnregistrationRequests = []apimodels.TcpRouteMapping{}
 		})
 
 		It("returns only registration mapping requests ", func() {
@@ -144,16 +144,16 @@ var _ = Describe("MappingRequestBuilder", func() {
 				},
 			}
 
-			expectedUnregistrationRequests = []db.TcpRouteMapping{
-				db.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
-				db.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
-				db.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
-				db.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
-				db.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
-				db.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
+			expectedUnregistrationRequests = []apimodels.TcpRouteMapping{
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
 			}
 
-			expectedRegistrationRequests = []db.TcpRouteMapping{}
+			expectedRegistrationRequests = []apimodels.TcpRouteMapping{}
 		})
 
 		It("returns only unregistration mapping requests ", func() {

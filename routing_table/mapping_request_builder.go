@@ -3,12 +3,12 @@ package routing_table
 import (
 	"errors"
 
-	"github.com/cloudfoundry-incubator/routing-api/db"
+	"github.com/cloudfoundry-incubator/routing-api/models"
 	"github.com/pivotal-golang/lager"
 )
 
-func buildMappingRequests(routingEvents RoutingEvents) []db.TcpRouteMapping {
-	mappingRequests := make([]db.TcpRouteMapping, 0)
+func buildMappingRequests(routingEvents RoutingEvents) []models.TcpRouteMapping {
+	mappingRequests := make([]models.TcpRouteMapping, 0)
 	for _, routingEvent := range routingEvents {
 		mappingRequest := mapRoutingEvent(routingEvent)
 		if mappingRequest != nil {
@@ -18,18 +18,18 @@ func buildMappingRequests(routingEvents RoutingEvents) []db.TcpRouteMapping {
 	return mappingRequests
 }
 
-func mapRoutingEvent(routingEvent RoutingEvent) *[]db.TcpRouteMapping {
-	mappingRequests := make([]db.TcpRouteMapping, 0)
+func mapRoutingEvent(routingEvent RoutingEvent) *[]models.TcpRouteMapping {
+	mappingRequests := make([]models.TcpRouteMapping, 0)
 	for _, externalEndpoint := range routingEvent.Entry.ExternalEndpoints {
 		for _, endpoint := range routingEvent.Entry.Endpoints {
-			mappingRequests = append(mappingRequests, db.NewTcpRouteMapping(externalEndpoint.RouterGroupGUID, uint16(externalEndpoint.Port),
+			mappingRequests = append(mappingRequests, models.NewTcpRouteMapping(externalEndpoint.RouterGroupGUID, uint16(externalEndpoint.Port),
 				endpoint.Host, uint16(endpoint.Port)))
 		}
 	}
 	return &mappingRequests
 }
 
-func CreateMappingRequests(logger lager.Logger, routingEvents RoutingEvents) ([]db.TcpRouteMapping, []db.TcpRouteMapping) {
+func CreateMappingRequests(logger lager.Logger, routingEvents RoutingEvents) ([]models.TcpRouteMapping, []models.TcpRouteMapping) {
 	registrationEvents := RoutingEvents{}
 	unregistrationEvents := RoutingEvents{}
 	for _, routingEvent := range routingEvents {

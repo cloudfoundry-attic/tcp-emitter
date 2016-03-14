@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/routing-api/db"
 	"github.com/cloudfoundry-incubator/routing-api/fake_routing_api"
+	apimodels "github.com/cloudfoundry-incubator/routing-api/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	testUaaClient "github.com/cloudfoundry-incubator/uaa-go-client/fakes"
 	"github.com/cloudfoundry-incubator/uaa-go-client/schema"
@@ -22,7 +22,7 @@ var _ = Describe("Emitter", func() {
 		routingApiClient        *fake_routing_api.FakeClient
 		uaaClient               *testUaaClient.FakeClient
 		routingEvents           routing_table.RoutingEvents
-		expectedMappingRequests []db.TcpRouteMapping
+		expectedMappingRequests []apimodels.TcpRouteMapping
 		routingKey1             routing_table.RoutingKey
 		routableEndpoints1      routing_table.RoutableEndpoints
 	)
@@ -40,8 +40,8 @@ var _ = Describe("Emitter", func() {
 
 		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo("123", 61000)
 
-		expectedMappingRequests = []db.TcpRouteMapping{
-			db.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
+		expectedMappingRequests = []apimodels.TcpRouteMapping{
+			apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
 		}
 
 		routableEndpoints1 = routing_table.NewRoutableEndpoints(

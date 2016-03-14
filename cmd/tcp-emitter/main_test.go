@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/events/eventfakes"
 	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
+
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
@@ -24,8 +26,9 @@ import (
 	"github.com/tedsuo/ifrit/sigmon"
 	"github.com/vito/go-sse/sse"
 
+	"github.com/cloudfoundry-incubator/routing-api"
 	routingtestrunner "github.com/cloudfoundry-incubator/routing-api/cmd/routing-api/testrunner"
-	"github.com/cloudfoundry-incubator/routing-api/db"
+	apimodels "github.com/cloudfoundry-incubator/routing-api/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/cmd/tcp-emitter/testrunner"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -36,7 +39,9 @@ import (
 
 var _ = Describe("TCP Emitter", func() {
 
-	const DefaultRouterGroupGuid = "bad25cff-9332-48a6-8603-b619858e7992"
+	var (
+		routerGroupGuid string
+	)
 
 	Describe("Syncer-Watcher Integration", func() {
 		var (
@@ -95,6 +100,11 @@ var _ = Describe("TCP Emitter", func() {
 
 	Describe("Main", func() {
 
+		var (
+			expectedTcpRouteMapping    apimodels.TcpRouteMapping
+			notExpectedTcpRouteMapping apimodels.TcpRouteMapping
+		)
+
 		getDesiredLRP := func(processGuid, logGuid string, externalPort, containerPort, modificationIndex uint32) models.DesiredLRP {
 			desiredLRP := models.DesiredLRP{}
 			desiredLRP.ProcessGuid = processGuid
@@ -102,7 +112,7 @@ var _ = Describe("TCP Emitter", func() {
 			desiredLRP.LogGuid = logGuid
 			tcpRoutes := tcp_routes.TCPRoutes{
 				tcp_routes.TCPRoute{
-					RouterGroupGuid: DefaultRouterGroupGuid,
+					RouterGroupGuid: routerGroupGuid,
 					ExternalPort:    externalPort,
 					ContainerPort:   containerPort,
 				},
@@ -198,9 +208,21 @@ var _ = Describe("TCP Emitter", func() {
 				})
 		}
 
+		getRouterGroupGuid := func(port uint16) string {
+			client := routing_api.NewClient(fmt.Sprintf("http://127.0.0.1:%d", port))
+			routerGroups, err := client.RouterGroups()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(routerGroups).ToNot(HaveLen(0))
+			return routerGroups[0].Guid
+		}
+
 		setupRoutingApiServer := func(path string, args routingtestrunner.Args) ifrit.Process {
 			routingApiServer := routingtestrunner.New(path, args)
-			return ifrit.Invoke(routingApiServer)
+			process := ifrit.Invoke(routingApiServer)
+			routerGroupGuid = getRouterGroupGuid(args.Port)
+			expectedTcpRouteMapping.TcpRoute.RouterGroupGuid = routerGroupGuid
+			notExpectedTcpRouteMapping.TcpRoute.RouterGroupGuid = routerGroupGuid
+			return process
 		}
 
 		setupTcpEmitter := func(path string, args testrunner.Args, expectStarted bool) *gexec.Session {
@@ -234,37 +256,32 @@ var _ = Describe("TCP Emitter", func() {
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-emitted-events"))
 		}
 
-		checkTcpRouteMapping := func(tcpRouteMapping db.TcpRouteMapping, present bool) {
+		checkTcpRouteMapping := func(tcpRouteMapping apimodels.TcpRouteMapping, present bool) {
 			if present {
-				Eventually(func() []db.TcpRouteMapping {
+				Eventually(func() []apimodels.TcpRouteMapping {
 					tcpRouteMappings, _ := routingApiClient.TcpRouteMappings()
 					return tcpRouteMappings
 				}, 5*time.Second).Should(ContainElement(tcpRouteMapping))
 			} else {
-				Eventually(func() []db.TcpRouteMapping {
+				Eventually(func() []apimodels.TcpRouteMapping {
 					tcpRouteMappings, _ := routingApiClient.TcpRouteMappings()
 					return tcpRouteMappings
 				}, 5*time.Second).ShouldNot(ContainElement(tcpRouteMapping))
 			}
 		}
 
-		var (
-			expectedTcpRouteMapping    db.TcpRouteMapping
-			notExpectedTcpRouteMapping db.TcpRouteMapping
-		)
-
 		BeforeEach(func() {
-			expectedTcpRouteMapping = db.TcpRouteMapping{
-				TcpRoute: db.TcpRoute{
-					RouterGroupGuid: DefaultRouterGroupGuid,
+			expectedTcpRouteMapping = apimodels.TcpRouteMapping{
+				TcpRoute: apimodels.TcpRoute{
+					RouterGroupGuid: routerGroupGuid,
 					ExternalPort:    5222,
 				},
 				HostPort: 62003,
 				HostIP:   "some-ip",
 			}
-			notExpectedTcpRouteMapping = db.TcpRouteMapping{
-				TcpRoute: db.TcpRoute{
-					RouterGroupGuid: DefaultRouterGroupGuid,
+			notExpectedTcpRouteMapping = apimodels.TcpRouteMapping{
+				TcpRoute: apimodels.TcpRoute{
+					RouterGroupGuid: routerGroupGuid,
 					ExternalPort:    1883,
 				},
 				HostPort: 62003,
