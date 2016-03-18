@@ -33,7 +33,7 @@ func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
 	registrationMappingRequests, unregistrationMappingRequests := CreateMappingRequests(emitter.logger, routingEvents)
 	useCachedToken := true
 	for count := 0; count < 2; count++ {
-		token, err := emitter.uaaClient.FetchToken(useCachedToken)
+		token, err := emitter.uaaClient.FetchToken(!useCachedToken)
 		if err != nil {
 			emitter.logger.Error("unable-to-get-token", err)
 			return err
