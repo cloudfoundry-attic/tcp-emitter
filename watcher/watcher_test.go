@@ -235,7 +235,7 @@ var _ = Describe("Watcher", func() {
 
 		It("resubscribes to SSE from bbs", func() {
 			Eventually(bbsClient.SubscribeToEventsCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(2))
-			Eventually(logger).Should(gbytes.Say("test.watcher.failed-getting-next-event"))
+			Eventually(logger).Should(gbytes.Say("failed-getting-next-event"))
 		})
 	})
 
@@ -266,7 +266,7 @@ var _ = Describe("Watcher", func() {
 		It("retries to subscribe", func() {
 			close(bbsErrorChannel)
 			Eventually(bbsClient.SubscribeToEventsCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(2))
-			Eventually(logger).Should(gbytes.Say("test.watcher.failed-subscribing-to-events"))
+			Eventually(logger).Should(gbytes.Say("failed-subscribing-to-bbs-events"))
 		})
 	})
 

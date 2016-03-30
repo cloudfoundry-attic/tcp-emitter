@@ -577,7 +577,7 @@ var _ = Describe("RoutingTableHandler", func() {
 				go invokeSync(doneChannel)
 				Eventually(doneChannel).Should(BeClosed())
 				Expect(fakeRoutingTable.SwapCallCount()).Should(Equal(0))
-				Eventually(logger).Should(gbytes.Say("test.handle-sync.failed-getting-desired-lrps"))
+				Eventually(logger).Should(gbytes.Say("failed-getting-desired-lrps"))
 			})
 
 		})
@@ -591,7 +591,7 @@ var _ = Describe("RoutingTableHandler", func() {
 				go invokeSync(doneChannel)
 				Eventually(doneChannel).Should(BeClosed())
 				Expect(fakeRoutingTable.SwapCallCount()).Should(Equal(0))
-				Eventually(logger).Should(gbytes.Say("test.handle-sync.failed-getting-actual-lrps"))
+				Eventually(logger).Should(gbytes.Say("failed-getting-actual-lrps"))
 			})
 		})
 
