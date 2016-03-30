@@ -1,6 +1,7 @@
 package routing_table
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/cloudfoundry-incubator/bbs"
@@ -55,7 +56,7 @@ func (handler *routingTableHandler) HandleEvent(event models.Event) {
 }
 
 func (handler *routingTableHandler) Sync() {
-	logger := handler.logger.Session("handle-sync")
+	logger := handler.logger.Session("bulk-sync")
 	logger.Debug("starting")
 
 	var tempRoutingTable RoutingTable
@@ -66,7 +67,7 @@ func (handler *routingTableHandler) Sync() {
 		handler.syncing = false
 		handler.cachedEvents = nil
 		handler.Unlock()
-		logger.Debug("complete")
+		logger.Debug("completed")
 	}()
 
 	handler.Lock()
@@ -186,7 +187,7 @@ func (handler *routingTableHandler) handleEvent(event models.Event) {
 	case *models.ActualLRPRemovedEvent:
 		handler.handleActualDelete(event.ActualLrpGroup)
 	default:
-		handler.logger.Info("did-not-handle-unrecognizable-event", lager.Data{"event-type": event.EventType()})
+		handler.logger.Error("did-not-handle-unrecognizable-event", errors.New("unrecognizable-event"), lager.Data{"event-type": event.EventType()})
 	}
 }
 

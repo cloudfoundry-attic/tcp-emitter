@@ -59,10 +59,10 @@ func (watcher *Watcher) Run(signals <-chan os.Signal, ready chan<- struct{}) err
 				return
 			}
 
-			watcher.logger.Debug("subscribing-to-bbs-events")
+			watcher.logger.Info("subscribing-to-bbs-events")
 			es, err = watcher.bbsClient.SubscribeToEvents()
 			if err != nil {
-				watcher.logger.Error("failed-subscribing-to-events", err)
+				watcher.logger.Error("failed-subscribing-to-bbs-events", err)
 				continue
 			}
 			watcher.logger.Info("subscribed-to-bbs-events")

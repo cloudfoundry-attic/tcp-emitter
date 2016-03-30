@@ -130,6 +130,8 @@ func main() {
 	cf_http.Initialize(*communicationTimeout)
 
 	logger, reconfigurableSink := cf_lager.New("tcp-emitter")
+	logger.Info("starting")
+
 	clock := clock.NewClock()
 
 	initializeDropsonde(logger)
@@ -142,11 +144,11 @@ func main() {
 
 	var bbsClient bbs.Client
 
+	logger.Debug("setting-up-secure-bbs-client", lager.Data{"bbsURL": bbsURL.String()})
+
 	if bbsURL.Scheme == "http" {
-		logger.Info("setting-up-non-secure-bbs-client")
 		bbsClient = bbs.NewClient(bbsURL.String())
 	} else if bbsURL.Scheme == "https" {
-		logger.Info("setting-up-secure-bbs-client")
 		bbsClient, err = bbs.NewSecureClient(bbsURL.String(), *bbsCACert, *bbsClientCert, *bbsClientKey)
 		if err != nil {
 			logger.Error("failed-to-configure-bbs-client", err)

@@ -31,7 +31,6 @@ func New(
 }
 
 func (s *Syncer) Run(signals <-chan os.Signal, ready chan<- struct{}) error {
-	s.logger.Info("starting")
 	close(ready)
 	s.logger.Info("started")
 
@@ -44,7 +43,7 @@ func (s *Syncer) Run(signals <-chan os.Signal, ready chan<- struct{}) error {
 	for {
 		select {
 		case <-syncTicker.C():
-			s.logger.Info("syncing")
+			s.logger.Debug("syncing")
 			s.sync()
 		case <-signals:
 			s.logger.Info("stopping")
