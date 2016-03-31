@@ -9,21 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudfoundry-incubator/bbs/events/eventfakes"
-	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
 
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
-	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
-	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
 	"github.com/gogo/protobuf/proto"
-	"github.com/pivotal-golang/clock/fakeclock"
-	"github.com/pivotal-golang/lager"
-	"github.com/pivotal-golang/lager/lagertest"
 	"github.com/tedsuo/ifrit"
-	"github.com/tedsuo/ifrit/grouper"
-	"github.com/tedsuo/ifrit/sigmon"
 	"github.com/vito/go-sse/sse"
 
 	"github.com/cloudfoundry-incubator/routing-api"
@@ -39,65 +29,6 @@ import (
 
 var _ = Describe("TCP Emitter", func() {
 
-	var (
-		routerGroupGuid string
-	)
-
-	Describe("Syncer-Watcher Integration", func() {
-		var (
-			process             ifrit.Process
-			bbsClient           *fake_bbs.FakeClient
-			routingTableHandler *fakes.FakeRoutingTableHandler
-			clock               *fakeclock.FakeClock
-			syncInterval        time.Duration
-			logger              lager.Logger
-			eventSource         *eventfakes.FakeEventSource
-		)
-
-		BeforeEach(func() {
-			logger = lagertest.NewTestLogger("test")
-			syncInterval = 1 * time.Second
-
-			eventSource = new(eventfakes.FakeEventSource)
-			bbsClient = new(fake_bbs.FakeClient)
-			bbsClient.SubscribeToEventsReturns(eventSource, nil)
-
-			routingTableHandler = new(fakes.FakeRoutingTableHandler)
-			clock = fakeclock.NewFakeClock(time.Now())
-			syncChannel := make(chan struct{})
-
-			syncRunner := syncer.New(clock, syncInterval, syncChannel, logger)
-			watcher := watcher.NewWatcher(bbsClient, clock, routingTableHandler, syncChannel, logger)
-
-			members := grouper.Members{
-				{"watcher", watcher},
-				{"syncer", syncRunner},
-			}
-			group := grouper.NewOrdered(os.Interrupt, members)
-
-			process = ifrit.Invoke(sigmon.New(group))
-		})
-
-		AfterEach(func() {
-			process.Signal(os.Interrupt)
-			Eventually(process.Wait()).Should(Receive())
-		})
-
-		Context("on startup", func() {
-			It("watcher invokes sync", func() {
-				Eventually(routingTableHandler.SyncCallCount).Should(Equal(1))
-			})
-		})
-
-		Context("on sync interval", func() {
-			It("watcher invokes sync", func() {
-				Eventually(routingTableHandler.SyncCallCount).Should(Equal(1))
-				clock.Increment(syncInterval + 100*time.Millisecond)
-				Eventually(routingTableHandler.SyncCallCount).Should(Equal(2))
-			})
-		})
-	})
-
 	Describe("Main", func() {
 
 		var (
@@ -105,7 +36,7 @@ var _ = Describe("TCP Emitter", func() {
 			notExpectedTcpRouteMapping apimodels.TcpRouteMapping
 		)
 
-		getDesiredLRP := func(processGuid, logGuid string, externalPort, containerPort, modificationIndex uint32) models.DesiredLRP {
+		getDesiredLRP := func(processGuid, logGuid, routerGroupGuid string, externalPort, containerPort, modificationIndex uint32) models.DesiredLRP {
 			desiredLRP := models.DesiredLRP{}
 			desiredLRP.ProcessGuid = processGuid
 			desiredLRP.Ports = []uint32{containerPort}
@@ -137,7 +68,7 @@ var _ = Describe("TCP Emitter", func() {
 			}
 		}
 
-		setupBbsServer := func(server *ghttp.Server, includeSecondLRP, emitEvents bool, exitChannel chan struct{}) {
+		setupBbsServer := func(server *ghttp.Server, includeSecondLRP, emitEvents bool, exitChannel chan struct{}, routerGroupGuid string) {
 			server.RouteToHandler("POST", "/v1/actual_lrp_groups/list",
 				func(w http.ResponseWriter, req *http.Request) {
 					actualLRP1 := getActualLRP("some-guid", "instance-guid", "some-ip", 5222)
@@ -159,12 +90,12 @@ var _ = Describe("TCP Emitter", func() {
 				})
 			server.RouteToHandler("POST", "/v1/desired_lrps/list",
 				func(w http.ResponseWriter, req *http.Request) {
-					desiredLRP1 := getDesiredLRP("some-guid", "log-guid", 5222, 5222, 1)
+					desiredLRP1 := getDesiredLRP("some-guid", "log-guid", routerGroupGuid, 5222, 5222, 1)
 					desiredLRPs := []*models.DesiredLRP{
 						&desiredLRP1,
 					}
 					if includeSecondLRP {
-						desiredLRP2 := getDesiredLRP("some-guid-1", "log-guid-1", 1883, 1883, 1)
+						desiredLRP2 := getDesiredLRP("some-guid-1", "log-guid-1", routerGroupGuid, 1883, 1883, 1)
 						desiredLRPs = append(desiredLRPs, &desiredLRP2)
 					}
 					desiredLRPResponse := models.DesiredLRPsResponse{
@@ -177,7 +108,7 @@ var _ = Describe("TCP Emitter", func() {
 					w.Write(data)
 				})
 
-			deletedDesiredLRP := getDesiredLRP("some-guid-1", "log-guid-1", 1883, 1883, 2)
+			deletedDesiredLRP := getDesiredLRP("some-guid-1", "log-guid-1", routerGroupGuid, 1883, 1883, 2)
 			desiredLRPEvent := models.NewDesiredLRPRemovedEvent(&deletedDesiredLRP)
 			eventData, err := proto.Marshal(desiredLRPEvent)
 			b64EventData := base64.StdEncoding.EncodeToString(eventData)
@@ -216,13 +147,13 @@ var _ = Describe("TCP Emitter", func() {
 			return routerGroups[0].Guid
 		}
 
-		setupRoutingApiServer := func(path string, args routingtestrunner.Args) ifrit.Process {
+		setupRoutingApiServer := func(path string, args routingtestrunner.Args) (ifrit.Process, string) {
 			routingApiServer := routingtestrunner.New(path, args)
 			process := ifrit.Invoke(routingApiServer)
-			routerGroupGuid = getRouterGroupGuid(args.Port)
+			routerGroupGuid := getRouterGroupGuid(args.Port)
 			expectedTcpRouteMapping.TcpRoute.RouterGroupGuid = routerGroupGuid
 			notExpectedTcpRouteMapping.TcpRoute.RouterGroupGuid = routerGroupGuid
-			return process
+			return process, routerGroupGuid
 		}
 
 		setupTcpEmitter := func(path string, args testrunner.Args, expectStarted bool) *gexec.Session {
@@ -230,6 +161,8 @@ var _ = Describe("TCP Emitter", func() {
 			runner := testrunner.New(path, args)
 			session, err := gexec.Start(runner.Command, allOutput, allOutput)
 			Expect(err).ToNot(HaveOccurred())
+			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("setting-up-bbs-client.*bbsURL"))
+
 			if expectStarted {
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
 			} else {
@@ -273,16 +206,14 @@ var _ = Describe("TCP Emitter", func() {
 		BeforeEach(func() {
 			expectedTcpRouteMapping = apimodels.TcpRouteMapping{
 				TcpRoute: apimodels.TcpRoute{
-					RouterGroupGuid: routerGroupGuid,
-					ExternalPort:    5222,
+					ExternalPort: 5222,
 				},
 				HostPort: 62003,
 				HostIP:   "some-ip",
 			}
 			notExpectedTcpRouteMapping = apimodels.TcpRouteMapping{
 				TcpRoute: apimodels.TcpRoute{
-					RouterGroupGuid: routerGroupGuid,
-					ExternalPort:    1883,
+					ExternalPort: 1883,
 				},
 				HostPort: 62003,
 				HostIP:   "some-ip-1",
@@ -311,35 +242,6 @@ var _ = Describe("TCP Emitter", func() {
 			It("fails to come up", func() {
 				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("invalid-scheme-in-bbs-address"))
-			})
-		})
-
-		Context("when protocol is http", func() {
-			var (
-				session *gexec.Session
-			)
-
-			BeforeEach(func() {
-				tcpEmitterArgs := testrunner.Args{
-					BBSAddress:     bbsServer.URL(),
-					BBSClientCert:  "",
-					BBSCACert:      "",
-					BBSClientKey:   "",
-					ConfigFilePath: createEmitterConfig(),
-					SyncInterval:   1 * time.Second,
-					ConsulCluster:  consulRunner.ConsulCluster(),
-				}
-				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
-			})
-
-			AfterEach(func() {
-				logger.Info("shutting-down")
-				session.Signal(os.Interrupt)
-				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
-			})
-
-			It("does not use the secure bbs client", func() {
-				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("setting-up-secure-bbs-client"))
 			})
 		})
 
@@ -372,11 +274,12 @@ var _ = Describe("TCP Emitter", func() {
 				routingApiProcess ifrit.Process
 				session           *gexec.Session
 				exitChannel       chan struct{}
+				routerGroupGuid   string
 			)
 			BeforeEach(func() {
 				exitChannel = make(chan struct{})
-				setupBbsServer(bbsServer, true, true, exitChannel)
-				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				routingApiProcess, routerGroupGuid = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				setupBbsServer(bbsServer, true, true, exitChannel, routerGroupGuid)
 				logger.Info("started-routing-api-server")
 				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 				logger.Info("started-tcp-emitter")
@@ -410,7 +313,7 @@ var _ = Describe("TCP Emitter", func() {
 
 			BeforeEach(func() {
 				exitChannel = make(chan struct{})
-				setupBbsServer(bbsServer, false, true, exitChannel)
+				setupBbsServer(bbsServer, false, true, exitChannel, "some-guid")
 				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 				logger.Info("started-tcp-emitter")
 			})
@@ -429,14 +332,14 @@ var _ = Describe("TCP Emitter", func() {
 
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
 				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
-				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("unable-to-upsert"))
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("unable-to-upsert.*connection refused"))
 				Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("successfully-emitted-event"))
 				Consistently(session.Exited).ShouldNot(BeClosed())
 
 				By("starting routing api server")
-				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				routingApiProcess, _ = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
-				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("successfully-emitted-event"))
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("unable-to-upsert.*some-guid not found"))
 			})
 
 		})
@@ -448,7 +351,7 @@ var _ = Describe("TCP Emitter", func() {
 			)
 
 			BeforeEach(func() {
-				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				routingApiProcess, _ = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 				logger.Info("started-routing-api-server")
 				bbsServer.Close()
 				session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
@@ -475,11 +378,12 @@ var _ = Describe("TCP Emitter", func() {
 				routingApiProcess ifrit.Process
 				session1          *gexec.Session
 				exitChannel       chan struct{}
+				routerGroupGuid   string
 			)
 			BeforeEach(func() {
 				exitChannel = make(chan struct{})
-				setupBbsServer(bbsServer, false, true, exitChannel)
-				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				routingApiProcess, routerGroupGuid = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				setupBbsServer(bbsServer, false, true, exitChannel, routerGroupGuid)
 				logger.Info("started-routing-api-server")
 				session1 = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 				logger.Info("started-tcp-emitter")
@@ -543,11 +447,12 @@ var _ = Describe("TCP Emitter", func() {
 				routingApiProcess ifrit.Process
 				session           *gexec.Session
 				exitChannel       chan struct{}
+				routerGroupGuid   string
 			)
 			BeforeEach(func() {
 				exitChannel = make(chan struct{})
-				setupBbsServer(bbsServer, true, false, exitChannel)
-				routingApiProcess = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				routingApiProcess, routerGroupGuid = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+				setupBbsServer(bbsServer, true, false, exitChannel, routerGroupGuid)
 				logger.Info("started-routing-api-server")
 				unAuthTcpEmitterArgs := testrunner.Args{
 					BBSAddress:     bbsServer.URL(),

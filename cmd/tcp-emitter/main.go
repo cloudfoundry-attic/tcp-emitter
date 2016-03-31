@@ -144,7 +144,7 @@ func main() {
 
 	var bbsClient bbs.Client
 
-	logger.Debug("setting-up-secure-bbs-client", lager.Data{"bbsURL": bbsURL.String()})
+	logger.Debug("setting-up-bbs-client", lager.Data{"bbsURL": bbsURL.String()})
 
 	if bbsURL.Scheme == "http" {
 		bbsClient = bbs.NewClient(bbsURL.String())
