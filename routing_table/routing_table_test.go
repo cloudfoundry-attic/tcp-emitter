@@ -1,12 +1,15 @@
 package routing_table_test
 
 import (
+	"encoding/json"
+
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
 )
 
 type testRoutingTable struct {
@@ -71,6 +74,11 @@ var _ = Describe("RoutingTable", func() {
 		desiredLRP.LogGuid = logGuid
 		desiredLRP.ModificationTag = modificationTag
 		desiredLRP.Routes = tcpRoutes.RoutingInfo()
+
+		// add 'diego-ssh' data for testing sanitize
+		routingInfo := json.RawMessage([]byte(`{ "private_key": "fake-key" }`))
+		(*desiredLRP.Routes)["diego-sshd"] = &routingInfo
+
 		return &desiredLRP
 	}
 
@@ -129,6 +137,13 @@ var _ = Describe("RoutingTable", func() {
 				routingEvents := routingTable.AddRoutes(desiredLRP)
 				Expect(routingEvents).To(HaveLen(0))
 			})
+
+			It("does not emit any sensitive information", func() {
+				desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
+				routingEvents := routingTable.AddRoutes(desiredLRP)
+				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
+				Expect(routingEvents).To(HaveLen(0))
+			})
 		})
 
 		Describe("UpdateRoutes", func() {
@@ -139,6 +154,15 @@ var _ = Describe("RoutingTable", func() {
 				routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
 				Expect(routingEvents).To(HaveLen(0))
 			})
+
+			It("does not log sensitive info", func() {
+				beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
+				newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}
+				afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newModificationTag)
+				routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
+				Expect(routingEvents).To(HaveLen(0))
+			})
 		})
 
 		Describe("RemoveRoutes", func() {
@@ -146,6 +170,13 @@ var _ = Describe("RoutingTable", func() {
 				desiredLRP := getDesiredLRP("process-guid-10", "log-guid-10", tcpRoutes, modificationTag)
 				routingEvents := routingTable.RemoveRoutes(desiredLRP)
 				Expect(routingEvents).To(HaveLen(0))
+			})
+
+			It("does not log sensitive info", func() {
+				desiredLRP := getDesiredLRP("process-guid-10", "log-guid-10", tcpRoutes, modificationTag)
+				routingEvents := routingTable.RemoveRoutes(desiredLRP)
+				Expect(routingEvents).To(HaveLen(0))
+				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
 			})
 		})
 
@@ -155,6 +186,13 @@ var _ = Describe("RoutingTable", func() {
 				routingEvents := routingTable.AddEndpoint(actualLRP)
 				Expect(routingEvents).To(HaveLen(0))
 			})
+
+			It("does not log sensitive info", func() {
+				actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61104, 5222, false, modificationTag)
+				routingEvents := routingTable.AddEndpoint(actualLRP)
+				Expect(routingEvents).To(HaveLen(0))
+				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
+			})
 		})
 
 		Describe("RemoveEndpoint", func() {
@@ -162,6 +200,13 @@ var _ = Describe("RoutingTable", func() {
 				actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61104, 5222, false, modificationTag)
 				routingEvents := routingTable.RemoveEndpoint(actualLRP)
 				Expect(routingEvents).To(HaveLen(0))
+			})
+
+			It("does not log sensitive info", func() {
+				actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61104, 5222, false, modificationTag)
+				routingEvents := routingTable.RemoveEndpoint(actualLRP)
+				Expect(routingEvents).To(HaveLen(0))
+				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
 			})
 		})
 
