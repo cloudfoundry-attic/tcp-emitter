@@ -15,16 +15,6 @@ type routeInfo struct {
 	Routes      map[string]*json.RawMessage
 }
 
-func newRouteInfo(d *models.DesiredLRP) routeInfo {
-	return routeInfo{
-		ProcessGuid: d.ProcessGuid,
-		Routes: map[string]*json.RawMessage{
-			"cf-router":  (*d.Routes)["cf-router"],
-			"tcp-router": (*d.Routes)["tcp-router"],
-		},
-	}
-}
-
 //go:generate counterfeiter -o fakes/fake_routing_table.go . RoutingTable
 type RoutingTable interface {
 	RouteCount() int
@@ -115,7 +105,7 @@ func (table *routingTable) RouteCount() int {
 }
 
 func (table *routingTable) AddRoutes(desiredLRP *models.DesiredLRP) RoutingEvents {
-	logger := table.logger.Session("AddRoutes", lager.Data{"desired_lrp": newRouteInfo(desiredLRP)})
+	logger := table.logger.Session("AddRoutes", lager.Data{"desired_lrp": desiredLRPData(desiredLRP)})
 	logger.Debug("starting")
 	defer logger.Debug("completed")
 
@@ -143,7 +133,7 @@ func (table *routingTable) addRoutes(logger lager.Logger, desiredLRP *models.Des
 }
 
 func (table *routingTable) UpdateRoutes(beforeLRP, afterLRP *models.DesiredLRP) RoutingEvents {
-	logger := table.logger.Session("UpdateRoutes", lager.Data{"before_lrp": newRouteInfo(beforeLRP), "after_lrp": newRouteInfo(afterLRP)})
+	logger := table.logger.Session("UpdateRoutes", lager.Data{"before_lrp": desiredLRPData(beforeLRP), "after_lrp": desiredLRPData(afterLRP)})
 	logger.Debug("starting")
 	defer logger.Debug("completed")
 
@@ -163,7 +153,7 @@ func (table *routingTable) UpdateRoutes(beforeLRP, afterLRP *models.DesiredLRP) 
 }
 
 func (table *routingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) RoutingEvents {
-	logger := table.logger.Session("RemoveRoutes", lager.Data{"desired_lrp": newRouteInfo(desiredLRP)})
+	logger := table.logger.Session("RemoveRoutes", lager.Data{"desired_lrp": desiredLRPData(desiredLRP)})
 	logger.Debug("starting")
 	defer logger.Debug("completed")
 

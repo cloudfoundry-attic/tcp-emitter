@@ -2,6 +2,7 @@ package routing_table_test
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
@@ -10,6 +11,11 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
+)
+
+const (
+	DEFAULT_TIMEOUT          = 5 * time.Second
+	DEFAULT_POLLING_INTERVAL = 5 * time.Millisecond
 )
 
 type testRoutingTable struct {
@@ -77,7 +83,7 @@ var _ = Describe("RoutingTable", func() {
 
 		// add 'diego-ssh' data for testing sanitize
 		routingInfo := json.RawMessage([]byte(`{ "private_key": "fake-key" }`))
-		(*desiredLRP.Routes)["diego-sshd"] = &routingInfo
+		(*desiredLRP.Routes)["diego-ssh"] = &routingInfo
 
 		return &desiredLRP
 	}
@@ -144,6 +150,14 @@ var _ = Describe("RoutingTable", func() {
 				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
 				Expect(routingEvents).To(HaveLen(0))
 			})
+
+			It("logs required routing info", func() {
+				desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
+				routingEvents := routingTable.AddRoutes(desiredLRP)
+				Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("process-guid.*process-guid-1"))
+				Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("routes.*tcp-router.*61000.*5222"))
+				Expect(routingEvents).To(HaveLen(0))
+			})
 		})
 
 		Describe("UpdateRoutes", func() {
@@ -163,6 +177,15 @@ var _ = Describe("RoutingTable", func() {
 				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
 				Expect(routingEvents).To(HaveLen(0))
 			})
+
+			It("logs required routing info", func() {
+				beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
+				newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}
+				afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newModificationTag)
+				routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+				Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("after_lrp.*process-guid.*process-guid-1.*routes.*tcp-router.*external_port.*61000.*container_port.*5222"))
+				Expect(routingEvents).To(HaveLen(0))
+			})
 		})
 
 		Describe("RemoveRoutes", func() {
@@ -175,8 +198,15 @@ var _ = Describe("RoutingTable", func() {
 			It("does not log sensitive info", func() {
 				desiredLRP := getDesiredLRP("process-guid-10", "log-guid-10", tcpRoutes, modificationTag)
 				routingEvents := routingTable.RemoveRoutes(desiredLRP)
-				Expect(routingEvents).To(HaveLen(0))
 				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
+				Expect(routingEvents).To(HaveLen(0))
+			})
+
+			It("logs required routing info", func() {
+				desiredLRP := getDesiredLRP("process-guid-10", "log-guid-10", tcpRoutes, modificationTag)
+				routingEvents := routingTable.RemoveRoutes(desiredLRP)
+				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("process-guid-10.*external_port.*61000.*container_port.*5222"))
+				Expect(routingEvents).To(HaveLen(0))
 			})
 		})
 
@@ -193,6 +223,14 @@ var _ = Describe("RoutingTable", func() {
 				Expect(routingEvents).To(HaveLen(0))
 				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
 			})
+
+			It("logs required routing info", func() {
+				actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61104, 5222, false, modificationTag)
+				routingEvents := routingTable.AddEndpoint(actualLRP)
+				Expect(routingEvents).To(HaveLen(0))
+				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("process_guid.*process-guid-1"))
+				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("ports.*5222.*61104"))
+			})
 		})
 
 		Describe("RemoveEndpoint", func() {
@@ -207,6 +245,13 @@ var _ = Describe("RoutingTable", func() {
 				routingEvents := routingTable.RemoveEndpoint(actualLRP)
 				Expect(routingEvents).To(HaveLen(0))
 				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
+			})
+
+			It("logs required routing info", func() {
+				actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61104, 5222, false, modificationTag)
+				routingEvents := routingTable.RemoveEndpoint(actualLRP)
+				Expect(routingEvents).To(HaveLen(0))
+				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("ports.*5222.*61104"))
 			})
 		})
 

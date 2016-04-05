@@ -6,6 +6,8 @@ import (
 
 	"github.com/cloudfoundry-incubator/bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
+	"github.com/cloudfoundry-incubator/routing-info/cfroutes"
+	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	"github.com/pivotal-golang/lager"
 )
 
@@ -274,9 +276,13 @@ func (handler *routingTableHandler) handleActualDelete(actualLRPGrp *models.Actu
 }
 
 func desiredLRPData(lrp *models.DesiredLRP) lager.Data {
+	logRoutes := make(models.Routes)
+	logRoutes[cfroutes.CF_ROUTER] = (*lrp.Routes)[cfroutes.CF_ROUTER]
+	logRoutes[tcp_routes.TCP_ROUTER] = (*lrp.Routes)[tcp_routes.TCP_ROUTER]
+
 	return lager.Data{
 		"process-guid": lrp.ProcessGuid,
-		"routes":       lrp.Routes,
+		"routes":       logRoutes,
 		"ports":        lrp.Ports,
 	}
 }
