@@ -154,8 +154,11 @@ var _ = Describe("RoutingTable", func() {
 			It("logs required routing info", func() {
 				desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
 				routingEvents := routingTable.AddRoutes(desiredLRP)
-				Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("process-guid.*process-guid-1"))
-				Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("routes.*tcp-router.*61000.*5222"))
+				for i := 0; i < 3; i++ {
+					Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("process-guid.*process-guid-1"))
+					Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("routes.*tcp-router.*61000.*5222"))
+				}
+
 				Expect(routingEvents).To(HaveLen(0))
 			})
 		})
@@ -183,7 +186,9 @@ var _ = Describe("RoutingTable", func() {
 				newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}
 				afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newModificationTag)
 				routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
-				Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("after_lrp.*process-guid.*process-guid-1.*routes.*tcp-router.*external_port.*61000.*container_port.*5222"))
+				for i := 0; i < 3; i++ {
+					Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("after_lrp.*process-guid.*process-guid-1.*routes.*tcp-router.*external_port.*61000.*container_port.*5222"))
+				}
 				Expect(routingEvents).To(HaveLen(0))
 			})
 		})
@@ -205,7 +210,8 @@ var _ = Describe("RoutingTable", func() {
 			It("logs required routing info", func() {
 				desiredLRP := getDesiredLRP("process-guid-10", "log-guid-10", tcpRoutes, modificationTag)
 				routingEvents := routingTable.RemoveRoutes(desiredLRP)
-				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("process-guid-10.*external_port.*61000.*container_port.*5222"))
+				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("starting.*process-guid-10.*external_port.*61000.*container_port.*5222"))
+				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("completed.*process-guid-10.*external_port.*61000.*container_port.*5222"))
 				Expect(routingEvents).To(HaveLen(0))
 			})
 		})
@@ -251,7 +257,8 @@ var _ = Describe("RoutingTable", func() {
 				actualLRP := getActualLRP("process-guid-1", "instance-guid-1", "some-ip-1", 61104, 5222, false, modificationTag)
 				routingEvents := routingTable.RemoveEndpoint(actualLRP)
 				Expect(routingEvents).To(HaveLen(0))
-				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("ports.*5222.*61104"))
+				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("starting.*process-guid-1.*ports.*5222.*61104"))
+				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("completed.*process-guid-1.*ports.*5222.*61104"))
 			})
 		})
 
