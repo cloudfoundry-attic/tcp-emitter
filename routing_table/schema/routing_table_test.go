@@ -1,4 +1,4 @@
-package routing_table_test
+package schema_test
 
 import (
 	"encoding/json"
@@ -6,7 +6,9 @@ import (
 
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,45 +21,45 @@ const (
 )
 
 type testRoutingTable struct {
-	entries map[routing_table.RoutingKey]routing_table.RoutableEndpoints
+	entries map[endpoint.RoutingKey]endpoint.RoutableEndpoints
 }
 
 func (t *testRoutingTable) RouteCount() int {
 	return 0
 }
 
-func (t *testRoutingTable) AddRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
-	return routing_table.RoutingEvents{}
+func (t *testRoutingTable) AddRoutes(desiredLRP *models.DesiredLRP) event.RoutingEvents {
+	return event.RoutingEvents{}
 }
 
-func (t *testRoutingTable) UpdateRoutes(before, after *models.DesiredLRP) routing_table.RoutingEvents {
-	return routing_table.RoutingEvents{}
+func (t *testRoutingTable) UpdateRoutes(before, after *models.DesiredLRP) event.RoutingEvents {
+	return event.RoutingEvents{}
 }
 
-func (t *testRoutingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
-	return routing_table.RoutingEvents{}
+func (t *testRoutingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) event.RoutingEvents {
+	return event.RoutingEvents{}
 }
 
-func (t *testRoutingTable) AddEndpoint(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents {
-	return routing_table.RoutingEvents{}
+func (t *testRoutingTable) AddEndpoint(actualLRP *models.ActualLRPGroup) event.RoutingEvents {
+	return event.RoutingEvents{}
 }
 
-func (t *testRoutingTable) RemoveEndpoint(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents {
-	return routing_table.RoutingEvents{}
+func (t *testRoutingTable) RemoveEndpoint(actualLRP *models.ActualLRPGroup) event.RoutingEvents {
+	return event.RoutingEvents{}
 }
 
-func (t *testRoutingTable) Swap(table routing_table.RoutingTable) routing_table.RoutingEvents {
-	return routing_table.RoutingEvents{}
+func (t *testRoutingTable) Swap(table schema.RoutingTable) event.RoutingEvents {
+	return event.RoutingEvents{}
 }
 
-func (t *testRoutingTable) GetRoutingEvents() routing_table.RoutingEvents {
-	return routing_table.RoutingEvents{}
+func (t *testRoutingTable) GetRoutingEvents() event.RoutingEvents {
+	return event.RoutingEvents{}
 }
 
 var _ = Describe("RoutingTable", func() {
 
 	var (
-		routingTable    routing_table.RoutingTable
+		routingTable    schema.RoutingTable
 		modificationTag *models.ModificationTag
 		tcpRoutes       tcp_routes.TCPRoutes
 	)
@@ -133,7 +135,7 @@ var _ = Describe("RoutingTable", func() {
 
 	Context("when no entry exist for route", func() {
 		BeforeEach(func() {
-			routingTable = routing_table.NewTable(logger, nil)
+			routingTable = schema.NewTable(logger, nil)
 			modificationTag = &models.ModificationTag{Epoch: "abc", Index: 0}
 		})
 
@@ -264,29 +266,29 @@ var _ = Describe("RoutingTable", func() {
 
 		Describe("Swap", func() {
 			var (
-				tempRoutingTable routing_table.RoutingTable
-				key              routing_table.RoutingKey
-				endpoints        map[routing_table.EndpointKey]routing_table.Endpoint
+				tempRoutingTable schema.RoutingTable
+				key              endpoint.RoutingKey
+				endpoints        map[endpoint.EndpointKey]endpoint.Endpoint
 				modificationTag  *models.ModificationTag
 				logGuid          string
 			)
 
 			BeforeEach(func() {
 				logGuid = "log-guid-1"
-				externalEndpoints := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+				externalEndpoints := endpoint.ExternalEndpointInfos{
+					endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 				}
-				key = routing_table.NewRoutingKey("process-guid-1", 5222)
+				key = endpoint.NewRoutingKey("process-guid-1", 5222)
 				modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
-				endpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
-					routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+				endpoints = map[endpoint.EndpointKey]endpoint.Endpoint{
+					endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 						"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
-					routing_table.NewEndpointKey("instance-guid-2", false): routing_table.NewEndpoint(
+					endpoint.NewEndpointKey("instance-guid-2", false): endpoint.NewEndpoint(
 						"instance-guid-2", false, "some-ip-2", 62004, 5222, modificationTag),
 				}
 
-				tempRoutingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-					key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+				tempRoutingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+					key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 				})
 			})
 
@@ -297,11 +299,11 @@ var _ = Describe("RoutingTable", func() {
 				Expect(routingEvents).To(HaveLen(1))
 				routingEvent := routingEvents[0]
 				Expect(routingEvent.Key).Should(Equal(key))
-				Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-				externalInfo := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+				Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+				externalInfo := endpoint.ExternalEndpointInfos{
+					endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 				}
-				expectedEntry := routing_table.NewRoutableEndpoints(
+				expectedEntry := endpoint.NewRoutableEndpoints(
 					externalInfo, endpoints, logGuid, modificationTag)
 				Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 			})
@@ -317,31 +319,31 @@ var _ = Describe("RoutingTable", func() {
 
 	Context("when there exists an entry for route", func() {
 		var (
-			endpoints         map[routing_table.EndpointKey]routing_table.Endpoint
-			key               routing_table.RoutingKey
+			endpoints         map[endpoint.EndpointKey]endpoint.Endpoint
+			key               endpoint.RoutingKey
 			logGuid           string
-			externalEndpoints routing_table.ExternalEndpointInfos
+			externalEndpoints endpoint.ExternalEndpointInfos
 		)
 
 		BeforeEach(func() {
 			logGuid = "log-guid-1"
-			externalEndpoints = routing_table.ExternalEndpointInfos{
-				routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+			externalEndpoints = endpoint.ExternalEndpointInfos{
+				endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 			}
-			key = routing_table.NewRoutingKey("process-guid-1", 5222)
+			key = endpoint.NewRoutingKey("process-guid-1", 5222)
 			modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
-			endpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
-				routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+			endpoints = map[endpoint.EndpointKey]endpoint.Endpoint{
+				endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 					"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
-				routing_table.NewEndpointKey("instance-guid-2", false): routing_table.NewEndpoint(
+				endpoint.NewEndpointKey("instance-guid-2", false): endpoint.NewEndpoint(
 					"instance-guid-2", false, "some-ip-2", 62004, 5222, modificationTag),
 			}
 		})
 
 		Describe("AddRoutes", func() {
 			BeforeEach(func() {
-				routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-					key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+				routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+					key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 				})
 				Expect(routingTable.RouteCount()).Should(Equal(1))
 			})
@@ -368,18 +370,18 @@ var _ = Describe("RoutingTable", func() {
 
 					routingEvent := routingEvents[1]
 					Expect(routingEvent.Key).Should(Equal(key))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-					unregistrationExpectedEntry := routing_table.NewRoutableEndpoints(
+					Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+					unregistrationExpectedEntry := endpoint.NewRoutableEndpoints(
 						externalEndpoints, endpoints, logGuid, modificationTag)
 					Expect(routingEvent.Entry).Should(Equal(unregistrationExpectedEntry))
 
-					externalInfo := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
+					externalInfo := []endpoint.ExternalEndpointInfo{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61001),
 					}
 					routingEvent = routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-					registrationExpectedEntry := routing_table.NewRoutableEndpoints(
+					Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+					registrationExpectedEntry := endpoint.NewRoutableEndpoints(
 						externalInfo, endpoints, logGuid, newModificationTag)
 					Expect(routingEvent.Entry).Should(Equal(registrationExpectedEntry))
 
@@ -424,13 +426,13 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvents).To(HaveLen(1))
 					routingEvent := routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-					externalInfo := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61002),
+					Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+					externalInfo := []endpoint.ExternalEndpointInfo{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61001),
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61002),
 					}
-					expectedEntry := routing_table.NewRoutableEndpoints(
+					expectedEntry := endpoint.NewRoutableEndpoints(
 						externalInfo, endpoints, logGuid, modificationTag)
 					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 					Expect(routingTable.RouteCount()).Should(Equal(1))
@@ -451,12 +453,12 @@ var _ = Describe("RoutingTable", func() {
 					newTcpRoutes tcp_routes.TCPRoutes
 				)
 				BeforeEach(func() {
-					externalEndpoints = routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
+					externalEndpoints = endpoint.ExternalEndpointInfos{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61001),
 					}
-					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 					})
 					Expect(routingTable.RouteCount()).Should(Equal(1))
 
@@ -482,19 +484,19 @@ var _ = Describe("RoutingTable", func() {
 
 					routingEvent := routingEvents[1]
 					Expect(routingEvent.Key).Should(Equal(key))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-					unregistrationExpectedEntry := routing_table.NewRoutableEndpoints(
+					Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+					unregistrationExpectedEntry := endpoint.NewRoutableEndpoints(
 						externalEndpoints, endpoints, logGuid, modificationTag)
 					Expect(routingEvent.Entry).Should(Equal(unregistrationExpectedEntry))
 
-					externalInfo := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61002),
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61003),
+					externalInfo := []endpoint.ExternalEndpointInfo{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61002),
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61003),
 					}
 					routingEvent = routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-					registrationExpectedEntry := routing_table.NewRoutableEndpoints(
+					Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+					registrationExpectedEntry := endpoint.NewRoutableEndpoints(
 						externalInfo, endpoints, logGuid, newModificationTag)
 					Expect(routingEvent.Entry).Should(Equal(registrationExpectedEntry))
 
@@ -522,39 +524,39 @@ var _ = Describe("RoutingTable", func() {
 			})
 
 			Context("when two disjoint (external port, container port) pairs are given", func() {
-				var endpoints2 map[routing_table.EndpointKey]routing_table.Endpoint
-				var key2 routing_table.RoutingKey
+				var endpoints2 map[endpoint.EndpointKey]endpoint.Endpoint
+				var key2 endpoint.RoutingKey
 
-				createdExpectedEvents := func(newModificationTag *models.ModificationTag) []routing_table.RoutingEvent {
-					externalInfo1 := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
+				createdExpectedEvents := func(newModificationTag *models.ModificationTag) []event.RoutingEvent {
+					externalInfo1 := []endpoint.ExternalEndpointInfo{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61001),
 					}
-					expectedEntry1 := routing_table.NewRoutableEndpoints(
+					expectedEntry1 := endpoint.NewRoutableEndpoints(
 						externalInfo1, endpoints, logGuid, newModificationTag)
 
-					externalInfo2 := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61002),
+					externalInfo2 := []endpoint.ExternalEndpointInfo{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61002),
 					}
-					expectedEntry2 := routing_table.NewRoutableEndpoints(
+					expectedEntry2 := endpoint.NewRoutableEndpoints(
 						externalInfo2, endpoints2, logGuid, newModificationTag)
 
-					externalInfo3 := []routing_table.ExternalEndpointInfo{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+					externalInfo3 := []endpoint.ExternalEndpointInfo{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 					}
-					expectedEntry3 := routing_table.NewRoutableEndpoints(
+					expectedEntry3 := endpoint.NewRoutableEndpoints(
 						externalInfo3, endpoints, logGuid, modificationTag)
 
-					return []routing_table.RoutingEvent{
-						routing_table.RoutingEvent{
-							EventType: routing_table.RouteRegistrationEvent,
+					return []event.RoutingEvent{
+						event.RoutingEvent{
+							EventType: event.RouteRegistrationEvent,
 							Key:       key2,
 							Entry:     expectedEntry2,
-						}, routing_table.RoutingEvent{
-							EventType: routing_table.RouteRegistrationEvent,
+						}, event.RoutingEvent{
+							EventType: event.RouteRegistrationEvent,
 							Key:       key,
 							Entry:     expectedEntry1,
-						}, routing_table.RoutingEvent{
-							EventType: routing_table.RouteUnregistrationEvent,
+						}, event.RoutingEvent{
+							EventType: event.RouteUnregistrationEvent,
 							Key:       key,
 							Entry:     expectedEntry3,
 						},
@@ -562,14 +564,14 @@ var _ = Describe("RoutingTable", func() {
 				}
 
 				BeforeEach(func() {
-					key2 = routing_table.NewRoutingKey("process-guid-1", 5223)
-					endpoints2 = map[routing_table.EndpointKey]routing_table.Endpoint{
-						routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+					key2 = endpoint.NewRoutingKey("process-guid-1", 5223)
+					endpoints2 = map[endpoint.EndpointKey]endpoint.Endpoint{
+						endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 							"instance-guid-1", false, "some-ip-1", 63004, 5223, modificationTag),
 					}
-					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key:  routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
-						key2: routing_table.NewRoutableEndpoints(nil, endpoints2, logGuid, modificationTag),
+					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key:  endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+						key2: endpoint.NewRoutableEndpoints(nil, endpoints2, logGuid, modificationTag),
 					})
 					Expect(routingTable.RouteCount()).Should(Equal(2))
 
@@ -630,8 +632,8 @@ var _ = Describe("RoutingTable", func() {
 
 			BeforeEach(func() {
 				newModificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
-				routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-					key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+				routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+					key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 				})
 				Expect(routingTable.RouteCount()).Should(Equal(1))
 				oldTcpRoutes = tcp_routes.TCPRoutes{
@@ -661,20 +663,20 @@ var _ = Describe("RoutingTable", func() {
 						routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
 						Expect(routingEvents).To(HaveLen(2))
 
-						externalInfo := []routing_table.ExternalEndpointInfo{
-							routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
+						externalInfo := []endpoint.ExternalEndpointInfo{
+							endpoint.NewExternalEndpointInfo("router-group-guid", 61001),
 						}
 						routingEvent := routingEvents[0]
 						Expect(routingEvent.Key).Should(Equal(key))
-						Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-						registrationExpectedEntry := routing_table.NewRoutableEndpoints(
+						Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+						registrationExpectedEntry := endpoint.NewRoutableEndpoints(
 							externalInfo, endpoints, logGuid, newModificationTag)
 						Expect(routingEvent.Entry).Should(Equal(registrationExpectedEntry))
 
 						routingEvent = routingEvents[1]
 						Expect(routingEvent.Key).Should(Equal(key))
-						Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-						unregistrationExpectedEntry := routing_table.NewRoutableEndpoints(
+						Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+						unregistrationExpectedEntry := endpoint.NewRoutableEndpoints(
 							externalEndpoints, endpoints, logGuid, modificationTag)
 						Expect(routingEvent.Entry).Should(Equal(unregistrationExpectedEntry))
 
@@ -743,18 +745,18 @@ var _ = Describe("RoutingTable", func() {
 
 					Context("existing backends for new container port", func() {
 						var (
-							newKey       routing_table.RoutingKey
-							newEndpoints map[routing_table.EndpointKey]routing_table.Endpoint
+							newKey       endpoint.RoutingKey
+							newEndpoints map[endpoint.EndpointKey]endpoint.Endpoint
 						)
 						BeforeEach(func() {
-							newKey = routing_table.NewRoutingKey("process-guid-1", 5223)
-							newEndpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
-								routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+							newKey = endpoint.NewRoutingKey("process-guid-1", 5223)
+							newEndpoints = map[endpoint.EndpointKey]endpoint.Endpoint{
+								endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 									"instance-guid-1", false, "some-ip-1", 62006, 5223, modificationTag),
 							}
-							routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-								key:    routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
-								newKey: routing_table.NewRoutableEndpoints(routing_table.ExternalEndpointInfos{}, newEndpoints, logGuid, modificationTag),
+							routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+								key:    endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+								newKey: endpoint.NewRoutableEndpoints(endpoint.ExternalEndpointInfos{}, newEndpoints, logGuid, modificationTag),
 							})
 						})
 
@@ -765,13 +767,13 @@ var _ = Describe("RoutingTable", func() {
 							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
 							Expect(routingEvents).To(HaveLen(1))
 
-							externalInfo := []routing_table.ExternalEndpointInfo{
-								routing_table.NewExternalEndpointInfo("router-group-guid", 61001),
+							externalInfo := []endpoint.ExternalEndpointInfo{
+								endpoint.NewExternalEndpointInfo("router-group-guid", 61001),
 							}
 							routingEvent := routingEvents[0]
 							Expect(routingEvent.Key).Should(Equal(newKey))
-							Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-							registrationExpectedEntry := routing_table.NewRoutableEndpoints(
+							Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+							registrationExpectedEntry := endpoint.NewRoutableEndpoints(
 								externalInfo, newEndpoints, logGuid, newModificationTag)
 							Expect(routingEvent.Entry).Should(Equal(registrationExpectedEntry))
 
@@ -832,18 +834,18 @@ var _ = Describe("RoutingTable", func() {
 
 					Context("existing backends for new container port", func() {
 						var (
-							newKey       routing_table.RoutingKey
-							newEndpoints map[routing_table.EndpointKey]routing_table.Endpoint
+							newKey       endpoint.RoutingKey
+							newEndpoints map[endpoint.EndpointKey]endpoint.Endpoint
 						)
 						BeforeEach(func() {
-							newKey = routing_table.NewRoutingKey("process-guid-1", 5223)
-							newEndpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
-								routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+							newKey = endpoint.NewRoutingKey("process-guid-1", 5223)
+							newEndpoints = map[endpoint.EndpointKey]endpoint.Endpoint{
+								endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 									"instance-guid-1", false, "some-ip-1", 62006, 5223, modificationTag),
 							}
-							routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-								key:    routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
-								newKey: routing_table.NewRoutableEndpoints(routing_table.ExternalEndpointInfos{}, newEndpoints, logGuid, modificationTag),
+							routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+								key:    endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+								newKey: endpoint.NewRoutableEndpoints(endpoint.ExternalEndpointInfos{}, newEndpoints, logGuid, modificationTag),
 							})
 						})
 
@@ -854,13 +856,13 @@ var _ = Describe("RoutingTable", func() {
 							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
 							Expect(routingEvents).To(HaveLen(1))
 
-							externalInfo := []routing_table.ExternalEndpointInfo{
-								routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+							externalInfo := []endpoint.ExternalEndpointInfo{
+								endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 							}
 							routingEvent := routingEvents[0]
 							Expect(routingEvent.Key).Should(Equal(newKey))
-							Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-							registrationExpectedEntry := routing_table.NewRoutableEndpoints(
+							Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+							registrationExpectedEntry := endpoint.NewRoutableEndpoints(
 								externalInfo, newEndpoints, logGuid, newModificationTag)
 							Expect(routingEvent.Entry).Should(Equal(registrationExpectedEntry))
 
@@ -896,8 +898,8 @@ var _ = Describe("RoutingTable", func() {
 
 						routingEvent := routingEvents[0]
 						Expect(routingEvent.Key).Should(Equal(key))
-						Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-						unregistrationExpectedEntry := routing_table.NewRoutableEndpoints(
+						Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+						unregistrationExpectedEntry := endpoint.NewRoutableEndpoints(
 							externalEndpoints, endpoints, logGuid, modificationTag)
 						Expect(routingEvent.Entry).Should(Equal(unregistrationExpectedEntry))
 						Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount - 1))
@@ -936,8 +938,8 @@ var _ = Describe("RoutingTable", func() {
 
 							routingEvent := routingEvents[0]
 							Expect(routingEvent.Key).Should(Equal(key))
-							Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-							unregistrationExpectedEntry := routing_table.NewRoutableEndpoints(
+							Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+							unregistrationExpectedEntry := endpoint.NewRoutableEndpoints(
 								externalEndpoints, endpoints, logGuid, modificationTag)
 							Expect(routingEvent.Entry).Should(Equal(unregistrationExpectedEntry))
 
@@ -958,18 +960,18 @@ var _ = Describe("RoutingTable", func() {
 
 					Context("existing backends for new container port", func() {
 						var (
-							newKey       routing_table.RoutingKey
-							newEndpoints map[routing_table.EndpointKey]routing_table.Endpoint
+							newKey       endpoint.RoutingKey
+							newEndpoints map[endpoint.EndpointKey]endpoint.Endpoint
 						)
 						BeforeEach(func() {
-							newKey = routing_table.NewRoutingKey("process-guid-1", 5223)
-							newEndpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
-								routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+							newKey = endpoint.NewRoutingKey("process-guid-1", 5223)
+							newEndpoints = map[endpoint.EndpointKey]endpoint.Endpoint{
+								endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 									"instance-guid-1", false, "some-ip-1", 62006, 5223, modificationTag),
 							}
-							routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-								key:    routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
-								newKey: routing_table.NewRoutableEndpoints(routing_table.ExternalEndpointInfos{}, newEndpoints, logGuid, modificationTag),
+							routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+								key:    endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+								newKey: endpoint.NewRoutableEndpoints(endpoint.ExternalEndpointInfos{}, newEndpoints, logGuid, modificationTag),
 							})
 						})
 
@@ -980,20 +982,20 @@ var _ = Describe("RoutingTable", func() {
 							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
 							Expect(routingEvents).To(HaveLen(2))
 
-							externalInfo := []routing_table.ExternalEndpointInfo{
-								routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+							externalInfo := []endpoint.ExternalEndpointInfo{
+								endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 							}
 							routingEvent := routingEvents[0]
 							Expect(routingEvent.Key).Should(Equal(newKey))
-							Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-							registrationExpectedEntry := routing_table.NewRoutableEndpoints(
+							Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+							registrationExpectedEntry := endpoint.NewRoutableEndpoints(
 								externalInfo, newEndpoints, logGuid, newModificationTag)
 							Expect(routingEvent.Entry).Should(Equal(registrationExpectedEntry))
 
 							routingEvent = routingEvents[1]
 							Expect(routingEvent.Key).Should(Equal(key))
-							Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-							unregistrationExpectedEntry := routing_table.NewRoutableEndpoints(
+							Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+							unregistrationExpectedEntry := endpoint.NewRoutableEndpoints(
 								externalInfo, endpoints, logGuid, modificationTag)
 							Expect(routingEvent.Entry).Should(Equal(unregistrationExpectedEntry))
 
@@ -1018,9 +1020,9 @@ var _ = Describe("RoutingTable", func() {
 		Describe("RemoveRoutes", func() {
 			Context("when entry does not have endpoints", func() {
 				BeforeEach(func() {
-					emptyEndpoints := make(map[routing_table.EndpointKey]routing_table.Endpoint)
-					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key: routing_table.NewRoutableEndpoints(externalEndpoints, emptyEndpoints, logGuid, modificationTag),
+					emptyEndpoints := make(map[endpoint.EndpointKey]endpoint.Endpoint)
+					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key: endpoint.NewRoutableEndpoints(externalEndpoints, emptyEndpoints, logGuid, modificationTag),
 					})
 					Expect(routingTable.RouteCount()).Should(Equal(1))
 				})
@@ -1035,8 +1037,8 @@ var _ = Describe("RoutingTable", func() {
 
 			Context("when entry does have endpoints", func() {
 				BeforeEach(func() {
-					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 					})
 					Expect(routingTable.RouteCount()).Should(Equal(1))
 				})
@@ -1048,8 +1050,8 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvents).To(HaveLen(1))
 					routingEvent := routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-					expectedEntry := routing_table.NewRoutableEndpoints(
+					Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+					expectedEntry := endpoint.NewRoutableEndpoints(
 						externalEndpoints, endpoints, logGuid, modificationTag)
 					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 					Expect(routingTable.RouteCount()).Should(Equal(0))
@@ -1061,8 +1063,8 @@ var _ = Describe("RoutingTable", func() {
 
 			Context("with no existing endpoints", func() {
 				BeforeEach(func() {
-					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key: routing_table.NewRoutableEndpoints(externalEndpoints, nil, logGuid, modificationTag),
+					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key: endpoint.NewRoutableEndpoints(externalEndpoints, nil, logGuid, modificationTag),
 					})
 					Expect(routingTable.RouteCount()).Should(Equal(1))
 				})
@@ -1074,14 +1076,14 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvents).To(HaveLen(1))
 					routingEvent := routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
+					Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
 
-					expectedEndpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
-						routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+					expectedEndpoints := map[endpoint.EndpointKey]endpoint.Endpoint{
+						endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 							"instance-guid-1", false, "some-ip-1", 61104, 5222, newTag),
 					}
 
-					expectedEntry := routing_table.NewRoutableEndpoints(
+					expectedEntry := endpoint.NewRoutableEndpoints(
 						externalEndpoints, expectedEndpoints, logGuid, modificationTag)
 					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 					Expect(routingTable.RouteCount()).Should(Equal(1))
@@ -1090,8 +1092,8 @@ var _ = Describe("RoutingTable", func() {
 
 			Context("with existing endpoints", func() {
 				BeforeEach(func() {
-					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 					})
 					Expect(routingTable.RouteCount()).Should(Equal(1))
 				})
@@ -1104,16 +1106,16 @@ var _ = Describe("RoutingTable", func() {
 						Expect(routingEvents).To(HaveLen(1))
 						routingEvent := routingEvents[0]
 						Expect(routingEvent.Key).Should(Equal(key))
-						Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
+						Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
 
-						expectedEndpoints := map[routing_table.EndpointKey]routing_table.Endpoint{}
+						expectedEndpoints := map[endpoint.EndpointKey]endpoint.Endpoint{}
 						for k, v := range endpoints {
 							expectedEndpoints[k] = v
 						}
-						expectedEndpoints[routing_table.NewEndpointKey("instance-guid-3", false)] =
-							routing_table.NewEndpoint(
+						expectedEndpoints[endpoint.NewEndpointKey("instance-guid-3", false)] =
+							endpoint.NewEndpoint(
 								"instance-guid-3", false, "some-ip-3", 61104, 5222, newTag)
-						expectedEntry := routing_table.NewRoutableEndpoints(
+						expectedEntry := endpoint.NewRoutableEndpoints(
 							externalEndpoints, expectedEndpoints, logGuid, modificationTag)
 						Expect(routingEvent.Entry.Endpoints).Should(HaveLen(3))
 						Expect(routingEvent.Entry).Should(Equal(expectedEntry))
@@ -1130,15 +1132,15 @@ var _ = Describe("RoutingTable", func() {
 							Expect(routingEvents).To(HaveLen(1))
 							routingEvent := routingEvents[0]
 							Expect(routingEvent.Key).Should(Equal(key))
-							Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
+							Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
 
-							expectedEndpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
-								routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+							expectedEndpoints := map[endpoint.EndpointKey]endpoint.Endpoint{
+								endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 									"instance-guid-1", false, "some-ip-1", 61105, 5222, newTag),
-								routing_table.NewEndpointKey("instance-guid-2", false): routing_table.NewEndpoint(
+								endpoint.NewEndpointKey("instance-guid-2", false): endpoint.NewEndpoint(
 									"instance-guid-2", false, "some-ip-2", 62004, 5222, modificationTag),
 							}
-							expectedEntry := routing_table.NewRoutableEndpoints(
+							expectedEntry := endpoint.NewRoutableEndpoints(
 								externalEndpoints, expectedEndpoints, logGuid, modificationTag)
 							Expect(routingEvent.Entry.Endpoints).Should(HaveLen(2))
 							Expect(routingEvent.Entry).Should(Equal(expectedEntry))
@@ -1163,8 +1165,8 @@ var _ = Describe("RoutingTable", func() {
 
 			Context("with no existing endpoints", func() {
 				BeforeEach(func() {
-					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key: routing_table.NewRoutableEndpoints(externalEndpoints, nil, logGuid, modificationTag),
+					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key: endpoint.NewRoutableEndpoints(externalEndpoints, nil, logGuid, modificationTag),
 					})
 					Expect(routingTable.RouteCount()).Should(Equal(1))
 				})
@@ -1179,8 +1181,8 @@ var _ = Describe("RoutingTable", func() {
 
 			Context("with existing endpoints", func() {
 				BeforeEach(func() {
-					routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 					})
 					Expect(routingTable.RouteCount()).Should(Equal(1))
 				})
@@ -1203,13 +1205,13 @@ var _ = Describe("RoutingTable", func() {
 							Expect(routingEvents).To(HaveLen(1))
 							routingEvent := routingEvents[0]
 							Expect(routingEvent.Key).Should(Equal(key))
-							Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
+							Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
 
-							expectedEndpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
-								routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+							expectedEndpoints := map[endpoint.EndpointKey]endpoint.Endpoint{
+								endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 									"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
 							}
-							expectedEntry := routing_table.NewRoutableEndpoints(
+							expectedEntry := endpoint.NewRoutableEndpoints(
 								externalEndpoints, expectedEndpoints, logGuid, modificationTag)
 							Expect(routingEvent.Entry.Endpoints).Should(HaveLen(1))
 							Expect(routingEvent.Entry).Should(Equal(expectedEntry))
@@ -1224,13 +1226,13 @@ var _ = Describe("RoutingTable", func() {
 							Expect(routingEvents).To(HaveLen(1))
 							routingEvent := routingEvents[0]
 							Expect(routingEvent.Key).Should(Equal(key))
-							Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
+							Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
 
-							expectedEndpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
-								routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+							expectedEndpoints := map[endpoint.EndpointKey]endpoint.Endpoint{
+								endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 									"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
 							}
-							expectedEntry := routing_table.NewRoutableEndpoints(
+							expectedEntry := endpoint.NewRoutableEndpoints(
 								externalEndpoints, expectedEndpoints, logGuid, modificationTag)
 							Expect(routingEvent.Entry.Endpoints).Should(HaveLen(1))
 							Expect(routingEvent.Entry).Should(Equal(expectedEntry))
@@ -1253,8 +1255,8 @@ var _ = Describe("RoutingTable", func() {
 
 		Describe("GetRoutingEvents", func() {
 			BeforeEach(func() {
-				routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-					key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+				routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+					key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 				})
 				Expect(routingTable.RouteCount()).Should(Equal(1))
 			})
@@ -1264,11 +1266,11 @@ var _ = Describe("RoutingTable", func() {
 				Expect(routingEvents).To(HaveLen(1))
 				routingEvent := routingEvents[0]
 				Expect(routingEvent.Key).Should(Equal(key))
-				Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-				externalInfo := []routing_table.ExternalEndpointInfo{
-					routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+				Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+				externalInfo := []endpoint.ExternalEndpointInfo{
+					endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 				}
-				expectedEntry := routing_table.NewRoutableEndpoints(
+				expectedEntry := endpoint.NewRoutableEndpoints(
 					externalInfo, endpoints, logGuid, modificationTag)
 				Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 				Expect(routingTable.RouteCount()).Should(Equal(1))
@@ -1277,11 +1279,11 @@ var _ = Describe("RoutingTable", func() {
 
 		Describe("Swap", func() {
 			var (
-				tempRoutingTable   routing_table.RoutingTable
-				key                routing_table.RoutingKey
-				existingKey        routing_table.RoutingKey
-				endpoints          map[routing_table.EndpointKey]routing_table.Endpoint
-				existingEndpoints  map[routing_table.EndpointKey]routing_table.Endpoint
+				tempRoutingTable   schema.RoutingTable
+				key                endpoint.RoutingKey
+				existingKey        endpoint.RoutingKey
+				endpoints          map[endpoint.EndpointKey]endpoint.Endpoint
+				existingEndpoints  map[endpoint.EndpointKey]endpoint.Endpoint
 				modificationTag    *models.ModificationTag
 				newModificationTag *models.ModificationTag
 				logGuid            string
@@ -1290,19 +1292,19 @@ var _ = Describe("RoutingTable", func() {
 
 			BeforeEach(func() {
 				existingLogGuid = "log-guid-1"
-				existingExternalEndpoint := routing_table.ExternalEndpointInfos{
-					routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+				existingExternalEndpoint := endpoint.ExternalEndpointInfos{
+					endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 				}
-				existingKey = routing_table.NewRoutingKey("process-guid-1", 5222)
+				existingKey = endpoint.NewRoutingKey("process-guid-1", 5222)
 				modificationTag = &models.ModificationTag{Epoch: "abc", Index: 1}
-				existingEndpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
-					routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+				existingEndpoints = map[endpoint.EndpointKey]endpoint.Endpoint{
+					endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 						"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
-					routing_table.NewEndpointKey("instance-guid-2", false): routing_table.NewEndpoint(
+					endpoint.NewEndpointKey("instance-guid-2", false): endpoint.NewEndpoint(
 						"instance-guid-2", false, "some-ip-2", 62004, 5222, modificationTag),
 				}
-				routingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-					existingKey: routing_table.NewRoutableEndpoints(existingExternalEndpoint, existingEndpoints, existingLogGuid, modificationTag),
+				routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+					existingKey: endpoint.NewRoutableEndpoints(existingExternalEndpoint, existingEndpoints, existingLogGuid, modificationTag),
 				})
 				Expect(routingTable.RouteCount()).Should(Equal(1))
 			})
@@ -1311,19 +1313,19 @@ var _ = Describe("RoutingTable", func() {
 
 				BeforeEach(func() {
 					logGuid = "log-guid-2"
-					externalEndpoints := routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 62000),
+					externalEndpoints := endpoint.ExternalEndpointInfos{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 62000),
 					}
-					key = routing_table.NewRoutingKey("process-guid-2", 6379)
+					key = endpoint.NewRoutingKey("process-guid-2", 6379)
 					newModificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
-					endpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
-						routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+					endpoints = map[endpoint.EndpointKey]endpoint.Endpoint{
+						endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 							"instance-guid-1", false, "some-ip-3", 63004, 6379, newModificationTag),
-						routing_table.NewEndpointKey("instance-guid-2", false): routing_table.NewEndpoint(
+						endpoint.NewEndpointKey("instance-guid-2", false): endpoint.NewEndpoint(
 							"instance-guid-2", false, "some-ip-4", 63004, 6379, newModificationTag),
 					}
-					tempRoutingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, newModificationTag),
+					tempRoutingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, newModificationTag),
 					})
 					Expect(tempRoutingTable.RouteCount()).Should(Equal(1))
 				})
@@ -1334,21 +1336,21 @@ var _ = Describe("RoutingTable", func() {
 
 					routingEvent := routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-					externalInfo := routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 62000),
+					Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+					externalInfo := endpoint.ExternalEndpointInfos{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 62000),
 					}
-					expectedEntry := routing_table.NewRoutableEndpoints(
+					expectedEntry := endpoint.NewRoutableEndpoints(
 						externalInfo, endpoints, logGuid, newModificationTag)
 					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 
 					routingEvent = routingEvents[1]
 					Expect(routingEvent.Key).Should(Equal(existingKey))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-					externalInfo = routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+					Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+					externalInfo = endpoint.ExternalEndpointInfos{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 					}
-					expectedEntry = routing_table.NewRoutableEndpoints(
+					expectedEntry = endpoint.NewRoutableEndpoints(
 						externalInfo, existingEndpoints, existingLogGuid, modificationTag)
 					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 					Expect(routingTable.RouteCount()).Should(Equal(1))
@@ -1359,18 +1361,18 @@ var _ = Describe("RoutingTable", func() {
 
 				BeforeEach(func() {
 					logGuid = "log-guid-2"
-					externalEndpoints := routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 62000),
+					externalEndpoints := endpoint.ExternalEndpointInfos{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 62000),
 					}
 					newModificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
-					endpoints = map[routing_table.EndpointKey]routing_table.Endpoint{
-						routing_table.NewEndpointKey("instance-guid-3", false): routing_table.NewEndpoint(
+					endpoints = map[endpoint.EndpointKey]endpoint.Endpoint{
+						endpoint.NewEndpointKey("instance-guid-3", false): endpoint.NewEndpoint(
 							"instance-guid-1", false, "some-ip-3", 63004, 5222, newModificationTag),
-						routing_table.NewEndpointKey("instance-guid-4", false): routing_table.NewEndpoint(
+						endpoint.NewEndpointKey("instance-guid-4", false): endpoint.NewEndpoint(
 							"instance-guid-2", false, "some-ip-4", 63004, 5222, newModificationTag),
 					}
-					tempRoutingTable = routing_table.NewTable(logger, map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-						existingKey: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, newModificationTag),
+					tempRoutingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+						existingKey: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, newModificationTag),
 					})
 					Expect(tempRoutingTable.RouteCount()).Should(Equal(1))
 				})
@@ -1381,21 +1383,21 @@ var _ = Describe("RoutingTable", func() {
 
 					routingEvent := routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(existingKey))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-					externalInfo := routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 62000),
+					Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+					externalInfo := endpoint.ExternalEndpointInfos{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 62000),
 					}
-					expectedEntry := routing_table.NewRoutableEndpoints(
+					expectedEntry := endpoint.NewRoutableEndpoints(
 						externalInfo, endpoints, logGuid, newModificationTag)
 					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 
 					routingEvent = routingEvents[1]
 					Expect(routingEvent.Key).Should(Equal(existingKey))
-					Expect(routingEvent.EventType).Should(Equal(routing_table.RouteUnregistrationEvent))
-					externalInfo = routing_table.ExternalEndpointInfos{
-						routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+					Expect(routingEvent.EventType).Should(Equal(event.RouteUnregistrationEvent))
+					externalInfo = endpoint.ExternalEndpointInfos{
+						endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 					}
-					expectedEntry = routing_table.NewRoutableEndpoints(
+					expectedEntry = endpoint.NewRoutableEndpoints(
 						externalInfo, existingEndpoints, existingLogGuid, modificationTag)
 					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 					Expect(routingTable.RouteCount()).Should(Equal(1))
@@ -1411,24 +1413,24 @@ var _ = Describe("RoutingTable", func() {
 		)
 
 		BeforeEach(func() {
-			routingTable = routing_table.NewTable(logger, nil)
+			routingTable = schema.NewTable(logger, nil)
 			tempRoutingTable = testRoutingTable{}
 
 			logGuid := "log-guid-1"
-			externalEndpoints := routing_table.ExternalEndpointInfos{
-				routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+			externalEndpoints := endpoint.ExternalEndpointInfos{
+				endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 			}
-			key := routing_table.NewRoutingKey("process-guid-1", 5222)
+			key := endpoint.NewRoutingKey("process-guid-1", 5222)
 			modificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}
-			endpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
-				routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+			endpoints := map[endpoint.EndpointKey]endpoint.Endpoint{
+				endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 					"instance-guid-1", false, "some-ip-1", 62004, 5222, modificationTag),
-				routing_table.NewEndpointKey("instance-guid-2", false): routing_table.NewEndpoint(
+				endpoint.NewEndpointKey("instance-guid-2", false): endpoint.NewEndpoint(
 					"instance-guid-2", false, "some-ip-2", 62004, 5222, modificationTag),
 			}
 
-			tempRoutingTable.entries = map[routing_table.RoutingKey]routing_table.RoutableEndpoints{
-				key: routing_table.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
+			tempRoutingTable.entries = map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+				key: endpoint.NewRoutableEndpoints(externalEndpoints, endpoints, logGuid, modificationTag),
 			}
 
 		})

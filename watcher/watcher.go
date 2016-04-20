@@ -8,6 +8,7 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/events"
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
 	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 )
@@ -21,7 +22,7 @@ type Watcher struct {
 }
 
 type syncEndEvent struct {
-	table  routing_table.RoutingTable
+	table  schema.RoutingTable
 	logger lager.Logger
 }
 

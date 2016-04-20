@@ -6,8 +6,10 @@ import (
 
 	"github.com/cloudfoundry-incubator/bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/routing-info/cfroutes"
-	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
+	"github.com/cloudfoundry-incubator/tcp-emitter/emitter"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/util"
 	"github.com/pivotal-golang/lager"
 )
 
@@ -20,15 +22,15 @@ type RoutingTableHandler interface {
 
 type routingTableHandler struct {
 	logger       lager.Logger
-	routingTable RoutingTable
-	emitter      Emitter
+	routingTable schema.RoutingTable
+	emitter      emitter.Emitter
 	bbsClient    bbs.Client
 	syncing      bool
 	cachedEvents []models.Event
 	sync.Locker
 }
 
-func NewRoutingTableHandler(logger lager.Logger, routingTable RoutingTable, emitter Emitter, bbsClient bbs.Client) RoutingTableHandler {
+func NewRoutingTableHandler(logger lager.Logger, routingTable schema.RoutingTable, emitter emitter.Emitter, bbsClient bbs.Client) RoutingTableHandler {
 	return &routingTableHandler{
 		logger:       logger,
 		routingTable: routingTable,
@@ -61,7 +63,7 @@ func (handler *routingTableHandler) Sync() {
 	logger := handler.logger.Session("bulk-sync")
 	logger.Debug("starting")
 
-	var tempRoutingTable RoutingTable
+	var tempRoutingTable schema.RoutingTable
 
 	defer func() {
 		handler.Lock()
@@ -128,7 +130,7 @@ func (handler *routingTableHandler) Sync() {
 	wg.Wait()
 
 	if getActualLRPsErr == nil && getDesiredLRPsErr == nil {
-		tempRoutingTable = NewTable(handler.logger, nil)
+		tempRoutingTable = schema.NewTable(handler.logger, nil)
 		handler.logger.Debug("construct-routing-table")
 		for _, desireLrp := range desiredLRPs {
 			tempRoutingTable.AddRoutes(desireLrp)
@@ -142,7 +144,7 @@ func (handler *routingTableHandler) Sync() {
 	}
 }
 
-func (handler *routingTableHandler) applyCachedEvents(logger lager.Logger, tempRoutingTable RoutingTable) {
+func (handler *routingTableHandler) applyCachedEvents(logger lager.Logger, tempRoutingTable schema.RoutingTable) {
 	logger.Debug("apply-cached-events")
 	if tempRoutingTable == nil || tempRoutingTable.RouteCount() == 0 {
 		// sync failed, process the events on the current table
@@ -194,7 +196,7 @@ func (handler *routingTableHandler) handleEvent(event models.Event) {
 }
 
 func (handler *routingTableHandler) handleDesiredCreate(desiredLRP *models.DesiredLRP) {
-	logger := handler.logger.Session("handle-desired-create", desiredLRPData(desiredLRP))
+	logger := handler.logger.Session("handle-desired-create", util.DesiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 	routingEvents := handler.routingTable.AddRoutes(desiredLRP)
@@ -203,8 +205,8 @@ func (handler *routingTableHandler) handleDesiredCreate(desiredLRP *models.Desir
 
 func (handler *routingTableHandler) handleDesiredUpdate(before, after *models.DesiredLRP) {
 	logger := handler.logger.Session("handling-desired-update", lager.Data{
-		"before": desiredLRPData(before),
-		"after":  desiredLRPData(after),
+		"before": util.DesiredLRPData(before),
+		"after":  util.DesiredLRPData(after),
 	})
 	logger.Debug("starting")
 	defer logger.Debug("complete")
@@ -214,7 +216,7 @@ func (handler *routingTableHandler) handleDesiredUpdate(before, after *models.De
 }
 
 func (handler *routingTableHandler) handleDesiredDelete(desiredLRP *models.DesiredLRP) {
-	logger := handler.logger.Session("handling-desired-delete", desiredLRPData(desiredLRP))
+	logger := handler.logger.Session("handling-desired-delete", util.DesiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 	routingEvents := handler.routingTable.RemoveRoutes(desiredLRP)
@@ -223,7 +225,7 @@ func (handler *routingTableHandler) handleDesiredDelete(desiredLRP *models.Desir
 
 func (handler *routingTableHandler) handleActualCreate(actualLRPGrp *models.ActualLRPGroup) {
 	actualLRP, evacuating := actualLRPGrp.Resolve()
-	logger := handler.logger.Session("handling-actual-create", actualLRPData(actualLRP, evacuating))
+	logger := handler.logger.Session("handling-actual-create", util.ActualLRPData(actualLRP, evacuating))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 	if actualLRP.State == models.ActualLRPStateRunning {
@@ -241,7 +243,7 @@ func (handler *routingTableHandler) removeAndEmit(actualLRPGrp *models.ActualLRP
 	handler.emit(routingEvents)
 }
 
-func (handler *routingTableHandler) emit(routingEvents RoutingEvents) {
+func (handler *routingTableHandler) emit(routingEvents event.RoutingEvents) {
 	if handler.emitter != nil && len(routingEvents) > 0 {
 		handler.emitter.Emit(routingEvents)
 	}
@@ -251,8 +253,8 @@ func (handler *routingTableHandler) handleActualUpdate(beforeGrp, afterGrp *mode
 	before, beforeEvacuating := beforeGrp.Resolve()
 	after, afterEvacuating := afterGrp.Resolve()
 	logger := handler.logger.Session("handling-actual-update", lager.Data{
-		"before": actualLRPData(before, beforeEvacuating),
-		"after":  actualLRPData(after, afterEvacuating),
+		"before": util.ActualLRPData(before, beforeEvacuating),
+		"after":  util.ActualLRPData(after, afterEvacuating),
 	})
 	logger.Debug("starting")
 	defer logger.Debug("complete")
@@ -267,36 +269,10 @@ func (handler *routingTableHandler) handleActualUpdate(beforeGrp, afterGrp *mode
 
 func (handler *routingTableHandler) handleActualDelete(actualLRPGrp *models.ActualLRPGroup) {
 	actualLRP, evacuating := actualLRPGrp.Resolve()
-	logger := handler.logger.Session("handling-actual-delete", actualLRPData(actualLRP, evacuating))
+	logger := handler.logger.Session("handling-actual-delete", util.ActualLRPData(actualLRP, evacuating))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 	if actualLRP.State == models.ActualLRPStateRunning {
 		handler.removeAndEmit(actualLRPGrp)
-	}
-}
-
-func desiredLRPData(lrp *models.DesiredLRP) lager.Data {
-	logRoutes := make(models.Routes)
-	logRoutes[cfroutes.CF_ROUTER] = (*lrp.Routes)[cfroutes.CF_ROUTER]
-	logRoutes[tcp_routes.TCP_ROUTER] = (*lrp.Routes)[tcp_routes.TCP_ROUTER]
-
-	return lager.Data{
-		"process-guid": lrp.ProcessGuid,
-		"routes":       logRoutes,
-		"ports":        lrp.Ports,
-	}
-}
-
-func actualLRPData(lrp *models.ActualLRP, evacuating bool) lager.Data {
-	return lager.Data{
-		"process-guid":  lrp.ProcessGuid,
-		"index":         lrp.Index,
-		"domain":        lrp.Domain,
-		"instance-guid": lrp.InstanceGuid,
-		"cell-id":       lrp.CellId,
-		"address":       lrp.Address,
-		"ports":         lrp.Ports,
-		"evacuating":    evacuating,
-		"state":         lrp.State,
 	}
 }

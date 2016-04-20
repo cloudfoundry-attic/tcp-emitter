@@ -6,8 +6,12 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
+	emitterfakes "github.com/cloudfoundry-incubator/tcp-emitter/emitter/fakes"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/fakes"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
+	routingtablefakes "github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/fakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -15,15 +19,15 @@ import (
 
 var _ = Describe("RoutingTableHandler", func() {
 	var (
-		fakeRoutingTable    *fakes.FakeRoutingTable
-		fakeEmitter         *fakes.FakeEmitter
+		fakeRoutingTable    *routingtablefakes.FakeRoutingTable
+		fakeEmitter         *emitterfakes.FakeEmitter
 		routingTableHandler routing_table.RoutingTableHandler
 		fakeBbsClient       *fake_bbs.FakeClient
 	)
 
 	BeforeEach(func() {
-		fakeRoutingTable = new(fakes.FakeRoutingTable)
-		fakeEmitter = new(fakes.FakeEmitter)
+		fakeRoutingTable = new(routingtablefakes.FakeRoutingTable)
+		fakeEmitter = new(emitterfakes.FakeEmitter)
 		fakeBbsClient = new(fake_bbs.FakeClient)
 		routingTableHandler = routing_table.NewRoutingTableHandler(logger, fakeRoutingTable, fakeEmitter, fakeBbsClient)
 	})
@@ -31,7 +35,7 @@ var _ = Describe("RoutingTableHandler", func() {
 	Describe("DesiredLRP Event", func() {
 		var (
 			desiredLRP    *models.DesiredLRP
-			routingEvents routing_table.RoutingEvents
+			routingEvents event.RoutingEvents
 		)
 
 		BeforeEach(func() {
@@ -49,11 +53,11 @@ var _ = Describe("RoutingTableHandler", func() {
 				LogGuid:     "log-guid",
 				Routes:      tcpRoutes.RoutingInfo(),
 			}
-			routingEvents = routing_table.RoutingEvents{
-				routing_table.RoutingEvent{
-					EventType: routing_table.RouteRegistrationEvent,
-					Key:       routing_table.RoutingKey{},
-					Entry:     routing_table.RoutableEndpoints{},
+			routingEvents = event.RoutingEvents{
+				event.RoutingEvent{
+					EventType: event.RouteRegistrationEvent,
+					Key:       endpoint.RoutingKey{},
+					Entry:     endpoint.RoutableEndpoints{},
 				},
 			}
 		})
@@ -83,7 +87,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			Context("when there are no routing events", func() {
 				BeforeEach(func() {
-					fakeRoutingTable.AddRoutesReturns(routing_table.RoutingEvents{})
+					fakeRoutingTable.AddRoutesReturns(event.RoutingEvents{})
 				})
 
 				It("does not invoke Emit on Emitter", func() {
@@ -137,7 +141,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			Context("when there are no routing events", func() {
 				BeforeEach(func() {
-					fakeRoutingTable.UpdateRoutesReturns(routing_table.RoutingEvents{})
+					fakeRoutingTable.UpdateRoutesReturns(event.RoutingEvents{})
 				})
 
 				It("does not invoke Emit on Emitter", func() {
@@ -148,11 +152,11 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		Describe("HandleDesiredDelete", func() {
 			BeforeEach(func() {
-				unregistrationEvent := routing_table.RoutingEvents{
-					routing_table.RoutingEvent{
-						EventType: routing_table.RouteUnregistrationEvent,
-						Key:       routing_table.RoutingKey{},
-						Entry:     routing_table.RoutableEndpoints{},
+				unregistrationEvent := event.RoutingEvents{
+					event.RoutingEvent{
+						EventType: event.RouteUnregistrationEvent,
+						Key:       endpoint.RoutingKey{},
+						Entry:     endpoint.RoutableEndpoints{},
 					},
 				}
 				fakeRoutingTable.RemoveRoutesReturns(unregistrationEvent)
@@ -173,16 +177,16 @@ var _ = Describe("RoutingTableHandler", func() {
 	Describe("ActualLRP Event", func() {
 		var (
 			actualLRP     *models.ActualLRPGroup
-			routingEvents routing_table.RoutingEvents
+			routingEvents event.RoutingEvents
 		)
 
 		BeforeEach(func() {
 
-			routingEvents = routing_table.RoutingEvents{
-				routing_table.RoutingEvent{
-					EventType: routing_table.RouteRegistrationEvent,
-					Key:       routing_table.RoutingKey{},
-					Entry:     routing_table.RoutableEndpoints{},
+			routingEvents = event.RoutingEvents{
+				event.RoutingEvent{
+					EventType: event.RouteRegistrationEvent,
+					Key:       endpoint.RoutingKey{},
+					Entry:     endpoint.RoutableEndpoints{},
 				},
 			}
 		})
@@ -228,7 +232,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 				Context("when there are no routing events", func() {
 					BeforeEach(func() {
-						fakeRoutingTable.AddEndpointReturns(routing_table.RoutingEvents{})
+						fakeRoutingTable.AddEndpointReturns(event.RoutingEvents{})
 					})
 
 					It("does not invoke Emit on Emitter", func() {
@@ -320,7 +324,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 				Context("when there are no routing events", func() {
 					BeforeEach(func() {
-						fakeRoutingTable.AddEndpointReturns(routing_table.RoutingEvents{})
+						fakeRoutingTable.AddEndpointReturns(event.RoutingEvents{})
 					})
 
 					It("does not invoke Emit on Emitter", func() {
@@ -377,7 +381,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 				Context("when there are no routing events", func() {
 					BeforeEach(func() {
-						fakeRoutingTable.RemoveEndpointReturns(routing_table.RoutingEvents{})
+						fakeRoutingTable.RemoveEndpointReturns(event.RoutingEvents{})
 					})
 
 					It("does not invoke Emit on Emitter", func() {
@@ -468,7 +472,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 				Context("when there are no routing events", func() {
 					BeforeEach(func() {
-						fakeRoutingTable.RemoveEndpointReturns(routing_table.RoutingEvents{})
+						fakeRoutingTable.RemoveEndpointReturns(event.RoutingEvents{})
 					})
 
 					It("does not invoke Emit on Emitter", func() {
@@ -647,12 +651,12 @@ var _ = Describe("RoutingTableHandler", func() {
 					fakeBbsClient.DesiredLRPsReturns([]*models.DesiredLRP{desiredLRP}, nil)
 					fakeBbsClient.ActualLRPGroupsReturns([]*models.ActualLRPGroup{actualLRP}, nil)
 
-					fakeRoutingTable.SwapStub = func(t routing_table.RoutingTable) routing_table.RoutingEvents {
-						routingEvents := routing_table.RoutingEvents{
-							routing_table.RoutingEvent{
-								EventType: routing_table.RouteRegistrationEvent,
-								Key:       routing_table.RoutingKey{},
-								Entry:     routing_table.RoutableEndpoints{},
+					fakeRoutingTable.SwapStub = func(t schema.RoutingTable) event.RoutingEvents {
+						routingEvents := event.RoutingEvents{
+							event.RoutingEvent{
+								EventType: event.RouteRegistrationEvent,
+								Key:       endpoint.RoutingKey{},
+								Entry:     endpoint.RoutableEndpoints{},
 							},
 						}
 						return routingEvents
@@ -721,21 +725,21 @@ var _ = Describe("RoutingTableHandler", func() {
 						Expect(routingEvents).To(HaveLen(1))
 						routingEvent := routingEvents[0]
 
-						key := routing_table.RoutingKey{
+						key := endpoint.RoutingKey{
 							ProcessGUID:   "process-guid-1",
 							ContainerPort: 5222,
 						}
-						endpoints := map[routing_table.EndpointKey]routing_table.Endpoint{
-							routing_table.NewEndpointKey("instance-guid", false): routing_table.NewEndpoint(
+						endpoints := map[endpoint.EndpointKey]endpoint.Endpoint{
+							endpoint.NewEndpointKey("instance-guid", false): endpoint.NewEndpoint(
 								"instance-guid", false, "some-ip-1", 61007, 5222, &afterModificationTag),
 						}
 
 						Expect(routingEvent.Key).Should(Equal(key))
-						Expect(routingEvent.EventType).Should(Equal(routing_table.RouteRegistrationEvent))
-						externalInfo := []routing_table.ExternalEndpointInfo{
-							routing_table.NewExternalEndpointInfo("router-group-guid", 61000),
+						Expect(routingEvent.EventType).Should(Equal(event.RouteRegistrationEvent))
+						externalInfo := []endpoint.ExternalEndpointInfo{
+							endpoint.NewExternalEndpointInfo("router-group-guid", 61000),
 						}
-						expectedEntry := routing_table.NewRoutableEndpoints(
+						expectedEntry := endpoint.NewRoutableEndpoints(
 							externalInfo, endpoints, "log-guid", &modificationTag)
 						Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 					})

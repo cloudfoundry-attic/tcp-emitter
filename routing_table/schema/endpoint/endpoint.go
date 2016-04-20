@@ -1,6 +1,11 @@
-package routing_table
+package endpoint
 
-import "github.com/cloudfoundry-incubator/bbs/models"
+import (
+	"errors"
+
+	"github.com/cloudfoundry-incubator/bbs/models"
+	"github.com/pivotal-golang/lager"
+)
 
 type EndpointKey struct {
 	InstanceGUID string
@@ -23,7 +28,7 @@ type Endpoint struct {
 	ModificationTag *models.ModificationTag
 }
 
-func (e Endpoint) key() EndpointKey {
+func (e Endpoint) Key() EndpointKey {
 	return EndpointKey{InstanceGUID: e.InstanceGUID, Evacuating: e.Evacuating}
 }
 
@@ -62,7 +67,7 @@ type RoutableEndpoints struct {
 	ModificationTag   *models.ModificationTag
 }
 
-func (entry RoutableEndpoints) copy() RoutableEndpoints {
+func (entry RoutableEndpoints) Copy() RoutableEndpoints {
 	clone := RoutableEndpoints{
 		ExternalEndpoints: entry.ExternalEndpoints,
 		Endpoints:         map[EndpointKey]Endpoint{},
@@ -75,6 +80,99 @@ func (entry RoutableEndpoints) copy() RoutableEndpoints {
 	}
 
 	return clone
+}
+
+func NewEndpointsFromActual(actualGrp *models.ActualLRPGroup) (map[uint32]Endpoint, error) {
+	endpoints := map[uint32]Endpoint{}
+	actual, evacuating := actualGrp.Resolve()
+
+	if len(actual.Ports) == 0 {
+		return endpoints, errors.New("missing ports")
+	}
+
+	for _, portMapping := range actual.Ports {
+		endpoint := NewEndpoint(
+			actual.InstanceGuid, evacuating,
+			actual.Address,
+			portMapping.HostPort,
+			portMapping.ContainerPort,
+			&actual.ModificationTag,
+		)
+		endpoints[portMapping.ContainerPort] = endpoint
+	}
+
+	return endpoints, nil
+}
+
+func NewRoutingKeysFromActual(actualGrp *models.ActualLRPGroup) RoutingKeys {
+	keys := RoutingKeys{}
+	actual, _ := actualGrp.Resolve()
+	for _, portMapping := range actual.Ports {
+		keys = append(keys, NewRoutingKey(actual.ProcessGuid, portMapping.ContainerPort))
+	}
+
+	return keys
+}
+
+func NewRoutingKeysFromDesired(desired *models.DesiredLRP) RoutingKeys {
+	keys := RoutingKeys{}
+	for _, containerPort := range desired.Ports {
+		keys = append(keys, NewRoutingKey(desired.ProcessGuid, containerPort))
+	}
+
+	return keys
+}
+
+func (e ExternalEndpointInfos) HasNoExternalPorts(logger lager.Logger) bool {
+	if e == nil || len(e) == 0 {
+		logger.Debug("no-external-port")
+		return true
+	}
+	// This originally checked if Port was 0, I think to see if it was a zero value, check and make sure
+	return false
+}
+
+func (e RoutableEndpoints) HaveEndpointsChanged(newEntry RoutableEndpoints) bool {
+	if len(e.Endpoints) != len(newEntry.Endpoints) {
+		// length not same...so something changed
+		return true
+	}
+	//Check if new endpoints are added or existing endpoints are modified
+	for key, newEndpoint := range newEntry.Endpoints {
+		if existingEndpoint, ok := e.Endpoints[key]; !ok {
+			// new endpoint
+			return true
+		} else {
+			if existingEndpoint.ModificationTag.SucceededBy(newEndpoint.ModificationTag) {
+				// existing endpoint modified
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (e RoutableEndpoints) HaveExternalEndpointsChanged(newEntry RoutableEndpoints) bool {
+	if len(e.ExternalEndpoints) != len(newEntry.ExternalEndpoints) {
+		// length not same...so something changed
+		return true
+	}
+	//Check if new endpoints are added
+	for _, existing := range e.ExternalEndpoints {
+		found := false
+		for _, proposed := range newEntry.ExternalEndpoints {
+			if proposed.Port == existing.Port {
+				found = true
+				break
+			}
+		}
+
+		// Could not find existing endpoint, something changed
+		if !found {
+			return true
+		}
+	}
+	return false
 }
 
 func NewRoutableEndpoints(
@@ -108,7 +206,7 @@ func NewRoutingKey(processGUID string, containerPort uint32) RoutingKey {
 // Ex; Given, entry { externalEndpoints={p1,p2,p4} } and externalEndpoints = {p2,p3} ==> entryA { externalEndpoints={p1,p4} }
 func (entry RoutableEndpoints) RemoveExternalEndpoints(externalEndpoints ExternalEndpointInfos) RoutableEndpoints {
 	subtractedExternalEndpoints := entry.ExternalEndpoints.Remove(externalEndpoints)
-	resultEntry := entry.copy()
+	resultEntry := entry.Copy()
 	resultEntry.ExternalEndpoints = subtractedExternalEndpoints
 	return resultEntry
 }
@@ -117,11 +215,20 @@ func (entry RoutableEndpoints) RemoveExternalEndpoints(externalEndpoints Externa
 func (setA ExternalEndpointInfos) Remove(setB ExternalEndpointInfos) ExternalEndpointInfos {
 	diffSet := ExternalEndpointInfos{}
 	for _, externalEndpoint := range setA {
-		if !containsExternalPort(setB, externalEndpoint.Port) {
+		if !setB.ContainsExternalPort(externalEndpoint.Port) {
 			diffSet = append(diffSet, ExternalEndpointInfo{externalEndpoint.RouterGroupGUID, externalEndpoint.Port})
 		}
 	}
 	return diffSet
+}
+
+func (e ExternalEndpointInfos) ContainsExternalPort(port uint32) bool {
+	for _, existing := range e {
+		if existing.Port == port {
+			return true
+		}
+	}
+	return false
 }
 
 func (lhs RoutingKeys) Remove(rhs RoutingKeys) RoutingKeys {

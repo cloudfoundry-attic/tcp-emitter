@@ -16,7 +16,9 @@ import (
 	"github.com/cloudfoundry-incubator/locket"
 	"github.com/cloudfoundry-incubator/routing-api"
 	"github.com/cloudfoundry-incubator/tcp-emitter/config"
+	"github.com/cloudfoundry-incubator/tcp-emitter/emitter"
 	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
 	"github.com/cloudfoundry-incubator/tcp-emitter/syncer"
 	"github.com/cloudfoundry-incubator/tcp-emitter/watcher"
 	uaaclient "github.com/cloudfoundry-incubator/uaa-go-client"
@@ -175,8 +177,8 @@ func main() {
 	logger.Debug("creating-routing-api-client", lager.Data{"api-location": routingAPIAddress})
 	routingAPIClient := routing_api.NewClient(routingAPIAddress)
 
-	emitter := routing_table.NewEmitter(logger, routingAPIClient, uaaClient)
-	routingTable := routing_table.NewTable(logger, nil)
+	emitter := emitter.NewEmitter(logger, routingAPIClient, uaaClient)
+	routingTable := schema.NewTable(logger, nil)
 	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, bbsClient)
 	syncChannel := make(chan struct{})
 	syncRunner := syncer.New(clock, *syncInterval, syncChannel, logger)

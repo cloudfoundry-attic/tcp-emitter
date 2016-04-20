@@ -1,15 +1,17 @@
-package routing_table
+package emitter
 
 import (
 	"github.com/cloudfoundry-incubator/routing-api"
 	"github.com/cloudfoundry-incubator/routing-api/models"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
 	uaaclient "github.com/cloudfoundry-incubator/uaa-go-client"
 	"github.com/pivotal-golang/lager"
 )
 
 //go:generate counterfeiter -o fakes/fake_emitter.go . Emitter
 type Emitter interface {
-	Emit(routingEvents RoutingEvents) error
+	Emit(routingEvents event.RoutingEvents) error
 }
 
 type tcpEmitter struct {
@@ -26,11 +28,11 @@ func NewEmitter(logger lager.Logger, routingAPIClient routing_api.Client, uaaCli
 	}
 }
 
-func (emitter *tcpEmitter) Emit(routingEvents RoutingEvents) error {
+func (emitter *tcpEmitter) Emit(routingEvents event.RoutingEvents) error {
 	emitter.logRoutingEvents(routingEvents)
 	defer emitter.logger.Debug("complete-emit")
 
-	registrationMappingRequests, unregistrationMappingRequests := CreateMappingRequests(emitter.logger, routingEvents)
+	registrationMappingRequests, unregistrationMappingRequests := routingEvents.ToMappingRequests(emitter.logger)
 	useCachedToken := true
 	for count := 0; count < 2; count++ {
 		token, err := emitter.uaaClient.FetchToken(!useCachedToken)
@@ -81,9 +83,9 @@ func (emitter *tcpEmitter) emit(registrationMappingRequests, unregistrationMappi
 	return nil
 }
 
-func (emitter *tcpEmitter) logRoutingEvents(routingEvents RoutingEvents) {
+func (emitter *tcpEmitter) logRoutingEvents(routingEvents event.RoutingEvents) {
 	for _, event := range routingEvents {
-		endpoints := make([]Endpoint, 0)
+		endpoints := make([]endpoint.Endpoint, 0)
 		for _, endpoint := range event.Entry.Endpoints {
 			endpoints = append(endpoints, endpoint)
 		}

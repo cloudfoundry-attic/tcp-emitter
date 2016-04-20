@@ -1,4 +1,4 @@
-package routing_table_test
+package emitter_test
 
 import (
 	"errors"
@@ -6,9 +6,11 @@ import (
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/routing-api/fake_routing_api"
 	apimodels "github.com/cloudfoundry-incubator/routing-api/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
+	emitterpkg "github.com/cloudfoundry-incubator/tcp-emitter/emitter"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
 	testUaaClient "github.com/cloudfoundry-incubator/uaa-go-client/fakes"
-	"github.com/cloudfoundry-incubator/uaa-go-client/schema"
+	uaa "github.com/cloudfoundry-incubator/uaa-go-client/schema"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -18,38 +20,38 @@ import (
 var _ = Describe("Emitter", func() {
 
 	var (
-		emitter                 routing_table.Emitter
+		emitter                 emitterpkg.Emitter
 		routingApiClient        *fake_routing_api.FakeClient
 		uaaClient               *testUaaClient.FakeClient
-		routingEvents           routing_table.RoutingEvents
+		routingEvents           event.RoutingEvents
 		expectedMappingRequests []apimodels.TcpRouteMapping
-		routingKey1             routing_table.RoutingKey
-		routableEndpoints1      routing_table.RoutableEndpoints
+		routingKey1             endpoint.RoutingKey
+		routableEndpoints1      endpoint.RoutableEndpoints
 	)
 
 	BeforeEach(func() {
 		logGuid := "log-guid-1"
 		modificationTag := models.ModificationTag{Epoch: "abc", Index: 0}
 
-		endpoints1 := map[routing_table.EndpointKey]routing_table.Endpoint{
-			routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+		endpoints1 := map[endpoint.EndpointKey]endpoint.Endpoint{
+			endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 				"instance-guid-1", false, "some-ip-1", 62003, 5222, &modificationTag),
 		}
 
-		routingKey1 = routing_table.NewRoutingKey("process-guid-1", 5222)
+		routingKey1 = endpoint.NewRoutingKey("process-guid-1", 5222)
 
-		extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo("123", 61000)
+		extenralEndpointInfo1 := endpoint.NewExternalEndpointInfo("123", 61000)
 
 		expectedMappingRequests = []apimodels.TcpRouteMapping{
 			apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
 		}
 
-		routableEndpoints1 = routing_table.NewRoutableEndpoints(
-			routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)
+		routableEndpoints1 = endpoint.NewRoutableEndpoints(
+			endpoint.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)
 
-		routingEvents = routing_table.RoutingEvents{
-			routing_table.RoutingEvent{
-				EventType: routing_table.RouteRegistrationEvent,
+		routingEvents = event.RoutingEvents{
+			event.RoutingEvent{
+				EventType: event.RouteRegistrationEvent,
 				Key:       routingKey1,
 				Entry:     routableEndpoints1,
 			},
@@ -57,8 +59,8 @@ var _ = Describe("Emitter", func() {
 
 		routingApiClient = new(fake_routing_api.FakeClient)
 		uaaClient = &testUaaClient.FakeClient{}
-		uaaClient.FetchTokenReturns(&schema.Token{AccessToken: "some-token", ExpiresIn: 1234}, nil)
-		emitter = routing_table.NewEmitter(logger, routingApiClient, uaaClient)
+		uaaClient.FetchTokenReturns(&uaa.Token{AccessToken: "some-token", ExpiresIn: 1234}, nil)
+		emitter = emitterpkg.NewEmitter(logger, routingApiClient, uaaClient)
 	})
 
 	Context("when valid routing events are provided", func() {
@@ -79,9 +81,9 @@ var _ = Describe("Emitter", func() {
 			})
 			Context("and there are unregistration events", func() {
 				BeforeEach(func() {
-					routingEvents = routing_table.RoutingEvents{
-						routing_table.RoutingEvent{
-							EventType: routing_table.RouteUnregistrationEvent,
+					routingEvents = event.RoutingEvents{
+						event.RoutingEvent{
+							EventType: event.RouteUnregistrationEvent,
 							Key:       routingKey1,
 							Entry:     routableEndpoints1,
 						},
@@ -130,9 +132,9 @@ var _ = Describe("Emitter", func() {
 		Context("when routing API Delete returns an error other than unauthorized", func() {
 			BeforeEach(func() {
 				routingApiClient.DeleteTcpRouteMappingsReturns(errors.New("kabooom"))
-				routingEvents = routing_table.RoutingEvents{
-					routing_table.RoutingEvent{
-						EventType: routing_table.RouteUnregistrationEvent,
+				routingEvents = event.RoutingEvents{
+					event.RoutingEvent{
+						EventType: event.RouteUnregistrationEvent,
 						Key:       routingKey1,
 						Entry:     routableEndpoints1,
 					},
@@ -149,9 +151,9 @@ var _ = Describe("Emitter", func() {
 		Context("when routing API Delete returns an error other than unauthorized", func() {
 			BeforeEach(func() {
 				routingApiClient.DeleteTcpRouteMappingsReturns(errors.New("unauthorized"))
-				routingEvents = routing_table.RoutingEvents{
-					routing_table.RoutingEvent{
-						EventType: routing_table.RouteUnregistrationEvent,
+				routingEvents = event.RoutingEvents{
+					event.RoutingEvent{
+						EventType: event.RouteUnregistrationEvent,
 						Key:       routingKey1,
 						Entry:     routableEndpoints1,
 					},
@@ -188,21 +190,21 @@ var _ = Describe("Emitter", func() {
 			logGuid := "log-guid-1"
 			modificationTag := models.ModificationTag{Epoch: "abc", Index: 0}
 
-			endpoints1 := map[routing_table.EndpointKey]routing_table.Endpoint{
-				routing_table.NewEndpointKey("instance-guid-1", false): routing_table.NewEndpoint(
+			endpoints1 := map[endpoint.EndpointKey]endpoint.Endpoint{
+				endpoint.NewEndpointKey("instance-guid-1", false): endpoint.NewEndpoint(
 					"instance-guid-1", false, "some-ip-1", 62003, 5222, &modificationTag),
 			}
 
-			routingKey1 := routing_table.NewRoutingKey("process-guid-1", 5222)
+			routingKey1 := endpoint.NewRoutingKey("process-guid-1", 5222)
 
-			extenralEndpointInfo1 := routing_table.NewExternalEndpointInfo("123", 0)
+			extenralEndpointInfo1 := endpoint.NewExternalEndpointInfo("123", 0)
 
-			routableEndpoints1 := routing_table.NewRoutableEndpoints(
-				routing_table.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)
+			routableEndpoints1 := endpoint.NewRoutableEndpoints(
+				endpoint.ExternalEndpointInfos{extenralEndpointInfo1}, endpoints1, logGuid, &modificationTag)
 
-			routingEvents = routing_table.RoutingEvents{
-				routing_table.RoutingEvent{
-					EventType: routing_table.RouteRegistrationEvent,
+			routingEvents = event.RoutingEvents{
+				event.RoutingEvent{
+					EventType: event.RouteRegistrationEvent,
 					Key:       routingKey1,
 					Entry:     routableEndpoints1,
 				},

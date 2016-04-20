@@ -1,20 +1,20 @@
-package routing_table_test
+package endpoint_test
 
 import (
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("RoutingTableHelpers", func() {
-	Describe("EndpointsFromActual", func() {
+var _ = Describe("LRP Utils", func() {
+	Describe("NewEndpointsFromActual", func() {
 		Context("when actual is not evacuating", func() {
 			It("builds a map of container port to endpoint", func() {
 				tag := models.ModificationTag{Epoch: "abc", Index: 0}
-				endpoints, err := routing_table.EndpointsFromActual(&models.ActualLRPGroup{
+				endpoints, err := endpoint.NewEndpointsFromActual(&models.ActualLRPGroup{
 					Instance: &models.ActualLRP{
 						ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
 						ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
@@ -30,9 +30,9 @@ var _ = Describe("RoutingTableHelpers", func() {
 				})
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(endpoints).To(ConsistOf([]routing_table.Endpoint{
-					routing_table.NewEndpoint("instance-guid", false, "1.1.1.1", 11, 44, &tag),
-					routing_table.NewEndpoint("instance-guid", false, "1.1.1.1", 66, 99, &tag),
+				Expect(endpoints).To(ConsistOf([]endpoint.Endpoint{
+					endpoint.NewEndpoint("instance-guid", false, "1.1.1.1", 11, 44, &tag),
+					endpoint.NewEndpoint("instance-guid", false, "1.1.1.1", 66, 99, &tag),
 				}))
 			})
 		})
@@ -40,7 +40,7 @@ var _ = Describe("RoutingTableHelpers", func() {
 		Context("when actual is evacuating", func() {
 			It("builds a map of container port to endpoint", func() {
 				tag := models.ModificationTag{Epoch: "abc", Index: 0}
-				endpoints, err := routing_table.EndpointsFromActual(&models.ActualLRPGroup{
+				endpoints, err := endpoint.NewEndpointsFromActual(&models.ActualLRPGroup{
 					Instance: nil,
 					Evacuating: &models.ActualLRP{
 						ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
@@ -56,17 +56,17 @@ var _ = Describe("RoutingTableHelpers", func() {
 				})
 				Expect(err).NotTo(HaveOccurred())
 
-				Expect(endpoints).To(ConsistOf([]routing_table.Endpoint{
-					routing_table.NewEndpoint("instance-guid", true, "1.1.1.1", 11, 44, &tag),
-					routing_table.NewEndpoint("instance-guid", true, "1.1.1.1", 66, 99, &tag),
+				Expect(endpoints).To(ConsistOf([]endpoint.Endpoint{
+					endpoint.NewEndpoint("instance-guid", true, "1.1.1.1", 11, 44, &tag),
+					endpoint.NewEndpoint("instance-guid", true, "1.1.1.1", 66, 99, &tag),
 				}))
 			})
 		})
 	})
 
-	Describe("RoutingKeysFromActual", func() {
+	Describe("NewRoutingKeysFromActual", func() {
 		It("creates a list of keys for an actual LRP", func() {
-			keys := routing_table.RoutingKeysFromActual(&models.ActualLRPGroup{
+			keys := endpoint.NewRoutingKeysFromActual(&models.ActualLRPGroup{
 				Instance: &models.ActualLRP{
 					ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
 					ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
@@ -80,13 +80,13 @@ var _ = Describe("RoutingTableHelpers", func() {
 			})
 
 			Expect(keys).To(HaveLen(2))
-			Expect(keys).To(ContainElement(routing_table.NewRoutingKey("process-guid", 44)))
-			Expect(keys).To(ContainElement(routing_table.NewRoutingKey("process-guid", 99)))
+			Expect(keys).To(ContainElement(endpoint.NewRoutingKey("process-guid", 44)))
+			Expect(keys).To(ContainElement(endpoint.NewRoutingKey("process-guid", 99)))
 		})
 
 		Context("when the actual lrp has no port mappings", func() {
 			It("returns no keys", func() {
-				keys := routing_table.RoutingKeysFromActual(&models.ActualLRPGroup{
+				keys := endpoint.NewRoutingKeysFromActual(&models.ActualLRPGroup{
 					Instance: &models.ActualLRP{
 						ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
 						ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
@@ -102,7 +102,7 @@ var _ = Describe("RoutingTableHelpers", func() {
 		})
 	})
 
-	Describe("RoutingKeysFromDesired", func() {
+	Describe("NewRoutingKeysFromDesired", func() {
 		It("creates a list of keys for an actual LRP", func() {
 			routes := tcp_routes.TCPRoutes{
 				{ExternalPort: 61000, ContainerPort: 8080},
@@ -117,11 +117,11 @@ var _ = Describe("RoutingTableHelpers", func() {
 				LogGuid:     "abc-guid",
 			}
 
-			keys := routing_table.RoutingKeysFromDesired(desired)
+			keys := endpoint.NewRoutingKeysFromDesired(desired)
 
 			Expect(keys).To(HaveLen(2))
-			Expect(keys).To(ContainElement(routing_table.NewRoutingKey("process-guid", 8080)))
-			Expect(keys).To(ContainElement(routing_table.NewRoutingKey("process-guid", 9090)))
+			Expect(keys).To(ContainElement(endpoint.NewRoutingKey("process-guid", 8080)))
+			Expect(keys).To(ContainElement(endpoint.NewRoutingKey("process-guid", 9090)))
 		})
 
 		Context("when the desired LRP does not define any container ports", func() {
@@ -133,7 +133,7 @@ var _ = Describe("RoutingTableHelpers", func() {
 					LogGuid:     "abc-guid",
 				}
 
-				keys := routing_table.RoutingKeysFromDesired(desired)
+				keys := endpoint.NewRoutingKeysFromDesired(desired)
 				Expect(keys).To(HaveLen(0))
 			})
 		})

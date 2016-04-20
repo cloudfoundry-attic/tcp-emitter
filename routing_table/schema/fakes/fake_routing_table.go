@@ -5,70 +5,71 @@ import (
 	"sync"
 
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
 )
 
 type FakeRoutingTable struct {
 	RouteCountStub        func() int
 	routeCountMutex       sync.RWMutex
 	routeCountArgsForCall []struct{}
-	routeCountReturns     struct {
+	routeCountReturns struct {
 		result1 int
 	}
-	AddRoutesStub        func(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents
+	AddRoutesStub        func(desiredLRP *models.DesiredLRP) event.RoutingEvents
 	addRoutesMutex       sync.RWMutex
 	addRoutesArgsForCall []struct {
 		desiredLRP *models.DesiredLRP
 	}
 	addRoutesReturns struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}
-	UpdateRoutesStub        func(beforeLRP, afterLRP *models.DesiredLRP) routing_table.RoutingEvents
+	UpdateRoutesStub        func(beforeLRP, afterLRP *models.DesiredLRP) event.RoutingEvents
 	updateRoutesMutex       sync.RWMutex
 	updateRoutesArgsForCall []struct {
 		beforeLRP *models.DesiredLRP
 		afterLRP  *models.DesiredLRP
 	}
 	updateRoutesReturns struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}
-	RemoveRoutesStub        func(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents
+	RemoveRoutesStub        func(desiredLRP *models.DesiredLRP) event.RoutingEvents
 	removeRoutesMutex       sync.RWMutex
 	removeRoutesArgsForCall []struct {
 		desiredLRP *models.DesiredLRP
 	}
 	removeRoutesReturns struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}
-	AddEndpointStub        func(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents
+	AddEndpointStub        func(actualLRP *models.ActualLRPGroup) event.RoutingEvents
 	addEndpointMutex       sync.RWMutex
 	addEndpointArgsForCall []struct {
 		actualLRP *models.ActualLRPGroup
 	}
 	addEndpointReturns struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}
-	RemoveEndpointStub        func(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents
+	RemoveEndpointStub        func(actualLRP *models.ActualLRPGroup) event.RoutingEvents
 	removeEndpointMutex       sync.RWMutex
 	removeEndpointArgsForCall []struct {
 		actualLRP *models.ActualLRPGroup
 	}
 	removeEndpointReturns struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}
-	SwapStub        func(t routing_table.RoutingTable) routing_table.RoutingEvents
+	SwapStub        func(t schema.RoutingTable) event.RoutingEvents
 	swapMutex       sync.RWMutex
 	swapArgsForCall []struct {
-		t routing_table.RoutingTable
+		t schema.RoutingTable
 	}
 	swapReturns struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}
-	GetRoutingEventsStub        func() routing_table.RoutingEvents
+	GetRoutingEventsStub        func() event.RoutingEvents
 	getRoutingEventsMutex       sync.RWMutex
 	getRoutingEventsArgsForCall []struct{}
-	getRoutingEventsReturns     struct {
-		result1 routing_table.RoutingEvents
+	getRoutingEventsReturns struct {
+		result1 event.RoutingEvents
 	}
 }
 
@@ -78,8 +79,9 @@ func (fake *FakeRoutingTable) RouteCount() int {
 	fake.routeCountMutex.Unlock()
 	if fake.RouteCountStub != nil {
 		return fake.RouteCountStub()
+	} else {
+		return fake.routeCountReturns.result1
 	}
-	return fake.routeCountReturns.result1
 }
 
 func (fake *FakeRoutingTable) RouteCountCallCount() int {
@@ -95,7 +97,7 @@ func (fake *FakeRoutingTable) RouteCountReturns(result1 int) {
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) AddRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) AddRoutes(desiredLRP *models.DesiredLRP) event.RoutingEvents {
 	fake.addRoutesMutex.Lock()
 	fake.addRoutesArgsForCall = append(fake.addRoutesArgsForCall, struct {
 		desiredLRP *models.DesiredLRP
@@ -120,14 +122,14 @@ func (fake *FakeRoutingTable) AddRoutesArgsForCall(i int) *models.DesiredLRP {
 	return fake.addRoutesArgsForCall[i].desiredLRP
 }
 
-func (fake *FakeRoutingTable) AddRoutesReturns(result1 routing_table.RoutingEvents) {
+func (fake *FakeRoutingTable) AddRoutesReturns(result1 event.RoutingEvents) {
 	fake.AddRoutesStub = nil
 	fake.addRoutesReturns = struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) UpdateRoutes(beforeLRP *models.DesiredLRP, afterLRP *models.DesiredLRP) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) UpdateRoutes(beforeLRP *models.DesiredLRP, afterLRP *models.DesiredLRP) event.RoutingEvents {
 	fake.updateRoutesMutex.Lock()
 	fake.updateRoutesArgsForCall = append(fake.updateRoutesArgsForCall, struct {
 		beforeLRP *models.DesiredLRP
@@ -153,14 +155,14 @@ func (fake *FakeRoutingTable) UpdateRoutesArgsForCall(i int) (*models.DesiredLRP
 	return fake.updateRoutesArgsForCall[i].beforeLRP, fake.updateRoutesArgsForCall[i].afterLRP
 }
 
-func (fake *FakeRoutingTable) UpdateRoutesReturns(result1 routing_table.RoutingEvents) {
+func (fake *FakeRoutingTable) UpdateRoutesReturns(result1 event.RoutingEvents) {
 	fake.UpdateRoutesStub = nil
 	fake.updateRoutesReturns = struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) event.RoutingEvents {
 	fake.removeRoutesMutex.Lock()
 	fake.removeRoutesArgsForCall = append(fake.removeRoutesArgsForCall, struct {
 		desiredLRP *models.DesiredLRP
@@ -185,14 +187,14 @@ func (fake *FakeRoutingTable) RemoveRoutesArgsForCall(i int) *models.DesiredLRP 
 	return fake.removeRoutesArgsForCall[i].desiredLRP
 }
 
-func (fake *FakeRoutingTable) RemoveRoutesReturns(result1 routing_table.RoutingEvents) {
+func (fake *FakeRoutingTable) RemoveRoutesReturns(result1 event.RoutingEvents) {
 	fake.RemoveRoutesStub = nil
 	fake.removeRoutesReturns = struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) AddEndpoint(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) AddEndpoint(actualLRP *models.ActualLRPGroup) event.RoutingEvents {
 	fake.addEndpointMutex.Lock()
 	fake.addEndpointArgsForCall = append(fake.addEndpointArgsForCall, struct {
 		actualLRP *models.ActualLRPGroup
@@ -217,14 +219,14 @@ func (fake *FakeRoutingTable) AddEndpointArgsForCall(i int) *models.ActualLRPGro
 	return fake.addEndpointArgsForCall[i].actualLRP
 }
 
-func (fake *FakeRoutingTable) AddEndpointReturns(result1 routing_table.RoutingEvents) {
+func (fake *FakeRoutingTable) AddEndpointReturns(result1 event.RoutingEvents) {
 	fake.AddEndpointStub = nil
 	fake.addEndpointReturns = struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) RemoveEndpoint(actualLRP *models.ActualLRPGroup) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) RemoveEndpoint(actualLRP *models.ActualLRPGroup) event.RoutingEvents {
 	fake.removeEndpointMutex.Lock()
 	fake.removeEndpointArgsForCall = append(fake.removeEndpointArgsForCall, struct {
 		actualLRP *models.ActualLRPGroup
@@ -249,17 +251,17 @@ func (fake *FakeRoutingTable) RemoveEndpointArgsForCall(i int) *models.ActualLRP
 	return fake.removeEndpointArgsForCall[i].actualLRP
 }
 
-func (fake *FakeRoutingTable) RemoveEndpointReturns(result1 routing_table.RoutingEvents) {
+func (fake *FakeRoutingTable) RemoveEndpointReturns(result1 event.RoutingEvents) {
 	fake.RemoveEndpointStub = nil
 	fake.removeEndpointReturns = struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) Swap(t routing_table.RoutingTable) routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) Swap(t schema.RoutingTable) event.RoutingEvents {
 	fake.swapMutex.Lock()
 	fake.swapArgsForCall = append(fake.swapArgsForCall, struct {
-		t routing_table.RoutingTable
+		t schema.RoutingTable
 	}{t})
 	fake.swapMutex.Unlock()
 	if fake.SwapStub != nil {
@@ -275,20 +277,20 @@ func (fake *FakeRoutingTable) SwapCallCount() int {
 	return len(fake.swapArgsForCall)
 }
 
-func (fake *FakeRoutingTable) SwapArgsForCall(i int) routing_table.RoutingTable {
+func (fake *FakeRoutingTable) SwapArgsForCall(i int) schema.RoutingTable {
 	fake.swapMutex.RLock()
 	defer fake.swapMutex.RUnlock()
 	return fake.swapArgsForCall[i].t
 }
 
-func (fake *FakeRoutingTable) SwapReturns(result1 routing_table.RoutingEvents) {
+func (fake *FakeRoutingTable) SwapReturns(result1 event.RoutingEvents) {
 	fake.SwapStub = nil
 	fake.swapReturns = struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}{result1}
 }
 
-func (fake *FakeRoutingTable) GetRoutingEvents() routing_table.RoutingEvents {
+func (fake *FakeRoutingTable) GetRoutingEvents() event.RoutingEvents {
 	fake.getRoutingEventsMutex.Lock()
 	fake.getRoutingEventsArgsForCall = append(fake.getRoutingEventsArgsForCall, struct{}{})
 	fake.getRoutingEventsMutex.Unlock()
@@ -305,11 +307,11 @@ func (fake *FakeRoutingTable) GetRoutingEventsCallCount() int {
 	return len(fake.getRoutingEventsArgsForCall)
 }
 
-func (fake *FakeRoutingTable) GetRoutingEventsReturns(result1 routing_table.RoutingEvents) {
+func (fake *FakeRoutingTable) GetRoutingEventsReturns(result1 event.RoutingEvents) {
 	fake.GetRoutingEventsStub = nil
 	fake.getRoutingEventsReturns = struct {
-		result1 routing_table.RoutingEvents
+		result1 event.RoutingEvents
 	}{result1}
 }
 
-var _ routing_table.RoutingTable = new(FakeRoutingTable)
+var _ schema.RoutingTable = new(FakeRoutingTable)

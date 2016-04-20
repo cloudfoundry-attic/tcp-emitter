@@ -1,4 +1,4 @@
-package routing_table_test
+package event_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -11,9 +11,9 @@ import (
 
 var logger lager.Logger
 
-func TestRoutingTable(t *testing.T) {
+func TestEvent(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "RoutingTable Suite")
+	RunSpecs(t, "Event Suite")
 }
 
 var _ = BeforeEach(func() {

@@ -1,4 +1,4 @@
-package routing_table_test
+package emitter_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -11,11 +11,11 @@ import (
 
 var logger lager.Logger
 
-func TestRoutingTable(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "RoutingTable Suite")
-}
-
 var _ = BeforeEach(func() {
 	logger = lagertest.NewTestLogger("test")
 })
+
+func TestEmitter(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Emitter Suite")
+}

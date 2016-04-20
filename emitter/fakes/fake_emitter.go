@@ -4,24 +4,25 @@ package fakes
 import (
 	"sync"
 
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
+	"github.com/cloudfoundry-incubator/tcp-emitter/emitter"
+	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
 )
 
 type FakeEmitter struct {
-	EmitStub        func(routingEvents routing_table.RoutingEvents) error
+	EmitStub        func(routingEvents event.RoutingEvents) error
 	emitMutex       sync.RWMutex
 	emitArgsForCall []struct {
-		routingEvents routing_table.RoutingEvents
+		routingEvents event.RoutingEvents
 	}
 	emitReturns struct {
 		result1 error
 	}
 }
 
-func (fake *FakeEmitter) Emit(routingEvents routing_table.RoutingEvents) error {
+func (fake *FakeEmitter) Emit(routingEvents event.RoutingEvents) error {
 	fake.emitMutex.Lock()
 	fake.emitArgsForCall = append(fake.emitArgsForCall, struct {
-		routingEvents routing_table.RoutingEvents
+		routingEvents event.RoutingEvents
 	}{routingEvents})
 	fake.emitMutex.Unlock()
 	if fake.EmitStub != nil {
@@ -37,7 +38,7 @@ func (fake *FakeEmitter) EmitCallCount() int {
 	return len(fake.emitArgsForCall)
 }
 
-func (fake *FakeEmitter) EmitArgsForCall(i int) routing_table.RoutingEvents {
+func (fake *FakeEmitter) EmitArgsForCall(i int) event.RoutingEvents {
 	fake.emitMutex.RLock()
 	defer fake.emitMutex.RUnlock()
 	return fake.emitArgsForCall[i].routingEvents
@@ -50,4 +51,4 @@ func (fake *FakeEmitter) EmitReturns(result1 error) {
 	}{result1}
 }
 
-var _ routing_table.Emitter = new(FakeEmitter)
+var _ emitter.Emitter = new(FakeEmitter)
