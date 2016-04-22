@@ -191,10 +191,10 @@ var _ = Describe("TCP Emitter", func() {
 
 		checkTcpRouteMapping := func(tcpRouteMapping apimodels.TcpRouteMapping, present bool) {
 			if present {
-				Eventually(func() []apimodels.TcpRouteMapping {
-					tcpRouteMappings, _ := routingApiClient.TcpRouteMappings()
-					return tcpRouteMappings
-				}, 5*time.Second).Should(ContainElement(tcpRouteMapping))
+				Eventually(func() bool {
+					mappings, _ := routingApiClient.TcpRouteMappings()
+					return contains(mappings, tcpRouteMapping)
+				}, 5*time.Second).Should(BeTrue())
 			} else {
 				Eventually(func() []apimodels.TcpRouteMapping {
 					tcpRouteMappings, _ := routingApiClient.TcpRouteMappings()
@@ -489,3 +489,12 @@ var _ = Describe("TCP Emitter", func() {
 		})
 	})
 })
+
+func contains(ms []apimodels.TcpRouteMapping, tcpRouteMapping apimodels.TcpRouteMapping) bool {
+	for _, m := range ms {
+		if m.Matches(tcpRouteMapping) {
+			return true
+		}
+	}
+	return false
+}
