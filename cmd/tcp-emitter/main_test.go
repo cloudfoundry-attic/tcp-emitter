@@ -210,6 +210,7 @@ var _ = Describe("TCP Emitter", func() {
 				},
 				HostPort: 62003,
 				HostIP:   "some-ip",
+				TTL:      120,
 			}
 			notExpectedTcpRouteMapping = apimodels.TcpRouteMapping{
 				TcpRoute: apimodels.TcpRoute{
@@ -217,6 +218,7 @@ var _ = Describe("TCP Emitter", func() {
 				},
 				HostPort: 62003,
 				HostIP:   "some-ip-1",
+				TTL:      120,
 			}
 
 		})

@@ -23,10 +23,12 @@ var _ = Describe("MappingRequestBuilder", func() {
 		routableEndpoints2             endpoint.RoutableEndpoints
 		logGuid                        string
 		modificationTag                models.ModificationTag
+		ttl                            uint16
 	)
 
 	BeforeEach(func() {
 		logGuid = "log-guid-1"
+		ttl = 60
 		modificationTag = models.ModificationTag{Epoch: "abc", Index: 0}
 
 		endpoints1 = map[endpoint.EndpointKey]endpoint.Endpoint{
@@ -74,20 +76,20 @@ var _ = Describe("MappingRequestBuilder", func() {
 			}
 
 			expectedRegistrationRequests = []apimodels.TcpRouteMapping{
-				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
-				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003, 60),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004, 60),
 			}
 
 			expectedUnregistrationRequests = []apimodels.TcpRouteMapping{
-				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
-				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
-				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
-				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005, 60),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006, 60),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005, 60),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006, 60),
 			}
 		})
 
 		It("returns valid registration and unregistration mapping requests ", func() {
-			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger)
+			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger, ttl)
 			Expect(registrationRequests).Should(HaveLen(len(expectedRegistrationRequests)))
 			Expect(registrationRequests).Should(ConsistOf(expectedRegistrationRequests))
 			Expect(unregistrationRequests).Should(HaveLen(len(expectedUnregistrationRequests)))
@@ -111,19 +113,19 @@ var _ = Describe("MappingRequestBuilder", func() {
 			}
 
 			expectedRegistrationRequests = []apimodels.TcpRouteMapping{
-				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
-				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
-				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
-				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
-				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
-				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003, ttl),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004, ttl),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005, ttl),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006, ttl),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005, ttl),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006, ttl),
 			}
 
 			expectedUnregistrationRequests = []apimodels.TcpRouteMapping{}
 		})
 
 		It("returns only registration mapping requests ", func() {
-			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger)
+			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger, ttl)
 			Expect(registrationRequests).Should(HaveLen(len(expectedRegistrationRequests)))
 			Expect(registrationRequests).Should(ConsistOf(expectedRegistrationRequests))
 			Expect(unregistrationRequests).Should(HaveLen(0))
@@ -146,19 +148,19 @@ var _ = Describe("MappingRequestBuilder", func() {
 			}
 
 			expectedUnregistrationRequests = []apimodels.TcpRouteMapping{
-				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
-				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004),
-				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005),
-				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006),
-				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005),
-				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003, ttl),
+				apimodels.NewTcpRouteMapping("123", 61000, "some-ip-2", 62004, ttl),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-3", 62005, ttl),
+				apimodels.NewTcpRouteMapping("456", 61001, "some-ip-4", 62006, ttl),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-3", 62005, ttl),
+				apimodels.NewTcpRouteMapping("789", 61002, "some-ip-4", 62006, ttl),
 			}
 
 			expectedRegistrationRequests = []apimodels.TcpRouteMapping{}
 		})
 
 		It("returns only unregistration mapping requests ", func() {
-			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger)
+			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger, ttl)
 			Expect(unregistrationRequests).Should(HaveLen(len(expectedUnregistrationRequests)))
 			Expect(unregistrationRequests).Should(ConsistOf(expectedUnregistrationRequests))
 			Expect(registrationRequests).Should(HaveLen(0))
@@ -182,7 +184,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 					Entry:     routableEndpoints1,
 				},
 			}
-			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger)
+			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger, ttl)
 			Expect(unregistrationRequests).Should(HaveLen(0))
 			Expect(registrationRequests).Should(HaveLen(0))
 		})
@@ -207,7 +209,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 					},
 				}
 
-				registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger)
+				registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger, ttl)
 				Expect(unregistrationRequests).Should(HaveLen(0))
 				Expect(registrationRequests).Should(HaveLen(0))
 			})
@@ -231,7 +233,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 				},
 			}
 
-			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger)
+			registrationRequests, unregistrationRequests := routingEvents.ToMappingRequests(logger, ttl)
 			Expect(unregistrationRequests).Should(HaveLen(0))
 			Expect(registrationRequests).Should(HaveLen(0))
 		})

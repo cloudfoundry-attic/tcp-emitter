@@ -18,13 +18,15 @@ type tcpEmitter struct {
 	logger           lager.Logger
 	routingAPIClient routing_api.Client
 	uaaClient        uaaclient.Client
+	ttl              uint16
 }
 
-func NewEmitter(logger lager.Logger, routingAPIClient routing_api.Client, uaaClient uaaclient.Client) Emitter {
+func NewEmitter(logger lager.Logger, routingAPIClient routing_api.Client, uaaClient uaaclient.Client, routeTTL uint16) Emitter {
 	return &tcpEmitter{
 		logger:           logger,
 		routingAPIClient: routingAPIClient,
 		uaaClient:        uaaClient,
+		ttl:              routeTTL,
 	}
 }
 
@@ -32,7 +34,7 @@ func (emitter *tcpEmitter) Emit(routingEvents event.RoutingEvents) error {
 	emitter.logRoutingEvents(routingEvents)
 	defer emitter.logger.Debug("complete-emit")
 
-	registrationMappingRequests, unregistrationMappingRequests := routingEvents.ToMappingRequests(emitter.logger)
+	registrationMappingRequests, unregistrationMappingRequests := routingEvents.ToMappingRequests(emitter.logger, emitter.ttl)
 	useCachedToken := true
 	for count := 0; count < 2; count++ {
 		token, err := emitter.uaaClient.FetchToken(!useCachedToken)

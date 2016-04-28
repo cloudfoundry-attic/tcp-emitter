@@ -38,7 +38,7 @@ func (r RoutingEvent) Valid() bool {
 	return true
 }
 
-func (routingEvents RoutingEvents) ToMappingRequests(logger lager.Logger) ([]models.TcpRouteMapping, []models.TcpRouteMapping) {
+func (routingEvents RoutingEvents) ToMappingRequests(logger lager.Logger, ttl uint16) ([]models.TcpRouteMapping, []models.TcpRouteMapping) {
 	registrationEvents := RoutingEvents{}
 	unregistrationEvents := RoutingEvents{}
 	for _, routingEvent := range routingEvents {
@@ -54,17 +54,17 @@ func (routingEvents RoutingEvents) ToMappingRequests(logger lager.Logger) ([]mod
 		}
 	}
 
-	registrationMappingRequests := buildMappingRequests(registrationEvents)
+	registrationMappingRequests := buildMappingRequests(registrationEvents, ttl)
 
-	unregistrationMappingRequests := buildMappingRequests(unregistrationEvents)
+	unregistrationMappingRequests := buildMappingRequests(unregistrationEvents, ttl)
 
 	return registrationMappingRequests, unregistrationMappingRequests
 }
 
-func buildMappingRequests(routingEvents RoutingEvents) []models.TcpRouteMapping {
+func buildMappingRequests(routingEvents RoutingEvents, ttl uint16) []models.TcpRouteMapping {
 	mappingRequests := make([]models.TcpRouteMapping, 0)
 	for _, routingEvent := range routingEvents {
-		mappingRequest := mapRoutingEvent(routingEvent)
+		mappingRequest := mapRoutingEvent(routingEvent, ttl)
 		if mappingRequest != nil {
 			mappingRequests = append(mappingRequests, (*mappingRequest)...)
 		}
@@ -72,12 +72,12 @@ func buildMappingRequests(routingEvents RoutingEvents) []models.TcpRouteMapping 
 	return mappingRequests
 }
 
-func mapRoutingEvent(routingEvent RoutingEvent) *[]models.TcpRouteMapping {
+func mapRoutingEvent(routingEvent RoutingEvent, ttl uint16) *[]models.TcpRouteMapping {
 	mappingRequests := make([]models.TcpRouteMapping, 0)
 	for _, externalEndpoint := range routingEvent.Entry.ExternalEndpoints {
 		for _, endpoint := range routingEvent.Entry.Endpoints {
 			mappingRequests = append(mappingRequests, models.NewTcpRouteMapping(externalEndpoint.RouterGroupGUID, uint16(externalEndpoint.Port),
-				endpoint.Host, uint16(endpoint.Port)))
+				endpoint.Host, uint16(endpoint.Port), ttl))
 		}
 	}
 	return &mappingRequests

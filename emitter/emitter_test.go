@@ -27,9 +27,11 @@ var _ = Describe("Emitter", func() {
 		expectedMappingRequests []apimodels.TcpRouteMapping
 		routingKey1             endpoint.RoutingKey
 		routableEndpoints1      endpoint.RoutableEndpoints
+		ttl                     uint16
 	)
 
 	BeforeEach(func() {
+		ttl = 60
 		logGuid := "log-guid-1"
 		modificationTag := models.ModificationTag{Epoch: "abc", Index: 0}
 
@@ -43,7 +45,7 @@ var _ = Describe("Emitter", func() {
 		extenralEndpointInfo1 := endpoint.NewExternalEndpointInfo("123", 61000)
 
 		expectedMappingRequests = []apimodels.TcpRouteMapping{
-			apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003),
+			apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003, ttl),
 		}
 
 		routableEndpoints1 = endpoint.NewRoutableEndpoints(
@@ -60,7 +62,7 @@ var _ = Describe("Emitter", func() {
 		routingApiClient = new(fake_routing_api.FakeClient)
 		uaaClient = &testUaaClient.FakeClient{}
 		uaaClient.FetchTokenReturns(&uaa.Token{AccessToken: "some-token", ExpiresIn: 1234}, nil)
-		emitter = emitterpkg.NewEmitter(logger, routingApiClient, uaaClient)
+		emitter = emitterpkg.NewEmitter(logger, routingApiClient, uaaClient, ttl)
 	})
 
 	Context("when valid routing events are provided", func() {

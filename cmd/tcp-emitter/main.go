@@ -106,6 +106,12 @@ var sessionName = flag.String(
 	"consul session name",
 )
 
+var routeTTL = flag.Duration(
+	"routeTTL",
+	2*time.Minute,
+	"TTL for TCP Routes",
+)
+
 var tokenFetchMaxRetries = flag.Uint(
 	"tokenFetchMaxRetries",
 	defaultTokenFetchNumRetries,
@@ -177,7 +183,12 @@ func main() {
 	logger.Debug("creating-routing-api-client", lager.Data{"api-location": routingAPIAddress})
 	routingAPIClient := routing_api.NewClient(routingAPIAddress)
 
-	emitter := emitter.NewEmitter(logger, routingAPIClient, uaaClient)
+	if routeTTL.Seconds() > 65535 {
+		logger.Error("invalid-route-ttl", errors.New("route TTL value too large"))
+		os.Exit(1)
+	}
+
+	emitter := emitter.NewEmitter(logger, routingAPIClient, uaaClient, uint16(routeTTL.Seconds()))
 	routingTable := schema.NewTable(logger, nil)
 	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, bbsClient)
 	syncChannel := make(chan struct{})
