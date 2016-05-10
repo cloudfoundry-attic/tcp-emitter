@@ -188,7 +188,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	emitter := emitter.NewEmitter(logger, routingAPIClient, uaaClient, uint16(routeTTL.Seconds()))
+	emitter := emitter.NewEmitter(logger, routingAPIClient, uaaClient, int(routeTTL.Seconds()))
 	routingTable := schema.NewTable(logger, nil)
 	routingTableHandler := routing_table.NewRoutingTableHandler(logger, routingTable, emitter, bbsClient)
 	syncChannel := make(chan struct{})

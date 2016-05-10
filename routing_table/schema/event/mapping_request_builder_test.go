@@ -23,7 +23,7 @@ var _ = Describe("MappingRequestBuilder", func() {
 		routableEndpoints2             endpoint.RoutableEndpoints
 		logGuid                        string
 		modificationTag                models.ModificationTag
-		ttl                            uint16
+		ttl                            int
 	)
 
 	BeforeEach(func() {

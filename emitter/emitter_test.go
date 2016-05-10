@@ -27,7 +27,7 @@ var _ = Describe("Emitter", func() {
 		expectedMappingRequests []apimodels.TcpRouteMapping
 		routingKey1             endpoint.RoutingKey
 		routableEndpoints1      endpoint.RoutableEndpoints
-		ttl                     uint16
+		ttl                     int
 	)
 
 	BeforeEach(func() {
@@ -45,7 +45,7 @@ var _ = Describe("Emitter", func() {
 		extenralEndpointInfo1 := endpoint.NewExternalEndpointInfo("123", 61000)
 
 		expectedMappingRequests = []apimodels.TcpRouteMapping{
-			apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003, ttl),
+			apimodels.NewTcpRouteMapping("123", 61000, "some-ip-1", 62003, int(ttl)),
 		}
 
 		routableEndpoints1 = endpoint.NewRoutableEndpoints(

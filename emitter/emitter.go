@@ -18,10 +18,10 @@ type tcpEmitter struct {
 	logger           lager.Logger
 	routingAPIClient routing_api.Client
 	uaaClient        uaaclient.Client
-	ttl              uint16
+	ttl              int
 }
 
-func NewEmitter(logger lager.Logger, routingAPIClient routing_api.Client, uaaClient uaaclient.Client, routeTTL uint16) Emitter {
+func NewEmitter(logger lager.Logger, routingAPIClient routing_api.Client, uaaClient uaaclient.Client, routeTTL int) Emitter {
 	return &tcpEmitter{
 		logger:           logger,
 		routingAPIClient: routingAPIClient,

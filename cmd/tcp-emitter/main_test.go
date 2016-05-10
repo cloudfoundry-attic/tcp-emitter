@@ -204,23 +204,8 @@ var _ = Describe("TCP Emitter", func() {
 		}
 
 		BeforeEach(func() {
-			expectedTcpRouteMapping = apimodels.TcpRouteMapping{
-				TcpRoute: apimodels.TcpRoute{
-					ExternalPort: 5222,
-				},
-				HostPort: 62003,
-				HostIP:   "some-ip",
-				TTL:      120,
-			}
-			notExpectedTcpRouteMapping = apimodels.TcpRouteMapping{
-				TcpRoute: apimodels.TcpRoute{
-					ExternalPort: 1883,
-				},
-				HostPort: 62003,
-				HostIP:   "some-ip-1",
-				TTL:      120,
-			}
-
+			expectedTcpRouteMapping = apimodels.NewTcpRouteMapping("", 5222, "some-ip", 62003, 120)
+			notExpectedTcpRouteMapping = apimodels.NewTcpRouteMapping("", 1883, "some-ip-1", 62003, 120)
 		})
 
 		Context("when invalid bbs address is passed to tcp emitter", func() {

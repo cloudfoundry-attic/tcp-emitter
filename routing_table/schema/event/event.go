@@ -38,7 +38,7 @@ func (r RoutingEvent) Valid() bool {
 	return true
 }
 
-func (routingEvents RoutingEvents) ToMappingRequests(logger lager.Logger, ttl uint16) ([]models.TcpRouteMapping, []models.TcpRouteMapping) {
+func (routingEvents RoutingEvents) ToMappingRequests(logger lager.Logger, ttl int) ([]models.TcpRouteMapping, []models.TcpRouteMapping) {
 	registrationEvents := RoutingEvents{}
 	unregistrationEvents := RoutingEvents{}
 	for _, routingEvent := range routingEvents {
@@ -61,7 +61,7 @@ func (routingEvents RoutingEvents) ToMappingRequests(logger lager.Logger, ttl ui
 	return registrationMappingRequests, unregistrationMappingRequests
 }
 
-func buildMappingRequests(routingEvents RoutingEvents, ttl uint16) []models.TcpRouteMapping {
+func buildMappingRequests(routingEvents RoutingEvents, ttl int) []models.TcpRouteMapping {
 	mappingRequests := make([]models.TcpRouteMapping, 0)
 	for _, routingEvent := range routingEvents {
 		mappingRequest := mapRoutingEvent(routingEvent, ttl)
@@ -72,7 +72,7 @@ func buildMappingRequests(routingEvents RoutingEvents, ttl uint16) []models.TcpR
 	return mappingRequests
 }
 
-func mapRoutingEvent(routingEvent RoutingEvent, ttl uint16) *[]models.TcpRouteMapping {
+func mapRoutingEvent(routingEvent RoutingEvent, ttl int) *[]models.TcpRouteMapping {
 	mappingRequests := make([]models.TcpRouteMapping, 0)
 	for _, externalEndpoint := range routingEvent.Entry.ExternalEndpoints {
 		for _, endpoint := range routingEvent.Entry.Endpoints {
