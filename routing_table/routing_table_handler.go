@@ -152,6 +152,10 @@ func (handler *routingTableHandler) applyCachedEvents(logger lager.Logger, tempR
 		for _, e := range handler.cachedEvents {
 			handler.handleEvent(e)
 		}
+
+		// re-emit the current routing table
+		routingEvents := handler.routingTable.GetRoutingEvents()
+		handler.emit(routingEvents)
 		logger.Debug("done-handling-events-from-failed-sync")
 		return
 	}

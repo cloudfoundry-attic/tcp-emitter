@@ -575,13 +575,23 @@ var _ = Describe("RoutingTableHandler", func() {
 		Context("when bbs server returns error while fetching desired lrps", func() {
 			BeforeEach(func() {
 				fakeBbsClient.DesiredLRPsReturns(nil, errors.New("kaboom"))
+
+				routingEvents := event.RoutingEvents{
+					event.RoutingEvent{
+						EventType: event.RouteRegistrationEvent,
+						Key:       endpoint.RoutingKey{},
+						Entry:     endpoint.RoutableEndpoints{},
+					},
+				}
+				fakeRoutingTable.GetRoutingEventsReturns(routingEvents)
 			})
 
-			It("does not update the routing table", func() {
+			It("does not update the routing table, but still emits routes", func() {
 				go invokeSync(doneChannel)
 				Eventually(doneChannel).Should(BeClosed())
 				Expect(fakeRoutingTable.SwapCallCount()).Should(Equal(0))
 				Eventually(logger).Should(gbytes.Say("failed-getting-desired-lrps"))
+				Eventually(fakeEmitter.EmitCallCount()).Should(Equal(1))
 			})
 
 		})
@@ -601,10 +611,21 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		Context("when bbs server calls return successfully", func() {
 			Context("when bbs server returns no data", func() {
-				It("does not update the routing table", func() {
+				BeforeEach(func() {
+					routingEvents := event.RoutingEvents{
+						event.RoutingEvent{
+							EventType: event.RouteRegistrationEvent,
+							Key:       endpoint.RoutingKey{},
+							Entry:     endpoint.RoutableEndpoints{},
+						},
+					}
+					fakeRoutingTable.GetRoutingEventsReturns(routingEvents)
+				})
+				It("does not update the routing table, but still emits routes", func() {
 					go invokeSync(doneChannel)
 					Eventually(doneChannel).Should(BeClosed())
 					Expect(fakeRoutingTable.SwapCallCount()).Should(Equal(0))
+					Eventually(fakeEmitter.EmitCallCount()).Should(Equal(1))
 				})
 			})
 
