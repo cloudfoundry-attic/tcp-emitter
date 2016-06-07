@@ -34,7 +34,6 @@ import (
 
 const (
 	tcpEmitterLockPath             = "tcp_emitter_lock"
-	dropsondeDestination           = "localhost:3457"
 	dropsondeOrigin                = "tcp_emitter"
 	defaultTokenFetchRetryInterval = 5 * time.Second
 	defaultTokenFetchNumRetries    = uint(3)
@@ -128,6 +127,12 @@ var tokenFetchExpirationBufferTime = flag.Uint64(
 	"tokenFetchExpirationBufferTime",
 	30,
 	"Buffer time in seconds before the actual token expiration time, when TokenFetcher consider a token expired",
+)
+
+var dropsondePort = flag.Int(
+	"dropsondePort",
+	3457,
+	"Port the local metron agent is listening on",
 )
 
 func main() {
@@ -257,6 +262,7 @@ func newUaaClient(logger lager.Logger, c *config.Config, klok clock.Clock) uaacl
 }
 
 func initializeDropsonde(logger lager.Logger) {
+	dropsondeDestination := fmt.Sprintf("localhost:%d", *dropsondePort)
 	err := dropsonde.Initialize(dropsondeDestination, dropsondeOrigin)
 	if err != nil {
 		logger.Error("failed-to-initialize-dropsonde", err)
