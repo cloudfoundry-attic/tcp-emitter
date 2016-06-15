@@ -1,11 +1,13 @@
 package main_test
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -88,9 +90,20 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	etcdRunner = etcdstorerunner.NewETCDClusterRunner(etcdPort, 1, nil)
 	etcdRunner.Start()
 
-	oauthServer = ghttp.NewTLSServer()
+	oauthServer = ghttp.NewUnstartedServer()
+	var basePath = path.Join(os.Getenv("GOPATH"), "src", "github.com", "cloudfoundry-incubator", "tcp-emitter", "fixtures", "certs")
+	cert, err := tls.LoadX509KeyPair(filepath.Join(basePath, "server.pem"), filepath.Join(basePath, "server.key"))
+	Expect(err).ToNot(HaveOccurred())
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+	oauthServer.HTTPTestServer.TLS = tlsConfig
 	oauthServer.AllowUnhandledRequests = true
 	oauthServer.UnhandledRequestStatusCode = http.StatusOK
+
+	oauthServer.HTTPTestServer.StartTLS()
+
 	oauthServerPort = getServerPort(oauthServer.URL())
 
 	oauthServer.RouteToHandler("POST", "/oauth/token",
@@ -210,13 +223,21 @@ func createEmitterConfig(uaaPorts ...string) string {
 		uaaPort = uaaPorts[0]
 	}
 
-	cfg := fmt.Sprintf("%s\n  port: %s\n%s\n  port: %d\n", `oauth:
+	cfgString := `---
+oauth:
   token_endpoint: "127.0.0.1"
-  skip_ssl_validation: true
+  skip_ssl_validation: false
+  ca_certs: %s
   client_name: "someclient"
-  client_secret: "somesecret"`, uaaPort,
-		`routing_api:
-  uri: http://127.0.0.1`, routingAPIPort)
+  client_secret: "somesecret"
+  port: %s
+routing_api:
+  uri: http://127.0.0.1
+  port: %d
+`
+	caCertsPath := filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "cloudfoundry-incubator", "tcp-emitter", "fixtures", "certs", "uaa-ca.pem")
+	cfg := fmt.Sprintf(cfgString, caCertsPath, uaaPort, routingAPIPort)
+
 	err := writeToFile([]byte(cfg), configFile)
 	Expect(err).ShouldNot(HaveOccurred())
 	Expect(fileExists(configFile)).To(BeTrue())
@@ -227,14 +248,20 @@ func createEmitterConfigAuthDisabled() string {
 	randomConfigFileName := fmt.Sprintf("router_configurer_%d.yml", GinkgoParallelNode())
 	configFile := path.Join(os.TempDir(), randomConfigFileName)
 
-	cfg := fmt.Sprintf("%s\n  port: %s\n%s\n  port: %d\n", `oauth:
+	cfgString := `---
+oauth:
   token_endpoint: "127.0.0.1"
   skip_ssl_validation: true
   client_name: "someclient"
-  client_secret: "somesecret"`, oauthServerPort,
-		`routing_api:
+  client_secret: "somesecret"
+  port: %s
+routing_api:
+  uri: http://127.0.0.1
+  port: %d
   auth_disabled: true
-  uri: http://127.0.0.1`, routingAPIPort)
+`
+	cfg := fmt.Sprintf(cfgString, oauthServerPort, routingAPIPort)
+
 	err := writeToFile([]byte(cfg), configFile)
 	Expect(err).ShouldNot(HaveOccurred())
 	Expect(fileExists(configFile)).To(BeTrue())
