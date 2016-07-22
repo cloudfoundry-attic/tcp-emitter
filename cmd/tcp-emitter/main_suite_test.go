@@ -143,7 +143,7 @@ var _ = BeforeEach(func() {
 		DevMode:      true,
 	}
 
-	routingApiClient = routing_api.NewClient(routingAPIAddress)
+	routingApiClient = routing_api.NewClient(routingAPIAddress, false)
 
 	tcpEmitterArgs = testrunner.Args{
 		BBSAddress:     bbsServer.URL(),
