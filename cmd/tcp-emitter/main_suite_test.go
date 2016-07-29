@@ -103,9 +103,21 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	oauthServer.UnhandledRequestStatusCode = http.StatusOK
 
 	oauthServer.HTTPTestServer.StartTLS()
-
 	oauthServerPort = getServerPort(oauthServer.URL())
 
+	publicKey := "-----BEGIN PUBLIC KEY-----\\n" +
+		"MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDHFr+KICms+tuT1OXJwhCUmR2d\\n" +
+		"KVy7psa8xzElSyzqx7oJyfJ1JZyOzToj9T5SfTIq396agbHJWVfYphNahvZ/7uMX\\n" +
+		"qHxf+ZH9BL1gk9Y6kCnbM5R60gfwjyW1/dQPjOzn9N394zd2FJoFHwdq9Qs0wBug\\n" +
+		"spULZVNRxq7veq/fzwIDAQAB\\n" +
+		"-----END PUBLIC KEY-----"
+
+	data := fmt.Sprintf("{\"alg\":\"rsa\", \"value\":\"%s\"}", publicKey)
+	oauthServer.RouteToHandler("GET", "/token_key",
+		ghttp.CombineHandlers(
+			ghttp.VerifyRequest("GET", "/token_key"),
+			ghttp.RespondWith(http.StatusOK, data)),
+	)
 	oauthServer.RouteToHandler("POST", "/oauth/token",
 		func(w http.ResponseWriter, req *http.Request) {
 			jsonBytes := []byte(`{"access_token":"some-token", "expires_in":10}`)

@@ -248,7 +248,7 @@ var _ = Describe("TCP Emitter", func() {
 		})
 
 		It("exits with error", func() {
-			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("error-fetching-oauth-token"))
+			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("failed-connecting-to-uaa"))
 			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 		})
 	})
