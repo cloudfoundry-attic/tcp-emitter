@@ -271,12 +271,14 @@ var _ = Describe("TCP Emitter", func() {
 		})
 
 		AfterEach(func() {
+			defer close(exitChannel)
 			logger.Info("shutting-down")
 			session.Signal(os.Interrupt)
 			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 			routingApiProcess.Signal(os.Interrupt)
-			Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
-			close(exitChannel)
+
+			waitChan := routingApiProcess.Wait()
+			Eventually(waitChan, 5*time.Second).Should(Receive())
 		})
 
 		It("starts an SSE connection to the bbs and emits events to routing api", func(done Done) {
@@ -305,12 +307,14 @@ var _ = Describe("TCP Emitter", func() {
 		})
 
 		AfterEach(func() {
+			defer close(exitChannel)
 			logger.Info("shutting-down")
 			session.Signal(os.Interrupt)
 			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 			routingApiProcess.Signal(os.Interrupt)
-			Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
-			close(exitChannel)
+
+			waitChan := routingApiProcess.Wait()
+			Eventually(waitChan, 5*time.Second).Should(Receive())
 		})
 
 		It("starts an SSE connection to the bbs and continues to try to emit to routing api", func(done Done) {
@@ -350,7 +354,9 @@ var _ = Describe("TCP Emitter", func() {
 			session.Signal(os.Interrupt)
 			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 			routingApiProcess.Signal(os.Interrupt)
-			Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
+
+			waitChan := routingApiProcess.Wait()
+			Eventually(waitChan, 5*time.Second).Should(Receive())
 		})
 
 		It("tries to start an SSE connection to the bbs and doesn't blow up", func(done Done) {
@@ -378,12 +384,14 @@ var _ = Describe("TCP Emitter", func() {
 		})
 
 		AfterEach(func() {
+			defer close(exitChannel)
 			logger.Info("shutting-down")
 			session1.Signal(os.Interrupt)
 			Eventually(session1.Exited, 5*time.Second).Should(BeClosed())
 			routingApiProcess.Signal(os.Interrupt)
-			Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
-			close(exitChannel)
+
+			waitChan := routingApiProcess.Wait()
+			Eventually(waitChan, 5*time.Second).Should(Receive())
 		})
 
 		It("and the first emitter starts an SSE connection to the bbs and emits events to routing api", func(done Done) {
@@ -461,12 +469,14 @@ var _ = Describe("TCP Emitter", func() {
 		})
 
 		AfterEach(func() {
+			defer close(exitChannel)
 			logger.Info("shutting-down")
 			session.Signal(os.Interrupt)
 			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 			routingApiProcess.Signal(os.Interrupt)
-			Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
-			close(exitChannel)
+
+			waitChan := routingApiProcess.Wait()
+			Eventually(waitChan, 5*time.Second).Should(Receive())
 		})
 
 		It("does not call oauth server to get the auth token", func(done Done) {
