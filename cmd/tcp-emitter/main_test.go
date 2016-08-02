@@ -65,7 +65,7 @@ var _ = Describe("TCP Emitter", func() {
 		}
 	}
 
-	setupBbsServer := func(server *ghttp.Server, includeSecondLRP, emitEvents bool, exitChannel chan struct{}, routerGroupGuid string) {
+	setupBbsServer := func(server *ghttp.Server, includeSecondLRP bool, exitChannel chan struct{}, routerGroupGuid string) {
 		server.RouteToHandler("POST", "/v1/actual_lrp_groups/list",
 			func(w http.ResponseWriter, req *http.Request) {
 				actualLRP1 := getActualLRP("some-guid", "instance-guid", "some-ip", 5222)
@@ -154,9 +154,8 @@ var _ = Describe("TCP Emitter", func() {
 	}
 
 	setupTcpEmitter := func(path string, args testrunner.Args, expectStarted bool) *gexec.Session {
-		allOutput := gbytes.NewBuffer()
 		runner := testrunner.New(path, args)
-		session, err := gexec.Start(runner.Command, allOutput, allOutput)
+		session, err := gexec.Start(runner.Command, GinkgoWriter, GinkgoWriter)
 		Expect(err).ToNot(HaveOccurred())
 		Eventually(session.Out, 5*time.Second).Should(gbytes.Say("setting-up-bbs-client.*bbsURL"))
 
@@ -265,7 +264,7 @@ var _ = Describe("TCP Emitter", func() {
 		BeforeEach(func() {
 			exitChannel = make(chan struct{})
 			routingApiProcess, routerGroupGuid = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
-			setupBbsServer(bbsServer, true, true, exitChannel, routerGroupGuid)
+			setupBbsServer(bbsServer, true, exitChannel, routerGroupGuid)
 			logger.Info("started-routing-api-server")
 			session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 			logger.Info("started-tcp-emitter")
@@ -300,7 +299,7 @@ var _ = Describe("TCP Emitter", func() {
 
 		BeforeEach(func() {
 			exitChannel = make(chan struct{})
-			setupBbsServer(bbsServer, false, true, exitChannel, "some-guid")
+			setupBbsServer(bbsServer, false, exitChannel, "some-guid")
 			session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 			logger.Info("started-tcp-emitter")
 		})
@@ -372,7 +371,7 @@ var _ = Describe("TCP Emitter", func() {
 		BeforeEach(func() {
 			exitChannel = make(chan struct{})
 			routingApiProcess, routerGroupGuid = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
-			setupBbsServer(bbsServer, false, true, exitChannel, routerGroupGuid)
+			setupBbsServer(bbsServer, false, exitChannel, routerGroupGuid)
 			logger.Info("started-routing-api-server")
 			session1 = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
 			logger.Info("started-tcp-emitter")
@@ -443,7 +442,7 @@ var _ = Describe("TCP Emitter", func() {
 		BeforeEach(func() {
 			exitChannel = make(chan struct{})
 			routingApiProcess, routerGroupGuid = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
-			setupBbsServer(bbsServer, true, false, exitChannel, routerGroupGuid)
+			setupBbsServer(bbsServer, true, exitChannel, routerGroupGuid)
 			logger.Info("started-routing-api-server")
 			unAuthTcpEmitterArgs := testrunner.Args{
 				BBSAddress:     bbsServer.URL(),
@@ -455,10 +454,9 @@ var _ = Describe("TCP Emitter", func() {
 				ConsulCluster:  consulRunner.ConsulCluster(),
 			}
 
-			allOutput := gbytes.NewBuffer()
 			runner := testrunner.New(tcpEmitterBinPath, unAuthTcpEmitterArgs)
 			var err error
-			session, err = gexec.Start(runner.Command, allOutput, allOutput)
+			session, err = gexec.Start(runner.Command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
