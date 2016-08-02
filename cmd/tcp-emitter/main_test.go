@@ -223,10 +223,11 @@ var _ = Describe("TCP Emitter", func() {
 			session = setupTcpEmitter(tcpEmitterBinPath, invalidTcpEmitterArgs, false)
 		})
 
-		It("fails to come up", func() {
+		It("fails to come up", func(done Done) {
+			defer close(done)
 			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("invalid-scheme-in-bbs-address"))
-		})
+		}, 60)
 	})
 
 	Context("when there is an error fetching token from uaa", func() {
@@ -247,10 +248,11 @@ var _ = Describe("TCP Emitter", func() {
 			session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, false)
 		})
 
-		It("exits with error", func() {
+		It("exits with error", func(done Done) {
+			defer close(done)
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("failed-connecting-to-uaa"))
 			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
-		})
+		}, 60)
 	})
 
 	Context("when both bbs and routing api server are up and running", func() {
@@ -278,14 +280,15 @@ var _ = Describe("TCP Emitter", func() {
 			close(exitChannel)
 		})
 
-		It("starts an SSE connection to the bbs and emits events to routing api", func() {
+		It("starts an SSE connection to the bbs and emits events to routing api", func(done Done) {
+			defer close(done)
 			checkEmitterWorks(session)
 			Eventually(session.Out, 2*time.Second).Should(gbytes.Say("successfully-emitted-registration-events"))
 			checkTcpRouteMapping(expectedTcpRouteMapping, true)
 
 			Eventually(session.Out, 2*time.Second).Should(gbytes.Say("successfully-emitted-unregistration-events"))
 			checkTcpRouteMapping(notExpectedTcpRouteMapping, false)
-		})
+		}, 60)
 	})
 
 	Context("when routing api server is down but bbs is running", func() {
@@ -311,7 +314,8 @@ var _ = Describe("TCP Emitter", func() {
 			close(exitChannel)
 		})
 
-		It("starts an SSE connection to the bbs and continues to try to emit to routing api", func() {
+		It("starts an SSE connection to the bbs and continues to try to emit to routing api", func(done Done) {
+			defer close(done)
 			Eventually(eventsEndpointRequests, 5*time.Second).Should(BeNumerically(">=", 1))
 
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
@@ -324,7 +328,7 @@ var _ = Describe("TCP Emitter", func() {
 			routingApiProcess, _ = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
 			logger.Info("started-routing-api-server")
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("unable-to-upsert.*some-guid not found"))
-		})
+		}, 60)
 
 	})
 
@@ -350,11 +354,12 @@ var _ = Describe("TCP Emitter", func() {
 			Eventually(routingApiProcess.Wait(), 5*time.Second).Should(Receive())
 		})
 
-		It("tries to start an SSE connection to the bbs and doesn't blow up", func() {
+		It("tries to start an SSE connection to the bbs and doesn't blow up", func(done Done) {
+			defer close(done)
 			Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("failed-subscribing-to-events"))
 			Consistently(session.Exited).ShouldNot(BeClosed())
 			bbsServer = ghttp.NewServer()
-		})
+		}, 60)
 	})
 
 	Context("when both bbs and routing api server are up and running", func() {
@@ -382,10 +387,11 @@ var _ = Describe("TCP Emitter", func() {
 			close(exitChannel)
 		})
 
-		It("and the first emitter starts an SSE connection to the bbs and emits events to routing api", func() {
+		It("and the first emitter starts an SSE connection to the bbs and emits events to routing api", func(done Done) {
+			defer close(done)
 			checkEmitterWorks(session1)
 			checkTcpRouteMapping(expectedTcpRouteMapping, true)
-		})
+		}, 60)
 
 		Context("and another emitter starts", func() {
 			var (
@@ -413,14 +419,15 @@ var _ = Describe("TCP Emitter", func() {
 				})
 
 				Describe("the second emitter", func() {
-					It("becomes active", func() {
+					It("becomes active", func(done Done) {
+						defer close(done)
 						Eventually(session2.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
 
 						By("the second emitter could receive events")
 
 						checkEmitterWorks(session2)
 						checkTcpRouteMapping(expectedTcpRouteMapping, true)
-					})
+					}, 60)
 				})
 			})
 		})
@@ -464,12 +471,13 @@ var _ = Describe("TCP Emitter", func() {
 			close(exitChannel)
 		})
 
-		It("does not call oauth server to get the auth token", func() {
+		It("does not call oauth server to get the auth token", func(done Done) {
+			defer close(done)
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("creating-noop-uaa-client"))
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
 			Eventually(session.Out, 2*time.Second).Should(gbytes.Say("successfully-emitted-registration-events"))
 			checkTcpRouteMapping(expectedTcpRouteMapping, true)
-		})
+		}, 60)
 	})
 })
 
