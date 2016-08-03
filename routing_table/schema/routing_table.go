@@ -168,8 +168,11 @@ func (table *routingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) event.Rou
 	return routingEvents
 }
 
-func (table *routingTable) removeRoutingKeys(logger lager.Logger, routingKeys endpoint.RoutingKeys,
-	modificationTag *models.ModificationTag) event.RoutingEvents {
+func (table *routingTable) removeRoutingKeys(
+	logger lager.Logger,
+	routingKeys endpoint.RoutingKeys,
+	modificationTag *models.ModificationTag,
+) event.RoutingEvents {
 	routingEvents := event.RoutingEvents{}
 	for _, key := range routingKeys {
 		if existingEntry, ok := table.entries[key]; ok {
@@ -239,7 +242,7 @@ func (table *routingTable) AddEndpoint(actualLRP *models.ActualLRPGroup) event.R
 	logger.Debug("starting")
 	defer logger.Debug("completed")
 
-	endpoints, _ := endpoint.NewEndpointsFromActual(actualLRP)
+	endpoints := endpoint.NewEndpointsFromActual(actualLRP)
 
 	routingEvents := event.RoutingEvents{}
 
@@ -277,7 +280,7 @@ func (table *routingTable) RemoveEndpoint(actualLRP *models.ActualLRPGroup) even
 	logger.Debug("starting")
 	defer logger.Debug("completed")
 
-	endpoints, _ := endpoint.NewEndpointsFromActual(actualLRP)
+	endpoints := endpoint.NewEndpointsFromActual(actualLRP)
 
 	routingEvents := event.RoutingEvents{}
 

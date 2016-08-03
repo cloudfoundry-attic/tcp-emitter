@@ -1,8 +1,6 @@
 package endpoint
 
 import (
-	"errors"
-
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/pivotal-golang/lager"
 )
@@ -82,13 +80,9 @@ func (entry RoutableEndpoints) Copy() RoutableEndpoints {
 	return clone
 }
 
-func NewEndpointsFromActual(actualGrp *models.ActualLRPGroup) (map[uint32]Endpoint, error) {
+func NewEndpointsFromActual(actualGrp *models.ActualLRPGroup) map[uint32]Endpoint {
 	endpoints := map[uint32]Endpoint{}
 	actual, evacuating := actualGrp.Resolve()
-
-	if len(actual.Ports) == 0 {
-		return endpoints, errors.New("missing ports")
-	}
 
 	for _, portMapping := range actual.Ports {
 		endpoint := NewEndpoint(
@@ -101,7 +95,7 @@ func NewEndpointsFromActual(actualGrp *models.ActualLRPGroup) (map[uint32]Endpoi
 		endpoints[portMapping.ContainerPort] = endpoint
 	}
 
-	return endpoints, nil
+	return endpoints
 }
 
 func NewRoutingKeysFromActual(actualGrp *models.ActualLRPGroup) RoutingKeys {

@@ -14,7 +14,7 @@ var _ = Describe("LRP Utils", func() {
 		Context("when actual is not evacuating", func() {
 			It("builds a map of container port to endpoint", func() {
 				tag := models.ModificationTag{Epoch: "abc", Index: 0}
-				endpoints, err := endpoint.NewEndpointsFromActual(&models.ActualLRPGroup{
+				endpoints := endpoint.NewEndpointsFromActual(&models.ActualLRPGroup{
 					Instance: &models.ActualLRP{
 						ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
 						ActualLRPInstanceKey: models.NewActualLRPInstanceKey("instance-guid", "cell-id"),
@@ -28,7 +28,6 @@ var _ = Describe("LRP Utils", func() {
 					},
 					Evacuating: nil,
 				})
-				Expect(err).NotTo(HaveOccurred())
 
 				Expect(endpoints).To(ConsistOf([]endpoint.Endpoint{
 					endpoint.NewEndpoint("instance-guid", false, "1.1.1.1", 11, 44, &tag),
@@ -40,7 +39,7 @@ var _ = Describe("LRP Utils", func() {
 		Context("when actual is evacuating", func() {
 			It("builds a map of container port to endpoint", func() {
 				tag := models.ModificationTag{Epoch: "abc", Index: 0}
-				endpoints, err := endpoint.NewEndpointsFromActual(&models.ActualLRPGroup{
+				endpoints := endpoint.NewEndpointsFromActual(&models.ActualLRPGroup{
 					Instance: nil,
 					Evacuating: &models.ActualLRP{
 						ActualLRPKey:         models.NewActualLRPKey("process-guid", 0, "domain"),
@@ -54,7 +53,6 @@ var _ = Describe("LRP Utils", func() {
 						ModificationTag: tag,
 					},
 				})
-				Expect(err).NotTo(HaveOccurred())
 
 				Expect(endpoints).To(ConsistOf([]endpoint.Endpoint{
 					endpoint.NewEndpoint("instance-guid", true, "1.1.1.1", 11, 44, &tag),
