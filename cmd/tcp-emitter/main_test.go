@@ -321,7 +321,11 @@ var _ = Describe("TCP Emitter", func() {
 			defer close(done)
 			Eventually(eventsEndpointRequests, 5*time.Second).Should(BeNumerically(">=", 1))
 
-			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("subscribed-to-bbs-event"))
+			// Do not use Say matcher as ordering of 'subscribed-to-bbs-event' log message
+			// is not defined in relation to the 'tcp-emitter.started' message
+			Eventually(func() []byte {
+				return session.Out.Contents()
+			}, 5*time.Second).Should(ContainSubstring("subscribed-to-bbs-event"))
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("syncer.syncing"))
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("unable-to-upsert.*connection refused"))
 			Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("successfully-emitted-event"))
