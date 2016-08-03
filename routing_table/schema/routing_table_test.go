@@ -1056,11 +1056,27 @@ var _ = Describe("RoutingTable", func() {
 					Expect(routingEvent.Entry).Should(Equal(expectedEntry))
 					Expect(routingTable.RouteCount()).Should(Equal(0))
 				})
+
+				Context("when there are no external endpoints", func() {
+					BeforeEach(func() {
+						routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
+							key: endpoint.NewRoutableEndpoints(endpoint.ExternalEndpointInfos{}, endpoints, logGuid, modificationTag),
+						})
+						Expect(routingTable.RouteCount()).Should(Equal(1))
+					})
+
+					It("does not emit any routing events", func() {
+						newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 2}
+						desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcp_routes.TCPRoutes{}, newModificationTag)
+						desiredLRP.Ports = []uint32{5222}
+						routingEvents := routingTable.RemoveRoutes(desiredLRP)
+						Expect(routingEvents).To(HaveLen(0))
+					})
+				})
 			})
 		})
 
 		Describe("AddEndpoint", func() {
-
 			Context("with no existing endpoints", func() {
 				BeforeEach(func() {
 					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{
@@ -1157,12 +1173,10 @@ var _ = Describe("RoutingTable", func() {
 						})
 					})
 				})
-
 			})
 		})
 
 		Describe("RemoveEndpoint", func() {
-
 			Context("with no existing endpoints", func() {
 				BeforeEach(func() {
 					routingTable = schema.NewTable(logger, map[endpoint.RoutingKey]endpoint.RoutableEndpoints{

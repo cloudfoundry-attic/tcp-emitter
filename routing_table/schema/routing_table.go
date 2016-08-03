@@ -180,7 +180,7 @@ func (table *routingTable) removeRoutingKeys(
 			if !existingModificationTag.SucceededBy(modificationTag) {
 				continue
 			}
-			if len(existingEntry.Endpoints) > 0 {
+			if len(existingEntry.Endpoints) > 0 && len(existingEntry.ExternalEndpoints) > 0 {
 				routingEvents = append(routingEvents, event.RoutingEvent{
 					EventType: event.RouteUnregistrationEvent,
 					Key:       key,
