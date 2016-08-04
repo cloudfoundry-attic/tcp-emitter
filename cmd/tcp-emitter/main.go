@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"code.cloudfoundry.org/routing-api"
 	"code.cloudfoundry.org/tcp-emitter/config"
 	"code.cloudfoundry.org/tcp-emitter/emitter"
 	"code.cloudfoundry.org/tcp-emitter/routing_table"
@@ -22,7 +23,6 @@ import (
 	"github.com/cloudfoundry-incubator/cf_http"
 	"github.com/cloudfoundry-incubator/consuladapter"
 	"github.com/cloudfoundry-incubator/locket"
-	"github.com/cloudfoundry-incubator/routing-api"
 	"github.com/cloudfoundry/dropsonde"
 	"github.com/nu7hatch/gouuid"
 	"github.com/pivotal-golang/clock"

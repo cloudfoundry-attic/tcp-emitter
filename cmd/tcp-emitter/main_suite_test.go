@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"code.cloudfoundry.org/routing-api"
+	routingtestrunner "code.cloudfoundry.org/routing-api/cmd/routing-api/testrunner"
 	"code.cloudfoundry.org/tcp-emitter/cmd/tcp-emitter/testrunner"
 	"github.com/cloudfoundry-incubator/consuladapter/consulrunner"
-	"github.com/cloudfoundry-incubator/routing-api"
-	routingtestrunner "github.com/cloudfoundry-incubator/routing-api/cmd/routing-api/testrunner"
 	"github.com/cloudfoundry/storeadapter"
 	"github.com/cloudfoundry/storeadapter/storerunner/etcdstorerunner"
 	. "github.com/onsi/ginkgo"
@@ -62,7 +62,7 @@ func TestTcpEmitter(t *testing.T) {
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
-	routingAPIBin, err := gexec.Build("github.com/cloudfoundry-incubator/routing-api/cmd/routing-api", "-race")
+	routingAPIBin, err := gexec.Build("code.cloudfoundry.org/routing-api/cmd/routing-api", "-race")
 	Expect(err).NotTo(HaveOccurred())
 
 	tcpEmitterBin, err := gexec.Build("code.cloudfoundry.org/tcp-emitter/cmd/tcp-emitter", "-race")

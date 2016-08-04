@@ -3,14 +3,14 @@ package emitter_test
 import (
 	"errors"
 
+	"code.cloudfoundry.org/routing-api/fake_routing_api"
+	apimodels "code.cloudfoundry.org/routing-api/models"
 	emitterpkg "code.cloudfoundry.org/tcp-emitter/emitter"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 	testUaaClient "code.cloudfoundry.org/uaa-go-client/fakes"
 	uaa "code.cloudfoundry.org/uaa-go-client/schema"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/routing-api/fake_routing_api"
-	apimodels "github.com/cloudfoundry-incubator/routing-api/models"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
