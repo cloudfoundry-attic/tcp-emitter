@@ -3,8 +3,8 @@ package event
 import (
 	"errors"
 
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
 	"github.com/cloudfoundry-incubator/routing-api/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
 	"github.com/pivotal-golang/lager"
 )
 

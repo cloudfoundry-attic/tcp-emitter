@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"sync"
 
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/util"
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/util"
 	"github.com/pivotal-golang/lager"
 )
 

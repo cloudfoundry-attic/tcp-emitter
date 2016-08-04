@@ -4,12 +4,12 @@ import (
 	"errors"
 	"sync"
 
+	"code.cloudfoundry.org/tcp-emitter/emitter"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/util"
 	"github.com/cloudfoundry-incubator/bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/emitter"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/util"
 	"github.com/pivotal-golang/lager"
 )
 

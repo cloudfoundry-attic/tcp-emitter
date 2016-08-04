@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"code.cloudfoundry.org/tcp-emitter/cmd/tcp-emitter/testrunner"
 	"github.com/cloudfoundry-incubator/consuladapter/consulrunner"
 	"github.com/cloudfoundry-incubator/routing-api"
 	routingtestrunner "github.com/cloudfoundry-incubator/routing-api/cmd/routing-api/testrunner"
-	"github.com/cloudfoundry-incubator/tcp-emitter/cmd/tcp-emitter/testrunner"
 	"github.com/cloudfoundry/storeadapter"
 	"github.com/cloudfoundry/storeadapter/storerunner/etcdstorerunner"
 	. "github.com/onsi/ginkgo"
@@ -65,7 +65,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	routingAPIBin, err := gexec.Build("github.com/cloudfoundry-incubator/routing-api/cmd/routing-api", "-race")
 	Expect(err).NotTo(HaveOccurred())
 
-	tcpEmitterBin, err := gexec.Build("github.com/cloudfoundry-incubator/tcp-emitter/cmd/tcp-emitter", "-race")
+	tcpEmitterBin, err := gexec.Build("code.cloudfoundry.org/tcp-emitter/cmd/tcp-emitter", "-race")
 	Expect(err).NotTo(HaveOccurred())
 
 	payload, err := json.Marshal(map[string]string{
@@ -91,7 +91,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	etcdRunner.Start()
 
 	oauthServer = ghttp.NewUnstartedServer()
-	var basePath = path.Join(os.Getenv("GOPATH"), "src", "github.com", "cloudfoundry-incubator", "tcp-emitter", "fixtures", "certs")
+	basePath, err := filepath.Abs(path.Join("..", "..", "fixtures", "certs"))
+	Expect(err).ToNot(HaveOccurred())
 	cert, err := tls.LoadX509KeyPair(filepath.Join(basePath, "server.pem"), filepath.Join(basePath, "server.key"))
 	Expect(err).ToNot(HaveOccurred())
 
@@ -247,10 +248,11 @@ routing_api:
   uri: http://127.0.0.1
   port: %d
 `
-	caCertsPath := filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "cloudfoundry-incubator", "tcp-emitter", "fixtures", "certs", "uaa-ca.pem")
+	caCertsPath, err := filepath.Abs(filepath.Join("..", "..", "fixtures", "certs", "uaa-ca.pem"))
+	Expect(err).ToNot(HaveOccurred())
 	cfg := fmt.Sprintf(cfgString, caCertsPath, uaaPort, routingAPIPort)
 
-	err := writeToFile([]byte(cfg), configFile)
+	err = writeToFile([]byte(cfg), configFile)
 	Expect(err).ShouldNot(HaveOccurred())
 	Expect(fileExists(configFile)).To(BeTrue())
 	return configFile

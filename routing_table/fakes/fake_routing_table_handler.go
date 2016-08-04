@@ -4,8 +4,8 @@ package fakes
 import (
 	"sync"
 
+	"code.cloudfoundry.org/tcp-emitter/routing_table"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
 )
 
 type FakeRoutingTableHandler struct {
@@ -14,13 +14,13 @@ type FakeRoutingTableHandler struct {
 	handleEventArgsForCall []struct {
 		event models.Event
 	}
-	SyncStub        func()
-	syncMutex       sync.RWMutex
-	syncArgsForCall []struct{}
+	SyncStub           func()
+	syncMutex          sync.RWMutex
+	syncArgsForCall    []struct{}
 	SyncingStub        func() bool
 	syncingMutex       sync.RWMutex
 	syncingArgsForCall []struct{}
-	syncingReturns struct {
+	syncingReturns     struct {
 		result1 bool
 	}
 }

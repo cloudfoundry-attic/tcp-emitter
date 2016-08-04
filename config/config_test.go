@@ -1,7 +1,7 @@
 package config_test
 
 import (
-	"github.com/cloudfoundry-incubator/tcp-emitter/config"
+	"code.cloudfoundry.org/tcp-emitter/config"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )

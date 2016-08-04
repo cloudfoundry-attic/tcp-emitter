@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 	"github.com/cloudfoundry-incubator/bbs/models"
 	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

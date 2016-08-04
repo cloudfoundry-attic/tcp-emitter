@@ -4,8 +4,8 @@ package fakes
 import (
 	"sync"
 
-	"github.com/cloudfoundry-incubator/tcp-emitter/emitter"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
+	"code.cloudfoundry.org/tcp-emitter/emitter"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 )
 
 type FakeEmitter struct {

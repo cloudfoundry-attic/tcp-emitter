@@ -16,10 +16,10 @@ import (
 	"github.com/tedsuo/ifrit"
 	"github.com/vito/go-sse/sse"
 
+	"code.cloudfoundry.org/tcp-emitter/cmd/tcp-emitter/testrunner"
 	"github.com/cloudfoundry-incubator/routing-api"
 	routingtestrunner "github.com/cloudfoundry-incubator/routing-api/cmd/routing-api/testrunner"
 	apimodels "github.com/cloudfoundry-incubator/routing-api/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/cmd/tcp-emitter/testrunner"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"

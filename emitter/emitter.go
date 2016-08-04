@@ -1,10 +1,10 @@
 package emitter
 
 import (
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 	"github.com/cloudfoundry-incubator/routing-api"
 	"github.com/cloudfoundry-incubator/routing-api/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/endpoint"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
 	uaaclient "github.com/cloudfoundry-incubator/uaa-go-client"
 	"github.com/pivotal-golang/lager"
 )

@@ -4,16 +4,16 @@ package fakes
 import (
 	"sync"
 
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema/event"
 )
 
 type FakeRoutingTable struct {
 	RouteCountStub        func() int
 	routeCountMutex       sync.RWMutex
 	routeCountArgsForCall []struct{}
-	routeCountReturns struct {
+	routeCountReturns     struct {
 		result1 int
 	}
 	AddRoutesStub        func(desiredLRP *models.DesiredLRP) event.RoutingEvents
@@ -68,7 +68,7 @@ type FakeRoutingTable struct {
 	GetRoutingEventsStub        func() event.RoutingEvents
 	getRoutingEventsMutex       sync.RWMutex
 	getRoutingEventsArgsForCall []struct{}
-	getRoutingEventsReturns struct {
+	getRoutingEventsReturns     struct {
 		result1 event.RoutingEvents
 	}
 }

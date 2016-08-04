@@ -4,11 +4,11 @@ import (
 	"os"
 	"sync/atomic"
 
+	"code.cloudfoundry.org/tcp-emitter/routing_table"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/schema"
 	"github.com/cloudfoundry-incubator/bbs"
 	"github.com/cloudfoundry-incubator/bbs/events"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table"
-	"github.com/cloudfoundry-incubator/tcp-emitter/routing_table/schema"
 	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 )
