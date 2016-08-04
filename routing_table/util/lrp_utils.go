@@ -1,9 +1,9 @@
 package util
 
 import (
+	"code.cloudfoundry.org/routing-info/cfroutes"
+	"code.cloudfoundry.org/routing-info/tcp_routes"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/routing-info/cfroutes"
-	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	"github.com/pivotal-golang/lager"
 )
 

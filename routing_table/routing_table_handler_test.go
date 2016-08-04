@@ -3,6 +3,7 @@ package routing_table_test
 import (
 	"errors"
 
+	"code.cloudfoundry.org/routing-info/tcp_routes"
 	emitterfakes "code.cloudfoundry.org/tcp-emitter/emitter/fakes"
 	"code.cloudfoundry.org/tcp-emitter/routing_table"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema"
@@ -11,7 +12,6 @@ import (
 	routingtablefakes "code.cloudfoundry.org/tcp-emitter/routing_table/schema/fakes"
 	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
 	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"

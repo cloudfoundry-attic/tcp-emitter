@@ -11,7 +11,7 @@ import (
 
 	"github.com/cloudfoundry-incubator/bbs/models"
 
-	"github.com/cloudfoundry-incubator/routing-info/tcp_routes"
+	"code.cloudfoundry.org/routing-info/tcp_routes"
 	"github.com/gogo/protobuf/proto"
 	"github.com/tedsuo/ifrit"
 	"github.com/vito/go-sse/sse"
