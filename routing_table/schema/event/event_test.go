@@ -1,9 +1,9 @@
 package event_test
 
 import (
+	"code.cloudfoundry.org/bbs/models"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
-	"github.com/cloudfoundry-incubator/bbs/models"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

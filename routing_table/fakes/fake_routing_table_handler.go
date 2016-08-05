@@ -4,8 +4,8 @@ package fakes
 import (
 	"sync"
 
+	"code.cloudfoundry.org/bbs/models"
 	"code.cloudfoundry.org/tcp-emitter/routing_table"
-	"github.com/cloudfoundry-incubator/bbs/models"
 )
 
 type FakeRoutingTableHandler struct {

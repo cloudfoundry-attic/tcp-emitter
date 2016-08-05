@@ -3,9 +3,9 @@ package event
 import (
 	"errors"
 
+	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/routing-api/models"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
-	"github.com/pivotal-golang/lager"
 )
 
 type RoutingEventType string

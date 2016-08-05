@@ -1,10 +1,10 @@
 package util
 
 import (
+	"code.cloudfoundry.org/bbs/models"
+	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/routing-info/cfroutes"
 	"code.cloudfoundry.org/routing-info/tcp_routes"
-	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/pivotal-golang/lager"
 )
 
 func DesiredLRPData(lrp *models.DesiredLRP) lager.Data {

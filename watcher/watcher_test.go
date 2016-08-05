@@ -5,14 +5,15 @@ import (
 	"os"
 	"time"
 
+	"code.cloudfoundry.org/bbs/events"
+	"code.cloudfoundry.org/bbs/events/eventfakes"
+	"code.cloudfoundry.org/bbs/fake_bbs"
+	"code.cloudfoundry.org/bbs/models"
+	"code.cloudfoundry.org/clock/fakeclock"
+	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/routing-info/tcp_routes"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/fakes"
 	"code.cloudfoundry.org/tcp-emitter/watcher"
-	"github.com/cloudfoundry-incubator/bbs/events"
-	"github.com/cloudfoundry-incubator/bbs/events/eventfakes"
-	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
-	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/pivotal-golang/clock/fakeclock"
 	"github.com/tedsuo/ifrit"
 
 	. "github.com/onsi/ginkgo"
@@ -246,7 +247,7 @@ var _ = Describe("Watcher", func() {
 		BeforeEach(func() {
 			bbsErrorChannel = make(chan error)
 
-			bbsClient.SubscribeToEventsStub = func() (events.EventSource, error) {
+			bbsClient.SubscribeToEventsStub = func(logger lager.Logger) (events.EventSource, error) {
 				select {
 				case err := <-bbsErrorChannel:
 					if err != nil {

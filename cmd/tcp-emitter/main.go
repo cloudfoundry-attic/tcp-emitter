@@ -8,6 +8,14 @@ import (
 	"os"
 	"time"
 
+	"code.cloudfoundry.org/bbs"
+	"code.cloudfoundry.org/cfhttp"
+	"code.cloudfoundry.org/cflager"
+	"code.cloudfoundry.org/clock"
+	"code.cloudfoundry.org/consuladapter"
+	"code.cloudfoundry.org/debugserver"
+	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/locket"
 	"code.cloudfoundry.org/routing-api"
 	"code.cloudfoundry.org/tcp-emitter/config"
 	"code.cloudfoundry.org/tcp-emitter/emitter"
@@ -17,16 +25,8 @@ import (
 	"code.cloudfoundry.org/tcp-emitter/watcher"
 	uaaclient "code.cloudfoundry.org/uaa-go-client"
 	uaaconfig "code.cloudfoundry.org/uaa-go-client/config"
-	"github.com/cloudfoundry-incubator/bbs"
-	"github.com/cloudfoundry-incubator/cf-debug-server"
-	"github.com/cloudfoundry-incubator/cf-lager"
-	"github.com/cloudfoundry-incubator/cf_http"
-	"github.com/cloudfoundry-incubator/consuladapter"
-	"github.com/cloudfoundry-incubator/locket"
 	"github.com/cloudfoundry/dropsonde"
 	"github.com/nu7hatch/gouuid"
-	"github.com/pivotal-golang/clock"
-	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/sigmon"
@@ -135,14 +135,26 @@ var dropsondePort = flag.Int(
 	"Port the local metron agent is listening on",
 )
 
+var bbsClientSessionCacheSize = flag.Int(
+	"bbsClientSessionCacheSize",
+	0,
+	"Capacity of the ClientSessionCache option on the TLS configuration. If zero, golang's default will be used",
+)
+
+var bbsMaxIdleConnsPerHost = flag.Int(
+	"bbsMaxIdleConnsPerHost",
+	0,
+	"Controls the maximum number of idle (keep-alive) connctions per host. If zero, golang's default will be used",
+)
+
 func main() {
-	cf_debug_server.AddFlags(flag.CommandLine)
-	cf_lager.AddFlags(flag.CommandLine)
+	debugserver.AddFlags(flag.CommandLine)
+	cflager.AddFlags(flag.CommandLine)
 	flag.Parse()
 
-	cf_http.Initialize(*communicationTimeout)
+	cfhttp.Initialize(*communicationTimeout)
 
-	logger, reconfigurableSink := cf_lager.New("tcp-emitter")
+	logger, reconfigurableSink := cflager.New("tcp-emitter")
 	logger.Info("starting")
 
 	clock := clock.NewClock()
@@ -162,7 +174,10 @@ func main() {
 	if bbsURL.Scheme == "http" {
 		bbsClient = bbs.NewClient(bbsURL.String())
 	} else if bbsURL.Scheme == "https" {
-		bbsClient, err = bbs.NewSecureClient(bbsURL.String(), *bbsCACert, *bbsClientCert, *bbsClientKey)
+		bbsClient, err = bbs.NewSecureClient(
+			bbsURL.String(), *bbsCACert, *bbsClientCert,
+			*bbsClientKey, *bbsClientSessionCacheSize, *bbsMaxIdleConnsPerHost,
+		)
 		if err != nil {
 			logger.Error("failed-to-configure-bbs-client", err)
 			os.Exit(1)
@@ -211,9 +226,9 @@ func main() {
 		{"syncer", syncRunner},
 	}
 
-	if dbgAddr := cf_debug_server.DebugAddress(flag.CommandLine); dbgAddr != "" {
+	if dbgAddr := debugserver.DebugAddress(flag.CommandLine); dbgAddr != "" {
 		members = append(grouper.Members{
-			{"debug-server", cf_debug_server.Runner(dbgAddr, reconfigurableSink)},
+			{"debug-server", debugserver.Runner(dbgAddr, reconfigurableSink)},
 		}, members...)
 	}
 
@@ -278,24 +293,21 @@ func initializeLockMaintainer(
 	lockTTL, lockRetryInterval time.Duration,
 	clock clock.Clock,
 ) ifrit.Runner {
-	client, err := consuladapter.NewClient(consulCluster)
+	client, err := consuladapter.NewClientFromUrl(consulCluster)
 	if err != nil {
 		logger.Fatal("new-client-failed", err)
 	}
-	sessionMgr := consuladapter.NewSessionManager(client)
-	consulSession, err := consuladapter.NewSession(sessionName, lockTTL, client, sessionMgr)
-	if err != nil {
-		logger.Fatal("consul-session-failed", err)
-	}
 
-	return newLockRunner(logger, consulSession, clock, lockRetryInterval)
+	return newLockRunner(logger, client, clock, lockRetryInterval, lockTTL)
 }
 
 func newLockRunner(
 	logger lager.Logger,
-	consulSession *consuladapter.Session,
+	consulClient consuladapter.Client,
 	clock clock.Clock,
-	lockRetryInterval time.Duration) ifrit.Runner {
+	lockRetryInterval time.Duration,
+	lockTTL time.Duration,
+) ifrit.Runner {
 	lockSchemaPath := locket.LockSchemaPath(tcpEmitterLockPath)
 
 	tcpEmitterUUID, err := uuid.NewV4()
@@ -304,6 +316,6 @@ func newLockRunner(
 	}
 	tcpEmitterID := []byte(tcpEmitterUUID.String())
 
-	return locket.NewLock(consulSession, lockSchemaPath,
-		tcpEmitterID, clock, lockRetryInterval, logger)
+	return locket.NewLock(logger, consulClient, lockSchemaPath,
+		tcpEmitterID, clock, lockRetryInterval, lockTTL)
 }

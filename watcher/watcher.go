@@ -4,13 +4,13 @@ import (
 	"os"
 	"sync/atomic"
 
+	"code.cloudfoundry.org/bbs"
+	"code.cloudfoundry.org/bbs/events"
+	"code.cloudfoundry.org/bbs/models"
+	"code.cloudfoundry.org/clock"
+	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/tcp-emitter/routing_table"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema"
-	"github.com/cloudfoundry-incubator/bbs"
-	"github.com/cloudfoundry-incubator/bbs/events"
-	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/pivotal-golang/clock"
-	"github.com/pivotal-golang/lager"
 )
 
 type Watcher struct {
@@ -61,7 +61,7 @@ func (watcher *Watcher) Run(signals <-chan os.Signal, ready chan<- struct{}) err
 			}
 
 			watcher.logger.Info("subscribing-to-bbs-events")
-			es, err = watcher.bbsClient.SubscribeToEvents()
+			es, err = watcher.bbsClient.SubscribeToEvents(watcher.logger)
 			if err != nil {
 				watcher.logger.Error("failed-subscribing-to-bbs-events", err)
 				continue

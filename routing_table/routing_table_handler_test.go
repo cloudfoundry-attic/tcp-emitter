@@ -3,6 +3,9 @@ package routing_table_test
 import (
 	"errors"
 
+	"code.cloudfoundry.org/bbs/fake_bbs"
+	"code.cloudfoundry.org/bbs/models"
+	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/routing-info/tcp_routes"
 	emitterfakes "code.cloudfoundry.org/tcp-emitter/emitter/fakes"
 	"code.cloudfoundry.org/tcp-emitter/routing_table"
@@ -10,8 +13,6 @@ import (
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 	routingtablefakes "code.cloudfoundry.org/tcp-emitter/routing_table/schema/fakes"
-	"github.com/cloudfoundry-incubator/bbs/fake_bbs"
-	"github.com/cloudfoundry-incubator/bbs/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -532,7 +533,7 @@ var _ = Describe("RoutingTableHandler", func() {
 			BeforeEach(func() {
 				syncChannel = make(chan struct{})
 				tmpSyncChannel := syncChannel
-				fakeBbsClient.DesiredLRPsStub = func(filter models.DesiredLRPFilter) ([]*models.DesiredLRP, error) {
+				fakeBbsClient.DesiredLRPsStub = func(logger lager.Logger, filter models.DesiredLRPFilter) ([]*models.DesiredLRP, error) {
 					select {
 					case <-tmpSyncChannel:
 						logger.Info("Desired LRPs complete")
@@ -695,7 +696,7 @@ var _ = Describe("RoutingTableHandler", func() {
 						}
 						syncChannel = make(chan struct{})
 						tmpSyncChannel := syncChannel
-						fakeBbsClient.DesiredLRPsStub = func(filter models.DesiredLRPFilter) ([]*models.DesiredLRP, error) {
+						fakeBbsClient.DesiredLRPsStub = func(logger lager.Logger, filter models.DesiredLRPFilter) ([]*models.DesiredLRP, error) {
 							select {
 							case <-tmpSyncChannel:
 								logger.Info("Desired LRPs complete")

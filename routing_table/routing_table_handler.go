@@ -4,13 +4,13 @@ import (
 	"errors"
 	"sync"
 
+	"code.cloudfoundry.org/bbs"
+	"code.cloudfoundry.org/bbs/models"
+	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/tcp-emitter/emitter"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/util"
-	"github.com/cloudfoundry-incubator/bbs"
-	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/pivotal-golang/lager"
 )
 
 //go:generate counterfeiter -o fakes/fake_routing_table_handler.go . RoutingTableHandler
@@ -91,7 +91,7 @@ func (handler *routingTableHandler) Sync() {
 		defer wg.Done()
 
 		logger.Debug("getting-actual-lrps")
-		actualLRPResponses, err := handler.bbsClient.ActualLRPGroups(models.ActualLRPFilter{})
+		actualLRPResponses, err := handler.bbsClient.ActualLRPGroups(logger, models.ActualLRPFilter{})
 		if err != nil {
 			logger.Error("failed-getting-actual-lrps", err)
 			getActualLRPsErr = err
@@ -113,7 +113,7 @@ func (handler *routingTableHandler) Sync() {
 		defer wg.Done()
 
 		logger.Debug("getting-desired-lrps")
-		desiredLRPResponses, err := handler.bbsClient.DesiredLRPs(models.DesiredLRPFilter{})
+		desiredLRPResponses, err := handler.bbsClient.DesiredLRPs(logger, models.DesiredLRPFilter{})
 		if err != nil {
 			logger.Error("failed-getting-desired-lrps", err)
 			getDesiredLRPsErr = err

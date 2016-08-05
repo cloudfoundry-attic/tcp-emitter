@@ -1,12 +1,12 @@
 package emitter
 
 import (
+	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/routing-api"
 	"code.cloudfoundry.org/routing-api/models"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 	uaaclient "code.cloudfoundry.org/uaa-go-client"
-	"github.com/pivotal-golang/lager"
 )
 
 //go:generate counterfeiter -o fakes/fake_emitter.go . Emitter

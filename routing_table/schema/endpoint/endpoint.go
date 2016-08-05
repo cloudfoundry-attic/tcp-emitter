@@ -1,8 +1,8 @@
 package endpoint
 
 import (
-	"github.com/cloudfoundry-incubator/bbs/models"
-	"github.com/pivotal-golang/lager"
+	"code.cloudfoundry.org/bbs/models"
+	"code.cloudfoundry.org/lager"
 )
 
 type EndpointKey struct {

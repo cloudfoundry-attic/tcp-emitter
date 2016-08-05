@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudfoundry-incubator/bbs/models"
+	"code.cloudfoundry.org/bbs/models"
 
 	"code.cloudfoundry.org/routing-info/tcp_routes"
 	"github.com/gogo/protobuf/proto"
@@ -85,7 +85,7 @@ var _ = Describe("TCP Emitter", func() {
 				w.WriteHeader(http.StatusOK)
 				w.Write(data)
 			})
-		server.RouteToHandler("POST", "/v1/desired_lrps/list",
+		server.RouteToHandler("POST", "/v1/desired_lrps/list.r1",
 			func(w http.ResponseWriter, req *http.Request) {
 				desiredLRP1 := getDesiredLRP("some-guid", "log-guid", routerGroupGuid, 5222, 5222, 1)
 				desiredLRPs := []*models.DesiredLRP{
@@ -432,7 +432,8 @@ var _ = Describe("TCP Emitter", func() {
 				Describe("the second emitter", func() {
 					It("becomes active", func(done Done) {
 						defer close(done)
-						Eventually(session2.Out, 5*time.Second).Should(gbytes.Say("tcp-emitter.started"))
+						// By default consul client will wait up to 15 seconds to acquire a lock
+						Eventually(session2.Out, 15*time.Second).Should(gbytes.Say("tcp-emitter.started"))
 
 						By("the second emitter could receive events")
 
