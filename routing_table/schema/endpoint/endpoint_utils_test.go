@@ -124,10 +124,14 @@ var _ = Describe("LRP Utils", func() {
 
 		Context("when the desired LRP does not define any container ports", func() {
 			It("returns no keys", func() {
+				routes := tcp_routes.TCPRoutes{
+					{ExternalPort: 61000, ContainerPort: 8080},
+				}
+
 				desired := &models.DesiredLRP{
 					Domain:      "tests",
 					ProcessGuid: "process-guid",
-					Routes:      []tcp_routes.TCPRoute{{ExternalPort: 61000, ContainerPort: 8080}}.RoutingInfo(),
+					Routes:      routes.RoutingInfo(),
 					LogGuid:     "abc-guid",
 				}
 
