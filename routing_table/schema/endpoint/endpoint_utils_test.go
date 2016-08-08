@@ -127,7 +127,7 @@ var _ = Describe("LRP Utils", func() {
 				desired := &models.DesiredLRP{
 					Domain:      "tests",
 					ProcessGuid: "process-guid",
-					Routes:      tcp_routes.TCPRoutes{{ExternalPort: 61000, ContainerPort: 8080}}.RoutingInfo(),
+					Routes:      []tcp_routes.TCPRoute{{ExternalPort: 61000, ContainerPort: 8080}}.RoutingInfo(),
 					LogGuid:     "abc-guid",
 				}
 
