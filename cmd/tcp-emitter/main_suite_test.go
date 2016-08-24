@@ -34,13 +34,12 @@ var (
 	etcdRunner  *etcdstorerunner.ETCDClusterRunner
 	etcdAdapter storeadapter.StoreAdapter
 
-	routingAPIBinPath      string
-	routingAPIAddress      string
-	routingAPIArgs         routingtestrunner.Args
-	routingAPIPort         uint16
-	routingAPIIP           string
-	routingAPISystemDomain string
-	routingApiClient       routing_api.Client
+	routingAPIBinPath string
+	routingAPIAddress string
+	routingAPIArgs    routingtestrunner.Args
+	routingAPIPort    uint16
+	routingAPIIP      string
+	routingApiClient  routing_api.Client
 
 	oauthServer     *ghttp.Server
 	oauthServerPort string
@@ -144,16 +143,13 @@ var _ = BeforeEach(func() {
 
 	routingAPIPort = uint16(6900 + GinkgoParallelNode())
 	routingAPIIP = "127.0.0.1"
-	routingAPISystemDomain = "example.com"
 	routingAPIAddress = fmt.Sprintf("http://%s:%d", routingAPIIP, routingAPIPort)
 
 	routingAPIArgs = routingtestrunner.Args{
-		Port:         routingAPIPort,
-		IP:           routingAPIIP,
-		SystemDomain: routingAPISystemDomain,
-		ConfigPath:   createRoutingApiConfig(),
-		EtcdCluster:  etcdUrl,
-		DevMode:      true,
+		Port:       routingAPIPort,
+		IP:         routingAPIIP,
+		ConfigPath: createRoutingApiConfig(etcdUrl),
+		DevMode:    true,
 	}
 
 	routingApiClient = routing_api.NewClient(routingAPIAddress, false)
@@ -190,13 +186,11 @@ func getServerPort(url string) string {
 	return endpoints[2]
 }
 
-func createRoutingApiConfig() string {
+func createRoutingApiConfig(etcdUrl string) string {
 	randomConfigFileName := fmt.Sprintf("example_%d.yml", GinkgoParallelNode())
 	configFilePath := path.Join(os.TempDir(), randomConfigFileName)
 
-	err := writeToFile(
-		[]byte(
-			`log_guid: "my_logs"
+	configStr := `log_guid: "my_logs"
 uaa_verification_key: "-----BEGIN PUBLIC KEY-----
 
       MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDHFr+KICms+tuT1OXJwhCUmR2d
@@ -216,12 +210,17 @@ metron_config:
 metrics_reporting_interval: "500ms"
 statsd_endpoint: "localhost:8125"
 statsd_client_flush_interval: "10ms"
+system_domain: "example.com"
 router_groups:
 - name: "default-tcp"
   type: "tcp"
   reservable_ports: "1024-65535"
-`),
-		configFilePath)
+etcd:
+  node_urls: ["%s"]`
+
+	configBytes := []byte(fmt.Sprintf(configStr, etcdUrl))
+	err := writeToFile(configBytes, configFilePath)
+
 	Expect(err).ShouldNot(HaveOccurred())
 	Expect(fileExists(configFilePath)).To(BeTrue())
 
