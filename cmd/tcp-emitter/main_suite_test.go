@@ -60,6 +60,13 @@ func TestTcpEmitter(t *testing.T) {
 	RunSpecs(t, "TcpEmitter Suite")
 }
 
+func setupRoutingApi() {
+	etcdPort = 4001 + GinkgoParallelNode()
+	etcdUrl = fmt.Sprintf("http://127.0.0.1:%d", etcdPort)
+	etcdRunner = etcdstorerunner.NewETCDClusterRunner(etcdPort, 1, nil)
+	etcdRunner.Start()
+}
+
 var _ = SynchronizedBeforeSuite(func() []byte {
 	routingAPIBin, err := gexec.Build("code.cloudfoundry.org/routing-api/cmd/routing-api", "-race")
 	Expect(err).NotTo(HaveOccurred())
@@ -84,10 +91,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	routingAPIBinPath = context["routing-api"]
 	tcpEmitterBinPath = context["tcp-emitter"]
 
-	etcdPort = 4001 + GinkgoParallelNode()
-	etcdUrl = fmt.Sprintf("http://127.0.0.1:%d", etcdPort)
-	etcdRunner = etcdstorerunner.NewETCDClusterRunner(etcdPort, 1, nil)
-	etcdRunner.Start()
+	setupRoutingApi()
 
 	oauthServer = ghttp.NewUnstartedServer()
 	basePath, err := filepath.Abs(path.Join("..", "..", "fixtures", "certs"))
@@ -148,7 +152,7 @@ var _ = BeforeEach(func() {
 	routingAPIArgs = routingtestrunner.Args{
 		Port:       routingAPIPort,
 		IP:         routingAPIIP,
-		ConfigPath: createRoutingApiConfig(etcdUrl),
+		ConfigPath: createRoutingApiConfig(etcdUrl, consulRunner.URL()),
 		DevMode:    true,
 	}
 
@@ -186,7 +190,7 @@ func getServerPort(url string) string {
 	return endpoints[2]
 }
 
-func createRoutingApiConfig(etcdUrl string) string {
+func createRoutingApiConfig(etcdUrl string, consulUrl string) string {
 	randomConfigFileName := fmt.Sprintf("example_%d.yml", GinkgoParallelNode())
 	configFilePath := path.Join(os.TempDir(), randomConfigFileName)
 
@@ -216,9 +220,11 @@ router_groups:
   type: "tcp"
   reservable_ports: "1024-65535"
 etcd:
-  node_urls: ["%s"]`
+  node_urls: ["%s"]
+consul_cluster:
+  servers: "%s"`
 
-	configBytes := []byte(fmt.Sprintf(configStr, etcdUrl))
+	configBytes := []byte(fmt.Sprintf(configStr, etcdUrl, consulUrl))
 	err := writeToFile(configBytes, configFilePath)
 
 	Expect(err).ShouldNot(HaveOccurred())
