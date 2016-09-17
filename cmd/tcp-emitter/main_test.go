@@ -152,8 +152,8 @@ var _ = Describe("TCP Emitter", func() {
 		routingApiServer := routingtestrunner.New(path, args)
 		process := ifrit.Invoke(routingApiServer)
 		routerGroupGuid := getRouterGroupGuid(args.Port)
-		expectedTcpRouteMapping.TcpRoute.RouterGroupGuid = routerGroupGuid
-		notExpectedTcpRouteMapping.TcpRoute.RouterGroupGuid = routerGroupGuid
+		expectedTcpRouteMapping.RouterGroupGuid = routerGroupGuid
+		notExpectedTcpRouteMapping.RouterGroupGuid = routerGroupGuid
 		return process, routerGroupGuid
 	}
 
