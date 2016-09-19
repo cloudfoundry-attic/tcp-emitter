@@ -17,8 +17,6 @@ import (
 	"code.cloudfoundry.org/routing-api"
 	routingtestrunner "code.cloudfoundry.org/routing-api/cmd/routing-api/testrunner"
 	"code.cloudfoundry.org/tcp-emitter/cmd/tcp-emitter/testrunner"
-	"github.com/cloudfoundry/storeadapter"
-	"github.com/cloudfoundry/storeadapter/storerunner/etcdstorerunner"
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
 	. "github.com/onsi/gomega"
@@ -29,11 +27,6 @@ import (
 )
 
 var (
-	etcdPort    int
-	etcdUrl     string
-	etcdRunner  *etcdstorerunner.ETCDClusterRunner
-	etcdAdapter storeadapter.StoreAdapter
-
 	routingAPIBinPath string
 	routingAPIAddress string
 	routingAPIArgs    routingtestrunner.Args
@@ -43,6 +36,9 @@ var (
 
 	oauthServer     *ghttp.Server
 	oauthServerPort string
+
+	dbAllocator routingtestrunner.DbAllocator
+	dbId        string
 
 	bbsServer *ghttp.Server
 	bbsPort   string
@@ -60,11 +56,12 @@ func TestTcpEmitter(t *testing.T) {
 	RunSpecs(t, "TcpEmitter Suite")
 }
 
-func setupRoutingApi() {
-	etcdPort = 4001 + GinkgoParallelNode()
-	etcdUrl = fmt.Sprintf("http://127.0.0.1:%d", etcdPort)
-	etcdRunner = etcdstorerunner.NewETCDClusterRunner(etcdPort, 1, nil)
-	etcdRunner.Start()
+func setupDB() {
+	dbAllocator = routingtestrunner.NewDbAllocator(4001 + GinkgoParallelNode())
+
+	var err error
+	dbId, err = dbAllocator.Create()
+	Expect(err).NotTo(HaveOccurred())
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -91,7 +88,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	routingAPIBinPath = context["routing-api"]
 	tcpEmitterBinPath = context["tcp-emitter"]
 
-	setupRoutingApi()
+	setupDB()
 
 	oauthServer = ghttp.NewUnstartedServer()
 	basePath, err := filepath.Abs(path.Join("..", "..", "fixtures", "certs"))
@@ -139,6 +136,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = BeforeEach(func() {
+	var err error
 	bbsServer = ghttp.NewServer()
 	bbsServer.AllowUnhandledRequests = true
 	bbsServer.UnhandledRequestStatusCode = http.StatusOK
@@ -149,12 +147,12 @@ var _ = BeforeEach(func() {
 	routingAPIIP = "127.0.0.1"
 	routingAPIAddress = fmt.Sprintf("http://%s:%d", routingAPIIP, routingAPIPort)
 
-	routingAPIArgs = routingtestrunner.Args{
-		Port:       routingAPIPort,
-		IP:         routingAPIIP,
-		ConfigPath: createRoutingApiConfig(etcdUrl, consulRunner.URL()),
-		DevMode:    true,
-	}
+	routingAPIArgs, err = routingtestrunner.NewRoutingAPIArgs(
+		routingAPIIP,
+		routingAPIPort,
+		dbId,
+		consulRunner.URL())
+	Expect(err).NotTo(HaveOccurred())
 
 	routingApiClient = routing_api.NewClient(routingAPIAddress, false)
 
@@ -175,10 +173,11 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 	bbsServer.Close()
 	consulRunner.Stop()
+	Expect(dbAllocator.Reset()).NotTo(HaveOccurred())
 })
 
 var _ = SynchronizedAfterSuite(func() {
-	etcdRunner.Stop()
+	Expect(dbAllocator.Delete()).NotTo(HaveOccurred())
 	oauthServer.Close()
 }, func() {
 	gexec.CleanupBuildArtifacts()
@@ -188,49 +187,6 @@ func getServerPort(url string) string {
 	endpoints := strings.Split(url, ":")
 	Expect(endpoints).To(HaveLen(3))
 	return endpoints[2]
-}
-
-func createRoutingApiConfig(etcdUrl string, consulUrl string) string {
-	randomConfigFileName := fmt.Sprintf("example_%d.yml", GinkgoParallelNode())
-	configFilePath := path.Join(os.TempDir(), randomConfigFileName)
-
-	configStr := `log_guid: "my_logs"
-uaa_verification_key: "-----BEGIN PUBLIC KEY-----
-
-      MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDHFr+KICms+tuT1OXJwhCUmR2d
-
-      KVy7psa8xzElSyzqx7oJyfJ1JZyOzToj9T5SfTIq396agbHJWVfYphNahvZ/7uMX
-
-      qHxf+ZH9BL1gk9Y6kCnbM5R60gfwjyW1/dQPjOzn9N394zd2FJoFHwdq9Qs0wBug
-
-      spULZVNRxq7veq/fzwIDAQAB
-
-      -----END PUBLIC KEY-----"
-
-debug_address: "1.2.3.4:1234"
-metron_config:
-  address: "1.2.3.4"
-  port: "4567"
-metrics_reporting_interval: "500ms"
-statsd_endpoint: "localhost:8125"
-statsd_client_flush_interval: "10ms"
-system_domain: "example.com"
-router_groups:
-- name: "default-tcp"
-  type: "tcp"
-  reservable_ports: "1024-65535"
-etcd:
-  node_urls: ["%s"]
-consul_cluster:
-  servers: "%s"`
-
-	configBytes := []byte(fmt.Sprintf(configStr, etcdUrl, consulUrl))
-	err := writeToFile(configBytes, configFilePath)
-
-	Expect(err).ShouldNot(HaveOccurred())
-	Expect(fileExists(configFilePath)).To(BeTrue())
-
-	return configFilePath
 }
 
 func createEmitterConfig(uaaPorts ...string) string {
