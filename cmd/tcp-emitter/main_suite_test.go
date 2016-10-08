@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
+	bbstestrunner "code.cloudfoundry.org/bbs/cmd/bbs/testrunner"
 	"code.cloudfoundry.org/consuladapter/consulrunner"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
@@ -22,6 +24,8 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
+	"github.com/tedsuo/ifrit"
+	"github.com/tedsuo/ifrit/ginkgomon"
 
 	"testing"
 )
@@ -33,9 +37,9 @@ var (
 	routingAPIPort    uint16
 	routingAPIIP      string
 	routingApiClient  routing_api.Client
-
-	oauthServer     *ghttp.Server
-	oauthServerPort string
+	bbsBinPath        string
+	oauthServer       *ghttp.Server
+	oauthServerPort   string
 
 	dbAllocator routingtestrunner.DbAllocator
 	dbId        string
@@ -45,10 +49,10 @@ var (
 
 	tcpEmitterBinPath string
 	tcpEmitterArgs    testrunner.Args
-
-	consulRunner *consulrunner.ClusterRunner
-
-	logger lager.Logger
+	bbsArgs           bbstestrunner.Args
+	consulRunner      *consulrunner.ClusterRunner
+	bbsProcess        ifrit.Process
+	logger            lager.Logger
 )
 
 func TestTcpEmitter(t *testing.T) {
@@ -68,12 +72,16 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	routingAPIBin, err := gexec.Build("code.cloudfoundry.org/routing-api/cmd/routing-api", "-race")
 	Expect(err).NotTo(HaveOccurred())
 
+	bbs, err := gexec.Build("code.cloudfoundry.org/bbs/cmd/bbs", "-race")
+	Expect(err).NotTo(HaveOccurred())
+
 	tcpEmitterBin, err := gexec.Build("code.cloudfoundry.org/tcp-emitter/cmd/tcp-emitter", "-race")
 	Expect(err).NotTo(HaveOccurred())
 
 	payload, err := json.Marshal(map[string]string{
 		"routing-api": routingAPIBin,
 		"tcp-emitter": tcpEmitterBin,
+		"bbs":         bbs,
 	})
 
 	Expect(err).NotTo(HaveOccurred())
@@ -87,9 +95,45 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	routingAPIBinPath = context["routing-api"]
 	tcpEmitterBinPath = context["tcp-emitter"]
+	bbsBinPath = context["bbs"]
 
+	// mysql by def
 	setupDB()
+	//setup consul
+	consulRunner = consulrunner.NewClusterRunner(
+		9001+config.GinkgoConfig.ParallelNode*consulrunner.PortOffsetLength,
+		1,
+		"http",
+	)
+	consulRunner.Start()
+	consulRunner.WaitUntilReady()
+	// set up bbs
 
+	bbsPort := 13000 + GinkgoParallelNode()*2
+	healthPort := bbsPort + 1
+	bbsAddress := fmt.Sprintf("127.0.0.1:%d", bbsPort)
+	healthAddress := fmt.Sprintf("127.0.0.1:%d", healthPort)
+
+	bbsURL := &url.URL{
+		Scheme: "http",
+		Host:   bbsAddress,
+	}
+
+	bbsArgs = bbstestrunner.Args{
+		Address:           bbsAddress,
+		AdvertiseURL:      bbsURL.String(),
+		AuctioneerAddress: "some-address",
+		// EtcdCluster:       strings.Join(etcdRunner.NodeURLS(), ","),
+		ConsulCluster: consulRunner.ConsulCluster(),
+		HealthAddress: healthAddress,
+
+		EncryptionKeys:           []string{"label:key"},
+		ActiveKeyLabel:           "label",
+		DatabaseConnectionString: fmt.Sprintf("tcp(%s:%s)"),
+		DatabaseDriver:           "mysql",
+	}
+
+	// set up oauth
 	oauthServer = ghttp.NewUnstartedServer()
 	basePath, err := filepath.Abs(path.Join("..", "..", "fixtures", "certs"))
 	Expect(err).ToNot(HaveOccurred())
@@ -125,22 +169,21 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 			w.Write(jsonBytes)
 		})
 
-	consulRunner = consulrunner.NewClusterRunner(
-		9001+config.GinkgoConfig.ParallelNode*consulrunner.PortOffsetLength,
-		1,
-		"http",
-	)
-
 	logger.Info("started-oauth-server", lager.Data{"address": oauthServer.URL()})
 
 })
 
 var _ = BeforeEach(func() {
 	var err error
+	consulRunner.Reset()
+	consulRunner.WaitUntilReady()
 	bbsServer = ghttp.NewServer()
-	bbsServer.AllowUnhandledRequests = true
-	bbsServer.UnhandledRequestStatusCode = http.StatusOK
-	bbsPort = getServerPort(bbsServer.URL())
+	// bbsServer.AllowUnhandledRequests = true
+	// bbsServer.UnhandledRequestStatusCode = http.StatusOK
+	// bbsPort = getServerPort(bbsServer.URL())
+	bbsRunner := bbstestrunner.New(bbsBinPath, bbsArgs)
+	bbsProcess = ginkgomon.Invoke(bbsRunner)
+
 	logger.Info("started-bbs-server", lager.Data{"address": bbsServer.URL()})
 
 	routingAPIPort = uint16(6900 + GinkgoParallelNode())
@@ -157,22 +200,18 @@ var _ = BeforeEach(func() {
 	routingApiClient = routing_api.NewClient(routingAPIAddress, false)
 
 	tcpEmitterArgs = testrunner.Args{
-		BBSAddress:     bbsServer.URL(),
-		BBSClientCert:  createClientCert(),
-		BBSCACert:      createCACert(),
-		BBSClientKey:   createClientKey(),
+		BBSAddress:     bbsArgs.AdvertiseURL,
 		ConfigFilePath: createEmitterConfig(),
 		SyncInterval:   1 * time.Second,
 		ConsulCluster:  consulRunner.ConsulCluster(),
 	}
 
-	consulRunner.Start()
-	consulRunner.WaitUntilReady()
 })
 
 var _ = AfterEach(func() {
 	bbsServer.Close()
 	consulRunner.Stop()
+	ginkgomon.Kill(bbsProcess)
 	Expect(dbAllocator.Reset()).NotTo(HaveOccurred())
 })
 
