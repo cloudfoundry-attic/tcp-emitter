@@ -53,7 +53,7 @@ var communicationTimeout = flag.Duration(
 
 var syncInterval = flag.Duration(
 	"syncInterval",
-	time.Minute,
+	20*time.Second,
 	"The interval between syncs of the routing table from bbs.",
 )
 
