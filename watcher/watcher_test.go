@@ -15,6 +15,7 @@ import (
 	"code.cloudfoundry.org/tcp-emitter/routing_table/fakes"
 	"code.cloudfoundry.org/tcp-emitter/watcher"
 	"github.com/tedsuo/ifrit"
+	"github.com/vito/go-sse/sse"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -228,15 +229,44 @@ var _ = Describe("Watcher", func() {
 		})
 	})
 
+	Context("when an unrecognized event is received", func() {
+		var (
+			fakeRawEventSource *eventfakes.FakeRawEventSource
+		)
+		BeforeEach(func() {
+			fakeRawEventSource = new(eventfakes.FakeRawEventSource)
+			fakeEventSource := events.NewEventSource(fakeRawEventSource)
+
+			bbsClient.SubscribeToEventsReturns(fakeEventSource, nil)
+			testWatcher = watcher.NewWatcher(bbsClient, clock, routingTableHandler, syncChannel, logger)
+		})
+
+		JustBeforeEach(func() {
+			fakeRawEventSource.NextReturns(
+				sse.Event{
+					ID:   "sup",
+					Name: "unrecognized-event-type",
+					Data: []byte{},
+				},
+				nil,
+			)
+		})
+
+		It("should not close the current connection", func() {
+			Consistently(fakeRawEventSource.CloseCallCount).Should(Equal(0))
+		})
+
+	})
+
 	Context("when eventSource returns error", func() {
 		JustBeforeEach(func() {
 			Eventually(bbsClient.SubscribeToEventsCallCount).Should(Equal(1))
-			errorChannel <- errors.New("buzinga...")
+			errorChannel <- events.ErrSourceClosed
 		})
 
 		It("resubscribes to SSE from bbs", func() {
 			Eventually(bbsClient.SubscribeToEventsCallCount, 5*time.Second, 300*time.Millisecond).Should(Equal(2))
-			Eventually(logger).Should(gbytes.Say("failed-getting-next-event"))
+			Eventually(logger).Should(gbytes.Say("event-source-closed"))
 		})
 	})
 

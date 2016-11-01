@@ -71,11 +71,17 @@ func (watcher *Watcher) Run(signals <-chan os.Signal, ready chan<- struct{}) err
 			eventSource.Store(es)
 
 			var event models.Event
+		EVENT_LOOP:
 			for {
 				event, err = es.Next()
 				if err != nil {
-					watcher.logger.Error("failed-getting-next-event", err)
-					break
+					switch err {
+					case events.ErrUnrecognizedEventType:
+						watcher.logger.Error("failed-getting-next-event", err)
+					case events.ErrSourceClosed:
+						watcher.logger.Error("event-source-closed", err)
+						break EVENT_LOOP
+					}
 				}
 
 				if event != nil {
