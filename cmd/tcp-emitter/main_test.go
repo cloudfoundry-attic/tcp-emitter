@@ -14,6 +14,7 @@ import (
 	"code.cloudfoundry.org/routing-info/tcp_routes"
 	"github.com/gogo/protobuf/proto"
 	"github.com/tedsuo/ifrit"
+	"github.com/tedsuo/ifrit/ginkgomon"
 	"github.com/vito/go-sse/sse"
 
 	"code.cloudfoundry.org/routing-api"
@@ -279,10 +280,7 @@ var _ = Describe("TCP Emitter", func() {
 			logger.Info("shutting-down")
 			session.Signal(os.Interrupt)
 			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
-			routingApiProcess.Signal(os.Interrupt)
-
-			waitChan := routingApiProcess.Wait()
-			Eventually(waitChan, 7*time.Second).Should(Receive())
+			ginkgomon.Interrupt(routingApiProcess, "10s")
 		})
 
 		It("starts an SSE connection to the bbs and emits events to routing api", func(done Done) {
