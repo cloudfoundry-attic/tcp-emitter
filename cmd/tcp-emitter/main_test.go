@@ -279,7 +279,7 @@ var _ = Describe("TCP Emitter", func() {
 			defer close(exitChannel)
 			logger.Info("shutting-down")
 			session.Signal(os.Interrupt)
-			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
+			Eventually(session.Exited, 10*time.Second).Should(BeClosed())
 			ginkgomon.Interrupt(routingApiProcess, "10s")
 		})
 
@@ -316,7 +316,7 @@ var _ = Describe("TCP Emitter", func() {
 			routingApiProcess.Signal(os.Interrupt)
 
 			waitChan := routingApiProcess.Wait()
-			Eventually(waitChan, 7*time.Second).Should(Receive())
+			Eventually(waitChan, 10*time.Second).Should(Receive())
 		})
 
 		It("starts an SSE connection to the bbs and continues to try to emit to routing api", func(done Done) {
@@ -397,7 +397,7 @@ var _ = Describe("TCP Emitter", func() {
 			routingApiProcess.Signal(os.Interrupt)
 
 			waitChan := routingApiProcess.Wait()
-			Eventually(waitChan, 7*time.Second).Should(Receive())
+			Eventually(waitChan, 10*time.Second).Should(Receive())
 		})
 
 		It("and the first emitter starts an SSE connection to the bbs and emits events to routing api", func(done Done) {
@@ -483,7 +483,7 @@ var _ = Describe("TCP Emitter", func() {
 			routingApiProcess.Signal(os.Interrupt)
 
 			waitChan := routingApiProcess.Wait()
-			Eventually(waitChan, 7*time.Second).Should(Receive())
+			Eventually(waitChan, 10*time.Second).Should(Receive())
 		})
 
 		It("does not call oauth server to get the auth token", func(done Done) {
