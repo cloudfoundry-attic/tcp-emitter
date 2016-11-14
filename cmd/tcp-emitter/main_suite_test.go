@@ -190,7 +190,7 @@ func getServerPort(url string) string {
 }
 
 func createEmitterConfig(uaaPorts ...string) string {
-	randomConfigFileName := fmt.Sprintf("router_configurer_%d.yml", GinkgoParallelNode())
+	randomConfigFileName := fmt.Sprintf("tcp_router_%d.yml", GinkgoParallelNode())
 	configFile := path.Join(os.TempDir(), randomConfigFileName)
 	uaaPort := oauthServerPort
 	if len(uaaPorts) > 0 {
@@ -220,7 +220,7 @@ routing_api:
 }
 
 func createEmitterConfigAuthDisabled() string {
-	randomConfigFileName := fmt.Sprintf("router_configurer_%d.yml", GinkgoParallelNode())
+	randomConfigFileName := fmt.Sprintf("tcp_router_%d.yml", GinkgoParallelNode())
 	configFile := path.Join(os.TempDir(), randomConfigFileName)
 
 	cfgString := `---
