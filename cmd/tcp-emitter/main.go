@@ -221,14 +221,14 @@ func main() {
 		*lockTTL, *lockRetryInterval, clock)
 
 	members := grouper.Members{
-		{"lock-maintainer", lockMaintainer},
-		{"watcher", watcher},
-		{"syncer", syncRunner},
+		grouper.Member{Name: "lock-maintainer", Runner: lockMaintainer},
+		grouper.Member{Name: "watcher", Runner: watcher},
+		grouper.Member{Name: "syncer", Runner: syncRunner},
 	}
 
 	if dbgAddr := debugserver.DebugAddress(flag.CommandLine); dbgAddr != "" {
 		members = append(grouper.Members{
-			{"debug-server", debugserver.Runner(dbgAddr, reconfigurableSink)},
+			grouper.Member{Name: "debug-server", Runner: debugserver.Runner(dbgAddr, reconfigurableSink)},
 		}, members...)
 	}
 
