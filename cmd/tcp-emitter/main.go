@@ -10,11 +10,11 @@ import (
 
 	"code.cloudfoundry.org/bbs"
 	"code.cloudfoundry.org/cfhttp"
-	"code.cloudfoundry.org/cflager"
 	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/consuladapter"
 	"code.cloudfoundry.org/debugserver"
 	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/lagerflags"
 	"code.cloudfoundry.org/locket"
 	"code.cloudfoundry.org/routing-api"
 	"code.cloudfoundry.org/tcp-emitter/config"
@@ -149,12 +149,12 @@ var bbsMaxIdleConnsPerHost = flag.Int(
 
 func main() {
 	debugserver.AddFlags(flag.CommandLine)
-	cflager.AddFlags(flag.CommandLine)
+	lagerflags.AddFlags(flag.CommandLine)
 	flag.Parse()
 
 	cfhttp.Initialize(*communicationTimeout)
 
-	logger, reconfigurableSink := cflager.New("tcp-emitter")
+	logger, reconfigurableSink := lagerflags.New("tcp-emitter")
 	logger.Info("starting")
 
 	clock := clock.NewClock()
