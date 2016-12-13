@@ -173,12 +173,18 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 	bbsServer.Close()
 	consulRunner.Stop()
-	Expect(dbAllocator.Reset()).NotTo(HaveOccurred())
+	if dbAllocator != nil {
+		Expect(dbAllocator.Reset()).NotTo(HaveOccurred())
+	}
 })
 
 var _ = SynchronizedAfterSuite(func() {
-	Expect(dbAllocator.Delete()).NotTo(HaveOccurred())
-	oauthServer.Close()
+	if dbAllocator != nil {
+		Expect(dbAllocator.Delete()).NotTo(HaveOccurred())
+	}
+	if oauthServer != nil {
+		oauthServer.Close()
+	}
 }, func() {
 	gexec.CleanupBuildArtifacts()
 })

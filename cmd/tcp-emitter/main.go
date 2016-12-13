@@ -89,7 +89,7 @@ var consulCluster = flag.String(
 
 var lockTTL = flag.Duration(
 	"lockTTL",
-	locket.LockTTL,
+	locket.DefaultSessionTTL,
 	"TTL for service lock",
 )
 
