@@ -135,6 +135,20 @@ var _ = Describe("TCP Emitter", func() {
 					}
 				}
 			})
+
+		server.RouteToHandler("POST", "/v1/ping",
+			func(w http.ResponseWriter, req *http.Request) {
+				response := &models.PingResponse{}
+				response.Available = true
+				responseBytes, err := proto.Marshal(response)
+				Expect(err).NotTo(HaveOccurred())
+
+				w.Header().Set("Content-Length", strconv.Itoa(len(responseBytes)))
+				w.Header().Set("Content-Type", "application/x-protobuf")
+				w.WriteHeader(http.StatusOK)
+
+				w.Write(responseBytes)
+			})
 	}
 
 	getRouterGroupGuid := func(port uint16) string {
@@ -209,37 +223,64 @@ var _ = Describe("TCP Emitter", func() {
 		notExpectedTcpRouteMapping = apimodels.NewTcpRouteMapping("", 1883, "some-ip-1", 62003, 120)
 	})
 
-	Context("when invalid bbs address is passed to tcp emitter", func() {
+	Context("when tcp emitter cannot connect to bbs", func() {
 		var (
 			session *gexec.Session
 		)
+		Context("when invalid bbs address is passed to tcp emitter", func() {
+			BeforeEach(func() {
+				invalidTcpEmitterArgs := testrunner.Args{
+					BBSAddress:     "127.0.0.1",
+					BBSClientCert:  "",
+					BBSCACert:      "",
+					BBSClientKey:   "",
+					ConfigFilePath: createEmitterConfig(),
+					SyncInterval:   1 * time.Second,
+					ConsulCluster:  consulRunner.ConsulCluster(),
+				}
+				session = setupTcpEmitter(tcpEmitterBinPath, invalidTcpEmitterArgs, false)
+			})
 
-		BeforeEach(func() {
-			invalidTcpEmitterArgs := testrunner.Args{
-				BBSAddress:     "127.0.0.1",
-				BBSClientCert:  "",
-				BBSCACert:      "",
-				BBSClientKey:   "",
-				ConfigFilePath: createEmitterConfig(),
-				SyncInterval:   1 * time.Second,
-				ConsulCluster:  consulRunner.ConsulCluster(),
-			}
-			session = setupTcpEmitter(tcpEmitterBinPath, invalidTcpEmitterArgs, false)
+			It("fails to come up", func(done Done) {
+				defer close(done)
+				Eventually(session.Exited, 5*time.Second).Should(BeClosed())
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("invalid-scheme-in-bbs-address"))
+			}, 60)
 		})
+		Context("when the bbs host address does not exist or is down", func() {
+			BeforeEach(func() {
+				invalidTcpEmitterArgs := testrunner.Args{
+					BBSAddress:     "http://127.0.1.1",
+					BBSClientCert:  "",
+					BBSCACert:      "",
+					BBSClientKey:   "",
+					ConfigFilePath: createEmitterConfig(),
+					SyncInterval:   1 * time.Second,
+					ConsulCluster:  consulRunner.ConsulCluster(),
+				}
+				session = setupTcpEmitter(tcpEmitterBinPath, invalidTcpEmitterArgs, false)
+			})
 
-		It("fails to come up", func(done Done) {
-			defer close(done)
-			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
-			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("invalid-scheme-in-bbs-address"))
-		}, 60)
+			It("fails to come up", func(done Done) {
+				defer close(done)
+				Eventually(session.Exited, 20*time.Second).Should(BeClosed())
+				Eventually(session.Out, 5*time.Second).Should(gbytes.Say("failed-to-connect-to-bbs"))
+			}, 60)
+		})
 	})
 
 	Context("when there is an error fetching token from uaa", func() {
 		var (
-			session *gexec.Session
+			routingApiProcess ifrit.Process
+			session           *gexec.Session
+			exitChannel       chan struct{}
+			routerGroupGuid   string
 		)
 
 		BeforeEach(func() {
+			exitChannel = make(chan struct{})
+			routingApiProcess, routerGroupGuid = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
+			setupBbsServer(bbsServer, true, exitChannel, routerGroupGuid)
 			tcpEmitterArgs := testrunner.Args{
 				BBSAddress:     bbsServer.URL(),
 				BBSClientCert:  "",
@@ -250,6 +291,11 @@ var _ = Describe("TCP Emitter", func() {
 				ConsulCluster:  consulRunner.ConsulCluster(),
 			}
 			session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, false)
+		})
+
+		AfterEach(func() {
+			defer close(exitChannel)
+			ginkgomon.Interrupt(routingApiProcess, "10s")
 		})
 
 		It("exits with error", func(done Done) {
@@ -339,38 +385,6 @@ var _ = Describe("TCP Emitter", func() {
 			Eventually(session.Out, 5*time.Second).Should(gbytes.Say("unable-to-upsert.*some-guid not found"))
 		}, 60)
 
-	})
-
-	Context("when bbs server is down but routing api is running", func() {
-		var (
-			routingApiProcess ifrit.Process
-			session           *gexec.Session
-		)
-
-		BeforeEach(func() {
-			routingApiProcess, _ = setupRoutingApiServer(routingAPIBinPath, routingAPIArgs)
-			logger.Info("started-routing-api-server")
-			bbsServer.Close()
-			session = setupTcpEmitter(tcpEmitterBinPath, tcpEmitterArgs, true)
-			logger.Info("started-tcp-emitter")
-		})
-
-		AfterEach(func() {
-			logger.Info("shutting-down")
-			session.Signal(os.Interrupt)
-			Eventually(session.Exited, 5*time.Second).Should(BeClosed())
-			routingApiProcess.Signal(os.Interrupt)
-
-			waitChan := routingApiProcess.Wait()
-			Eventually(waitChan, 7*time.Second).Should(Receive())
-		})
-
-		It("tries to start an SSE connection to the bbs and doesn't blow up", func(done Done) {
-			defer close(done)
-			Consistently(session.Out, 5*time.Second).ShouldNot(gbytes.Say("failed-subscribing-to-events"))
-			Consistently(session.Exited).ShouldNot(BeClosed())
-			bbsServer = ghttp.NewServer()
-		}, 60)
 	})
 
 	Context("when both bbs and routing api server are up and running", func() {

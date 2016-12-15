@@ -187,6 +187,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Check BBS connectivity
+	connected := bbsClient.Ping(logger)
+	if !connected {
+		logger.Error("failed-to-connect-to-bbs", nil)
+		os.Exit(1)
+	}
+
 	cfg, err := config.New(*configFile)
 	if err != nil {
 		logger.Error("failed-to-unmarshal-config-file", err)
