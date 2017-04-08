@@ -125,11 +125,11 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 			w.Write(jsonBytes)
 		})
 
-	consulRunner = consulrunner.NewClusterRunner(
-		9001+config.GinkgoConfig.ParallelNode*consulrunner.PortOffsetLength,
-		1,
-		"http",
-	)
+	consulRunner = consulrunner.NewClusterRunner(consulrunner.ClusterRunnerConfig{
+		StartingPort: 9001 + config.GinkgoConfig.ParallelNode*consulrunner.PortOffsetLength,
+		NumNodes:     1,
+		Scheme:       "http",
+	})
 
 	logger.Info("started-oauth-server", lager.Data{"address": oauthServer.URL()})
 

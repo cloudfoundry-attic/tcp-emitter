@@ -86,7 +86,7 @@ var _ = Describe("TCP Emitter", func() {
 				w.WriteHeader(http.StatusOK)
 				w.Write(data)
 			})
-		server.RouteToHandler("POST", "/v1/desired_lrps/list.r1",
+		server.RouteToHandler("POST", "/v1/desired_lrps/list.r2",
 			func(w http.ResponseWriter, req *http.Request) {
 				desiredLRP1 := getDesiredLRP("some-guid", "log-guid", routerGroupGuid, 5222, 5222, 1)
 				desiredLRPs := []*models.DesiredLRP{
