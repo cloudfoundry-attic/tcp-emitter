@@ -58,6 +58,7 @@ var _ = Describe("TCP Emitter", func() {
 				ActualLRPInstanceKey: models.NewActualLRPInstanceKey(instanceGuid, "cell-id-1"),
 				ActualLRPNetInfo: models.NewActualLRPNetInfo(
 					ipAddress,
+					"1.2.3.4",
 					models.NewPortMapping(62003, containerPort),
 				),
 				State: models.ActualLRPStateRunning,

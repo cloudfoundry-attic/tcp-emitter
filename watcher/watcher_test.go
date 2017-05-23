@@ -56,6 +56,7 @@ var _ = Describe("Watcher", func() {
 					ActualLRPInstanceKey: models.NewActualLRPInstanceKey(instanceGuid, "cell-id-1"),
 					ActualLRPNetInfo: models.NewActualLRPNetInfo(
 						hostAddress,
+						"1.2.3.4",
 						models.NewPortMapping(hostPort, containerPort),
 					),
 					State: models.ActualLRPStateRunning,
@@ -68,6 +69,7 @@ var _ = Describe("Watcher", func() {
 					ActualLRPInstanceKey: models.NewActualLRPInstanceKey(instanceGuid, "cell-id-1"),
 					ActualLRPNetInfo: models.NewActualLRPNetInfo(
 						hostAddress,
+						"1.2.3.4",
 						models.NewPortMapping(hostPort, containerPort),
 					),
 					State: models.ActualLRPStateRunning,
