@@ -81,7 +81,7 @@ func (handler *routingTableHandler) Sync() {
 
 	var runningActualLRPs []*models.ActualLRPGroup
 	var getActualLRPsErr error
-	var desiredLRPs []*models.DesiredLRP
+	var desiredLRPSchedulingInfos []*models.DesiredLRPSchedulingInfo
 	var getDesiredLRPsErr error
 
 	wg := sync.WaitGroup{}
@@ -113,7 +113,7 @@ func (handler *routingTableHandler) Sync() {
 		defer wg.Done()
 
 		logger.Debug("getting-desired-lrps")
-		desiredLRPResponses, err := handler.bbsClient.DesiredLRPs(logger, models.DesiredLRPFilter{})
+		desiredLRPResponses, err := handler.bbsClient.DesiredLRPSchedulingInfos(logger, models.DesiredLRPFilter{})
 		if err != nil {
 			logger.Error("failed-getting-desired-lrps", err)
 			getDesiredLRPsErr = err
@@ -121,9 +121,9 @@ func (handler *routingTableHandler) Sync() {
 		}
 		logger.Debug("succeeded-getting-desired-lrps", lager.Data{"num-desired-responses": len(desiredLRPResponses)})
 
-		desiredLRPs = make([]*models.DesiredLRP, 0, len(desiredLRPResponses))
+		desiredLRPSchedulingInfos = make([]*models.DesiredLRPSchedulingInfo, 0, len(desiredLRPResponses))
 		for _, desiredLRPResponse := range desiredLRPResponses {
-			desiredLRPs = append(desiredLRPs, desiredLRPResponse)
+			desiredLRPSchedulingInfos = append(desiredLRPSchedulingInfos, desiredLRPResponse)
 		}
 	}()
 
@@ -132,8 +132,8 @@ func (handler *routingTableHandler) Sync() {
 	if getActualLRPsErr == nil && getDesiredLRPsErr == nil {
 		tempRoutingTable = schema.NewTable(handler.logger, nil)
 		handler.logger.Debug("construct-routing-table")
-		for _, desireLrp := range desiredLRPs {
-			tempRoutingTable.AddRoutes(desireLrp)
+		for _, desireLrpSchedulingInfo := range desiredLRPSchedulingInfos {
+			tempRoutingTable.AddRoutes(desireLrpSchedulingInfo)
 		}
 
 		for _, actualLrp := range runningActualLRPs {
@@ -199,7 +199,7 @@ func (handler *routingTableHandler) handleDesiredCreate(desiredLRP *models.Desir
 	logger := handler.logger.Session("handle-desired-create", util.DesiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
-	routingEvents := handler.routingTable.AddRoutes(desiredLRP)
+	routingEvents := handler.routingTable.AddRoutes(util.DesiredLRPSchedulingInfo(desiredLRP))
 	handler.emit(routingEvents)
 }
 
@@ -211,7 +211,10 @@ func (handler *routingTableHandler) handleDesiredUpdate(before, after *models.De
 	logger.Debug("starting")
 	defer logger.Debug("complete")
 
-	routingEvents := handler.routingTable.UpdateRoutes(before, after)
+	routingEvents := handler.routingTable.UpdateRoutes(
+		util.DesiredLRPSchedulingInfo(before),
+		util.DesiredLRPSchedulingInfo(after),
+	)
 	handler.emit(routingEvents)
 }
 
@@ -219,7 +222,7 @@ func (handler *routingTableHandler) handleDesiredDelete(desiredLRP *models.Desir
 	logger := handler.logger.Session("handling-desired-delete", util.DesiredLRPData(desiredLRP))
 	logger.Debug("starting")
 	defer logger.Debug("complete")
-	routingEvents := handler.routingTable.RemoveRoutes(desiredLRP)
+	routingEvents := handler.routingTable.RemoveRoutes(util.DesiredLRPSchedulingInfo(desiredLRP))
 	handler.emit(routingEvents)
 }
 

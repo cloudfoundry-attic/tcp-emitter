@@ -19,6 +19,17 @@ func DesiredLRPData(lrp *models.DesiredLRP) lager.Data {
 	}
 }
 
+func DesiredLRPSchedulingInfoData(lrpInfo *models.DesiredLRPSchedulingInfo) lager.Data {
+	logRoutes := make(models.Routes)
+	logRoutes[cfroutes.CF_ROUTER] = (lrpInfo.Routes)[cfroutes.CF_ROUTER]
+	logRoutes[tcp_routes.TCP_ROUTER] = (lrpInfo.Routes)[tcp_routes.TCP_ROUTER]
+
+	return lager.Data{
+		"process-guid": lrpInfo.ProcessGuid,
+		"routes":       logRoutes,
+	}
+}
+
 func ActualLRPData(lrp *models.ActualLRP, evacuating bool) lager.Data {
 	return lager.Data{
 		"process-guid":  lrp.ProcessGuid,
@@ -30,5 +41,16 @@ func ActualLRPData(lrp *models.ActualLRP, evacuating bool) lager.Data {
 		"ports":         lrp.Ports,
 		"evacuating":    evacuating,
 		"state":         lrp.State,
+	}
+}
+
+func DesiredLRPSchedulingInfo(desiredLRP *models.DesiredLRP) *models.DesiredLRPSchedulingInfo {
+	return &models.DesiredLRPSchedulingInfo{
+		DesiredLRPKey: models.DesiredLRPKey{
+			ProcessGuid: desiredLRP.ProcessGuid,
+			LogGuid:     desiredLRP.LogGuid,
+		},
+		Routes:          *desiredLRP.Routes,
+		ModificationTag: *desiredLRP.ModificationTag,
 	}
 }

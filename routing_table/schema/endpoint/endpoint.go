@@ -3,6 +3,7 @@ package endpoint
 import (
 	"code.cloudfoundry.org/bbs/models"
 	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/routing-info/tcp_routes"
 )
 
 type EndpointKey struct {
@@ -108,10 +109,10 @@ func NewRoutingKeysFromActual(actualGrp *models.ActualLRPGroup) RoutingKeys {
 	return keys
 }
 
-func NewRoutingKeysFromDesired(desired *models.DesiredLRP) RoutingKeys {
+func NewRoutingKeysFromDesired(processGuid string, routes tcp_routes.TCPRoutes) RoutingKeys {
 	keys := RoutingKeys{}
-	for _, containerPort := range desired.Ports {
-		keys = append(keys, NewRoutingKey(desired.ProcessGuid, containerPort))
+	for _, route := range routes {
+		keys = append(keys, NewRoutingKey(processGuid, route.ContainerPort))
 	}
 
 	return keys

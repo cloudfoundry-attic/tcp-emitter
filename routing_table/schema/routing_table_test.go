@@ -28,15 +28,15 @@ func (t *testRoutingTable) RouteCount() int {
 	return 0
 }
 
-func (t *testRoutingTable) AddRoutes(desiredLRP *models.DesiredLRP) event.RoutingEvents {
+func (t *testRoutingTable) AddRoutes(desiredLRP *models.DesiredLRPSchedulingInfo) event.RoutingEvents {
 	return event.RoutingEvents{}
 }
 
-func (t *testRoutingTable) UpdateRoutes(before, after *models.DesiredLRP) event.RoutingEvents {
+func (t *testRoutingTable) UpdateRoutes(before, after *models.DesiredLRPSchedulingInfo) event.RoutingEvents {
 	return event.RoutingEvents{}
 }
 
-func (t *testRoutingTable) RemoveRoutes(desiredLRP *models.DesiredLRP) event.RoutingEvents {
+func (t *testRoutingTable) RemoveRoutes(desiredLRP *models.DesiredLRPSchedulingInfo) event.RoutingEvents {
 	return event.RoutingEvents{}
 }
 
@@ -88,6 +88,17 @@ var _ = Describe("RoutingTable", func() {
 		(*desiredLRP.Routes)["diego-ssh"] = &routingInfo
 
 		return &desiredLRP
+	}
+
+	getDesiredLRPSchedulingInfo := func(desiredLRP *models.DesiredLRP) *models.DesiredLRPSchedulingInfo {
+		return &models.DesiredLRPSchedulingInfo{
+			DesiredLRPKey: models.DesiredLRPKey{
+				ProcessGuid: desiredLRP.GetProcessGuid(),
+				LogGuid:     desiredLRP.GetLogGuid(),
+			},
+			Routes:          *desiredLRP.Routes,
+			ModificationTag: *desiredLRP.ModificationTag,
+		}
 	}
 
 	getActualLRP := func(processGuid, instanceGuid, hostAddress string,
@@ -144,20 +155,23 @@ var _ = Describe("RoutingTable", func() {
 		Describe("AddRoutes", func() {
 			It("emits nothing", func() {
 				desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-				routingEvents := routingTable.AddRoutes(desiredLRP)
+				desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+				routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 				Expect(routingEvents).To(HaveLen(0))
 			})
 
 			It("does not emit any sensitive information", func() {
 				desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-				routingEvents := routingTable.AddRoutes(desiredLRP)
+				desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+				routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
 				Expect(routingEvents).To(HaveLen(0))
 			})
 
 			It("logs required routing info", func() {
 				desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-				routingEvents := routingTable.AddRoutes(desiredLRP)
+				desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+				routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 				for i := 0; i < 3; i++ {
 					Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("process-guid.*process-guid-1"))
 					Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("routes.*tcp-router.*61000.*5222"))
@@ -168,28 +182,24 @@ var _ = Describe("RoutingTable", func() {
 		})
 
 		Describe("UpdateRoutes", func() {
-			It("emits nothing", func() {
-				beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-				newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}
-				afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newModificationTag)
-				routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
-				Expect(routingEvents).To(HaveLen(0))
-			})
-
 			It("does not log sensitive info", func() {
 				beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
+				beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
 				newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}
 				afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newModificationTag)
-				routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+				afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+				routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
 				Expect(routingEvents).To(HaveLen(0))
 			})
 
 			It("logs required routing info", func() {
 				beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
+				beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
 				newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 1}
 				afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newModificationTag)
-				routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+				afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+				routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 				for i := 0; i < 3; i++ {
 					Eventually(logger, DEFAULT_TIMEOUT).Should(gbytes.Say("after_lrp.*process-guid.*process-guid-1.*routes.*tcp-router.*external_port.*61000.*container_port.*5222"))
 				}
@@ -200,20 +210,23 @@ var _ = Describe("RoutingTable", func() {
 		Describe("RemoveRoutes", func() {
 			It("emits nothing", func() {
 				desiredLRP := getDesiredLRP("process-guid-10", "log-guid-10", tcpRoutes, modificationTag)
-				routingEvents := routingTable.RemoveRoutes(desiredLRP)
+				desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+				routingEvents := routingTable.RemoveRoutes(desiredLRPSchedulingInfo)
 				Expect(routingEvents).To(HaveLen(0))
 			})
 
 			It("does not log sensitive info", func() {
 				desiredLRP := getDesiredLRP("process-guid-10", "log-guid-10", tcpRoutes, modificationTag)
-				routingEvents := routingTable.RemoveRoutes(desiredLRP)
+				desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+				routingEvents := routingTable.RemoveRoutes(desiredLRPSchedulingInfo)
 				Consistently(logger).ShouldNot(gbytes.Say("private_key"))
 				Expect(routingEvents).To(HaveLen(0))
 			})
 
 			It("logs required routing info", func() {
 				desiredLRP := getDesiredLRP("process-guid-10", "log-guid-10", tcpRoutes, modificationTag)
-				routingEvents := routingTable.RemoveRoutes(desiredLRP)
+				desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+				routingEvents := routingTable.RemoveRoutes(desiredLRPSchedulingInfo)
 				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("starting.*process-guid-10.*external_port.*61000.*container_port.*5222"))
 				Eventually(logger, DEFAULT_TIMEOUT, DEFAULT_POLLING_INTERVAL).Should(gbytes.Say("completed.*process-guid-10.*external_port.*61000.*container_port.*5222"))
 				Expect(routingEvents).To(HaveLen(0))
@@ -367,7 +380,8 @@ var _ = Describe("RoutingTable", func() {
 				It("emits routing event with modified external port", func() {
 					newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
-					routingEvents := routingTable.AddRoutes(desiredLRP)
+					desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+					routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 					Expect(routingEvents).To(HaveLen(2))
 
 					routingEvent := routingEvents[1]
@@ -393,7 +407,8 @@ var _ = Describe("RoutingTable", func() {
 				Context("older modification tag", func() {
 					It("emits nothing", func() {
 						desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-						routingEvents := routingTable.AddRoutes(desiredLRP)
+						desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+						routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 						Expect(routingEvents).To(HaveLen(0))
 						Expect(routingTable.RouteCount()).Should(Equal(1))
 					})
@@ -424,7 +439,8 @@ var _ = Describe("RoutingTable", func() {
 				It("emits routing event with both external ports", func() {
 					modificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-					routingEvents := routingTable.AddRoutes(desiredLRP)
+					desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+					routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 					Expect(routingEvents).To(HaveLen(1))
 					routingEvent := routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
@@ -443,7 +459,8 @@ var _ = Describe("RoutingTable", func() {
 				Context("older modification tag", func() {
 					It("emits nothing", func() {
 						desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-						routingEvents := routingTable.AddRoutes(desiredLRP)
+						desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+						routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 						Expect(routingEvents).To(HaveLen(0))
 						Expect(routingTable.RouteCount()).Should(Equal(1))
 					})
@@ -481,7 +498,8 @@ var _ = Describe("RoutingTable", func() {
 				It("emits routing event with both external ports", func() {
 					newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
-					routingEvents := routingTable.AddRoutes(desiredLRP)
+					desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+					routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 					Expect(routingEvents).To(HaveLen(2))
 
 					routingEvent := routingEvents[1]
@@ -508,7 +526,8 @@ var _ = Describe("RoutingTable", func() {
 				Context("older modification tag", func() {
 					It("emits nothing", func() {
 						desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-						routingEvents := routingTable.AddRoutes(desiredLRP)
+						desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+						routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 						Expect(routingEvents).To(HaveLen(0))
 						Expect(routingTable.RouteCount()).Should(Equal(1))
 					})
@@ -519,7 +538,8 @@ var _ = Describe("RoutingTable", func() {
 				It("emits nothing", func() {
 					tag := &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, tag)
-					routingEvents := routingTable.AddRoutes(desiredLRP)
+					desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+					routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 					Expect(routingEvents).To(HaveLen(0))
 					Expect(routingTable.RouteCount()).Should(Equal(1))
 				})
@@ -594,7 +614,8 @@ var _ = Describe("RoutingTable", func() {
 				It("emits two separate registration events with no overlap", func() {
 					newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newModificationTag)
-					routingEvents := routingTable.AddRoutes(desiredLRP)
+					desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+					routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 
 					expectedEvents := createdExpectedEvents(newModificationTag)
 
@@ -618,7 +639,8 @@ var _ = Describe("RoutingTable", func() {
 				It("emits nothing", func() {
 					newTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newTag)
-					routingEvents := routingTable.AddRoutes(desiredLRP)
+					desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+					routingEvents := routingTable.AddRoutes(desiredLRPSchedulingInfo)
 					Expect(routingEvents).To(HaveLen(0))
 					Expect(routingTable.RouteCount()).Should(Equal(2))
 				})
@@ -661,8 +683,10 @@ var _ = Describe("RoutingTable", func() {
 				Context("when there is change in external port", func() {
 					It("emits registration and unregistration events", func() {
 						beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
+						beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
 						afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
-						routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+						afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+						routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 						Expect(routingEvents).To(HaveLen(2))
 
 						externalInfo := []endpoint.ExternalEndpointInfo{
@@ -688,8 +712,10 @@ var _ = Describe("RoutingTable", func() {
 					Context("with older modification tag", func() {
 						It("emits nothing", func() {
 							beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
+							beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
 							afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, modificationTag)
-							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+							afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+							routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 							Expect(routingEvents).To(HaveLen(0))
 							Expect(routingTable.RouteCount()).Should(Equal(1))
 						})
@@ -700,7 +726,9 @@ var _ = Describe("RoutingTable", func() {
 					It("emits nothing", func() {
 						beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 						afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, newModificationTag)
-						routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+						beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+						afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+						routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 						Expect(routingEvents).To(HaveLen(0))
 						Expect(routingTable.RouteCount()).Should(Equal(1))
 					})
@@ -728,7 +756,9 @@ var _ = Describe("RoutingTable", func() {
 						It("emits no routing events and adds to routing table entry", func() {
 							beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 							afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
-							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+							beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+							afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+							routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 							Expect(routingEvents).To(HaveLen(0))
 							Expect(routingTable.RouteCount()).Should(Equal(2))
 						})
@@ -738,7 +768,9 @@ var _ = Describe("RoutingTable", func() {
 								beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 								afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, modificationTag)
 								currentRoutesCount := routingTable.RouteCount()
-								routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+								beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+								afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+								routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 								Expect(routingEvents).To(HaveLen(0))
 								Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount + 1))
 							})
@@ -766,7 +798,9 @@ var _ = Describe("RoutingTable", func() {
 							beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 							afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
 							currentRoutesCount := routingTable.RouteCount()
-							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+							beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+							afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+							routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 							Expect(routingEvents).To(HaveLen(1))
 
 							externalInfo := []endpoint.ExternalEndpointInfo{
@@ -787,7 +821,9 @@ var _ = Describe("RoutingTable", func() {
 								beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 								afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, modificationTag)
 								currentRoutesCount := routingTable.RouteCount()
-								routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+								beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+								afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+								routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 								Expect(routingEvents).To(HaveLen(0))
 								Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount))
 							})
@@ -817,7 +853,9 @@ var _ = Describe("RoutingTable", func() {
 							beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 							afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
 							currentRoutesCount := routingTable.RouteCount()
-							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+							beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+							afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+							routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 							Expect(routingEvents).To(HaveLen(0))
 							Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount + 1))
 						})
@@ -827,7 +865,9 @@ var _ = Describe("RoutingTable", func() {
 								beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 								afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, modificationTag)
 								currentRoutesCount := routingTable.RouteCount()
-								routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+								beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+								afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+								routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 								Expect(routingEvents).To(HaveLen(0))
 								Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount + 1))
 							})
@@ -855,7 +895,9 @@ var _ = Describe("RoutingTable", func() {
 							beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 							afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
 							currentRoutesCount := routingTable.RouteCount()
-							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+							beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+							afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+							routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 							Expect(routingEvents).To(HaveLen(1))
 
 							externalInfo := []endpoint.ExternalEndpointInfo{
@@ -876,7 +918,9 @@ var _ = Describe("RoutingTable", func() {
 								beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 								afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, modificationTag)
 								currentRoutesCount := routingTable.RouteCount()
-								routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+								beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+								afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+								routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 								Expect(routingEvents).To(HaveLen(0))
 								Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount))
 							})
@@ -895,7 +939,9 @@ var _ = Describe("RoutingTable", func() {
 						beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 						afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
 						currentRoutesCount := routingTable.RouteCount()
-						routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+						beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+						afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+						routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 						Expect(routingEvents).To(HaveLen(1))
 
 						routingEvent := routingEvents[0]
@@ -912,7 +958,9 @@ var _ = Describe("RoutingTable", func() {
 							beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 							afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, modificationTag)
 							currentRoutesCount := routingTable.RouteCount()
-							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+							beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+							afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+							routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 							Expect(routingEvents).To(HaveLen(0))
 							Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount))
 						})
@@ -935,7 +983,9 @@ var _ = Describe("RoutingTable", func() {
 							beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 							afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
 							currentRoutesCount := routingTable.RouteCount()
-							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+							beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+							afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+							routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 							Expect(routingEvents).To(HaveLen(1))
 
 							routingEvent := routingEvents[0]
@@ -953,7 +1003,9 @@ var _ = Describe("RoutingTable", func() {
 								beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 								afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, modificationTag)
 								currentRoutesCount := routingTable.RouteCount()
-								routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+								beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+								afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+								routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 								Expect(routingEvents).To(HaveLen(0))
 								Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount + 1))
 							})
@@ -981,7 +1033,9 @@ var _ = Describe("RoutingTable", func() {
 							beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 							afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, newModificationTag)
 							currentRoutesCount := routingTable.RouteCount()
-							routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+							beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+							afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+							routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 							Expect(routingEvents).To(HaveLen(2))
 
 							externalInfo := []endpoint.ExternalEndpointInfo{
@@ -1009,7 +1063,9 @@ var _ = Describe("RoutingTable", func() {
 								beforeLRP := getDesiredLRP("process-guid-1", "log-guid-1", oldTcpRoutes, modificationTag)
 								afterLRP := getDesiredLRP("process-guid-1", "log-guid-1", newTcpRoutes, modificationTag)
 								currentRoutesCount := routingTable.RouteCount()
-								routingEvents := routingTable.UpdateRoutes(beforeLRP, afterLRP)
+								beforeLRPSchedulingInfo := getDesiredLRPSchedulingInfo(beforeLRP)
+								afterLRPSchedulingInfo := getDesiredLRPSchedulingInfo(afterLRP)
+								routingEvents := routingTable.UpdateRoutes(beforeLRPSchedulingInfo, afterLRPSchedulingInfo)
 								Expect(routingEvents).To(HaveLen(0))
 								Expect(routingTable.RouteCount()).Should(Equal(currentRoutesCount))
 							})
@@ -1032,7 +1088,8 @@ var _ = Describe("RoutingTable", func() {
 				It("emits nothing", func() {
 					modificationTag = &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, modificationTag)
-					routingEvents := routingTable.RemoveRoutes(desiredLRP)
+					desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+					routingEvents := routingTable.RemoveRoutes(desiredLRPSchedulingInfo)
 					Expect(routingEvents).To(HaveLen(0))
 				})
 			})
@@ -1048,7 +1105,8 @@ var _ = Describe("RoutingTable", func() {
 				It("emits unregistration routing events", func() {
 					newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 					desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcpRoutes, newModificationTag)
-					routingEvents := routingTable.RemoveRoutes(desiredLRP)
+					desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+					routingEvents := routingTable.RemoveRoutes(desiredLRPSchedulingInfo)
 					Expect(routingEvents).To(HaveLen(1))
 					routingEvent := routingEvents[0]
 					Expect(routingEvent.Key).Should(Equal(key))
@@ -1071,7 +1129,8 @@ var _ = Describe("RoutingTable", func() {
 						newModificationTag := &models.ModificationTag{Epoch: "abc", Index: 2}
 						desiredLRP := getDesiredLRP("process-guid-1", "log-guid-1", tcp_routes.TCPRoutes{}, newModificationTag)
 						desiredLRP.Ports = []uint32{5222}
-						routingEvents := routingTable.RemoveRoutes(desiredLRP)
+						desiredLRPSchedulingInfo := getDesiredLRPSchedulingInfo(desiredLRP)
+						routingEvents := routingTable.RemoveRoutes(desiredLRPSchedulingInfo)
 						Expect(routingEvents).To(HaveLen(0))
 					})
 				})

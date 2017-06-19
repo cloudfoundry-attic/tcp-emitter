@@ -111,15 +111,8 @@ var _ = Describe("LRP Utils", func() {
 				{ExternalPort: 61001, ContainerPort: 9090},
 			}
 
-			desired := &models.DesiredLRP{
-				Domain:      "tests",
-				ProcessGuid: "process-guid",
-				Ports:       []uint32{8080, 9090},
-				Routes:      routes.RoutingInfo(),
-				LogGuid:     "abc-guid",
-			}
-
-			keys := endpoint.NewRoutingKeysFromDesired(desired)
+			processGuid := "process-guid"
+			keys := endpoint.NewRoutingKeysFromDesired(processGuid, routes)
 
 			Expect(keys).To(HaveLen(2))
 			Expect(keys).To(ContainElement(endpoint.NewRoutingKey("process-guid", 8080)))
@@ -128,19 +121,12 @@ var _ = Describe("LRP Utils", func() {
 
 		Context("when the desired LRP does not define any container ports", func() {
 			It("returns no keys", func() {
-				routes := tcp_routes.TCPRoutes{
-					{ExternalPort: 61000, ContainerPort: 8080},
-				}
+				routes := tcp_routes.TCPRoutes{}
+				processGuid := "process-guid"
 
-				desired := &models.DesiredLRP{
-					Domain:      "tests",
-					ProcessGuid: "process-guid",
-					Routes:      routes.RoutingInfo(),
-					LogGuid:     "abc-guid",
-				}
-
-				keys := endpoint.NewRoutingKeysFromDesired(desired)
+				keys := endpoint.NewRoutingKeysFromDesired(processGuid, routes)
 				Expect(keys).To(HaveLen(0))
+
 			})
 		})
 	})
