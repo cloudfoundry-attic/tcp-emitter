@@ -51,6 +51,29 @@ var _ = Describe("TCP Emitter", func() {
 		return desiredLRP
 	}
 
+	getDesiredLRPSchedulingInfo := func(processGuid, logGuid, routerGroupGuid string, externalPort, containerPort, modificationIndex uint32) models.DesiredLRPSchedulingInfo {
+		tcpRoutes := tcp_routes.TCPRoutes{
+			tcp_routes.TCPRoute{
+				RouterGroupGuid: routerGroupGuid,
+				ExternalPort:    externalPort,
+				ContainerPort:   containerPort,
+			},
+		}
+
+		desiredLRPSchedulingInfo := models.DesiredLRPSchedulingInfo{
+			DesiredLRPKey: models.DesiredLRPKey{
+				ProcessGuid: processGuid,
+				LogGuid:     logGuid,
+			},
+			Routes: *tcpRoutes.RoutingInfo(),
+			ModificationTag: models.ModificationTag{
+				Epoch: "abc",
+				Index: modificationIndex,
+			},
+		}
+		return desiredLRPSchedulingInfo
+	}
+
 	getActualLRP := func(processGuid, instanceGuid, ipAddress string, containerPort uint32) models.ActualLRPGroup {
 		return models.ActualLRPGroup{
 			Instance: &models.ActualLRP{
@@ -87,20 +110,21 @@ var _ = Describe("TCP Emitter", func() {
 				w.WriteHeader(http.StatusOK)
 				w.Write(data)
 			})
-		server.RouteToHandler("POST", "/v1/desired_lrps/list.r2",
+
+		server.RouteToHandler("POST", "/v1/desired_lrp_scheduling_infos/list",
 			func(w http.ResponseWriter, req *http.Request) {
-				desiredLRP1 := getDesiredLRP("some-guid", "log-guid", routerGroupGuid, 5222, 5222, 1)
-				desiredLRPs := []*models.DesiredLRP{
-					&desiredLRP1,
+				desiredLRPSchedulingInfo1 := getDesiredLRPSchedulingInfo("some-guid", "log-guid", routerGroupGuid, 5222, 5222, 1)
+				desiredLRPSchedulingInfos := []*models.DesiredLRPSchedulingInfo{
+					&desiredLRPSchedulingInfo1,
 				}
 				if includeSecondLRP {
-					desiredLRP2 := getDesiredLRP("some-guid-1", "log-guid-1", routerGroupGuid, 1883, 1883, 1)
-					desiredLRPs = append(desiredLRPs, &desiredLRP2)
+					desiredLRPSchedulingInfo2 := getDesiredLRPSchedulingInfo("some-guid-1", "log-guid-1", routerGroupGuid, 1883, 1883, 1)
+					desiredLRPSchedulingInfos = append(desiredLRPSchedulingInfos, &desiredLRPSchedulingInfo2)
 				}
-				desiredLRPResponse := models.DesiredLRPsResponse{
-					DesiredLrps: desiredLRPs,
+				desiredLRPSchedulingInfoResponse := models.DesiredLRPSchedulingInfosResponse{
+					DesiredLrpSchedulingInfos: desiredLRPSchedulingInfos,
 				}
-				data, _ := proto.Marshal(&desiredLRPResponse)
+				data, _ := proto.Marshal(&desiredLRPSchedulingInfoResponse)
 				w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 				w.Header().Set("Content-Type", "application/x-protobuf")
 				w.WriteHeader(http.StatusOK)

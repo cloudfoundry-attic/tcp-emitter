@@ -13,6 +13,7 @@ import (
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/endpoint"
 	"code.cloudfoundry.org/tcp-emitter/routing_table/schema/event"
 	routingtablefakes "code.cloudfoundry.org/tcp-emitter/routing_table/schema/fakes"
+	"code.cloudfoundry.org/tcp-emitter/routing_table/util"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -49,10 +50,11 @@ var _ = Describe("RoutingTableHandler", func() {
 				},
 			}
 			desiredLRP = &models.DesiredLRP{
-				ProcessGuid: "process-guid-1",
-				Ports:       []uint32{containerPort},
-				LogGuid:     "log-guid",
-				Routes:      tcpRoutes.RoutingInfo(),
+				ProcessGuid:     "process-guid-1",
+				Ports:           []uint32{containerPort},
+				LogGuid:         "log-guid",
+				Routes:          tcpRoutes.RoutingInfo(),
+				ModificationTag: &models.ModificationTag{},
 			}
 			routingEvents = event.RoutingEvents{
 				event.RoutingEvent{
@@ -70,8 +72,8 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			It("invokes AddRoutes on RoutingTable", func() {
 				Expect(fakeRoutingTable.AddRoutesCallCount()).Should(Equal(1))
-				lrp := fakeRoutingTable.AddRoutesArgsForCall(0)
-				Expect(lrp).Should(Equal(desiredLRP))
+				lrpSchedulingInfo := fakeRoutingTable.AddRoutesArgsForCall(0)
+				Expect(lrpSchedulingInfo).Should(Equal(util.DesiredLRPSchedulingInfo(desiredLRP)))
 			})
 
 			Context("when there are routing events", func() {
@@ -110,10 +112,11 @@ var _ = Describe("RoutingTableHandler", func() {
 					},
 				}
 				after = &models.DesiredLRP{
-					ProcessGuid: "process-guid-1",
-					Ports:       []uint32{containerPort},
-					LogGuid:     "log-guid",
-					Routes:      tcpRoutes.RoutingInfo(),
+					ProcessGuid:     "process-guid-1",
+					Ports:           []uint32{containerPort},
+					LogGuid:         "log-guid",
+					Routes:          tcpRoutes.RoutingInfo(),
+					ModificationTag: &models.ModificationTag{},
 				}
 			})
 
@@ -123,9 +126,9 @@ var _ = Describe("RoutingTableHandler", func() {
 
 			It("invokes UpdateRoutes on RoutingTable", func() {
 				Expect(fakeRoutingTable.UpdateRoutesCallCount()).Should(Equal(1))
-				beforeLrp, afterLrp := fakeRoutingTable.UpdateRoutesArgsForCall(0)
-				Expect(beforeLrp).Should(Equal(desiredLRP))
-				Expect(afterLrp).Should(Equal(after))
+				beforeLrpSchedulingInfo, afterLrpSchedulingInfo := fakeRoutingTable.UpdateRoutesArgsForCall(0)
+				Expect(beforeLrpSchedulingInfo).Should(Equal(util.DesiredLRPSchedulingInfo(desiredLRP)))
+				Expect(afterLrpSchedulingInfo).Should(Equal(util.DesiredLRPSchedulingInfo(after)))
 			})
 
 			Context("when there are routing events", func() {
@@ -169,8 +172,8 @@ var _ = Describe("RoutingTableHandler", func() {
 			It("does not invoke AddRoutes on RoutingTable", func() {
 				Expect(fakeRoutingTable.RemoveRoutesCallCount()).Should(Equal(1))
 				Expect(fakeEmitter.EmitCallCount()).Should(Equal(1))
-				lrp := fakeRoutingTable.RemoveRoutesArgsForCall(0)
-				Expect(lrp).Should(Equal(desiredLRP))
+				lrpSchedulingInfo := fakeRoutingTable.RemoveRoutesArgsForCall(0)
+				Expect(lrpSchedulingInfo).Should(Equal(util.DesiredLRPSchedulingInfo(desiredLRP)))
 			})
 		})
 	})
@@ -543,7 +546,7 @@ var _ = Describe("RoutingTableHandler", func() {
 			BeforeEach(func() {
 				syncChannel = make(chan struct{})
 				tmpSyncChannel := syncChannel
-				fakeBbsClient.DesiredLRPsStub = func(logger lager.Logger, filter models.DesiredLRPFilter) ([]*models.DesiredLRP, error) {
+				fakeBbsClient.DesiredLRPSchedulingInfosStub = func(logger lager.Logger, filter models.DesiredLRPFilter) ([]*models.DesiredLRPSchedulingInfo, error) {
 					select {
 					case <-tmpSyncChannel:
 						logger.Info("Desired LRPs complete")
@@ -559,10 +562,11 @@ var _ = Describe("RoutingTableHandler", func() {
 					},
 				}
 				desiredLRP = &models.DesiredLRP{
-					ProcessGuid: "process-guid-1",
-					Ports:       []uint32{containerPort},
-					LogGuid:     "log-guid",
-					Routes:      tcpRoutes.RoutingInfo(),
+					ProcessGuid:     "process-guid-1",
+					Ports:           []uint32{containerPort},
+					LogGuid:         "log-guid",
+					Routes:          tcpRoutes.RoutingInfo(),
+					ModificationTag: &models.ModificationTag{},
 				}
 			})
 
@@ -585,7 +589,7 @@ var _ = Describe("RoutingTableHandler", func() {
 
 		Context("when bbs server returns error while fetching desired lrps", func() {
 			BeforeEach(func() {
-				fakeBbsClient.DesiredLRPsReturns(nil, errors.New("kaboom"))
+				fakeBbsClient.DesiredLRPSchedulingInfosReturns(nil, errors.New("kaboom"))
 			})
 
 			It("does not update the routing table", func() {
@@ -622,9 +626,10 @@ var _ = Describe("RoutingTableHandler", func() {
 			Context("when bbs server returns desired and actual lrps", func() {
 
 				var (
-					desiredLRP      *models.DesiredLRP
-					actualLRP       *models.ActualLRPGroup
-					modificationTag models.ModificationTag
+					desiredLRP               *models.DesiredLRP
+					desiredLRPSchedulingInfo *models.DesiredLRPSchedulingInfo
+					actualLRP                *models.ActualLRPGroup
+					modificationTag          models.ModificationTag
 				)
 
 				BeforeEach(func() {
@@ -646,6 +651,17 @@ var _ = Describe("RoutingTableHandler", func() {
 						Routes:          tcpRoutes.RoutingInfo(),
 						ModificationTag: &modificationTag,
 					}
+
+					routes := tcpRoutes.RoutingInfo()
+					desiredLRPSchedulingInfo = &models.DesiredLRPSchedulingInfo{
+						DesiredLRPKey: models.DesiredLRPKey{
+							ProcessGuid: "process-guid-1",
+							LogGuid:     "log-guid",
+						},
+						Routes:          *routes,
+						ModificationTag: modificationTag,
+					}
+
 					actualLRP = &models.ActualLRPGroup{
 						Instance: &models.ActualLRP{
 							ActualLRPKey:         models.NewActualLRPKey("process-guid-1", 0, "domain"),
@@ -660,7 +676,7 @@ var _ = Describe("RoutingTableHandler", func() {
 						},
 						Evacuating: nil,
 					}
-					fakeBbsClient.DesiredLRPsReturns([]*models.DesiredLRP{desiredLRP}, nil)
+					fakeBbsClient.DesiredLRPSchedulingInfosReturns([]*models.DesiredLRPSchedulingInfo{desiredLRPSchedulingInfo}, nil)
 					fakeBbsClient.ActualLRPGroupsReturns([]*models.ActualLRPGroup{actualLRP}, nil)
 
 					fakeRoutingTable.SwapStub = func(t schema.RoutingTable) event.RoutingEvents {
@@ -708,12 +724,12 @@ var _ = Describe("RoutingTableHandler", func() {
 						}
 						syncChannel = make(chan struct{})
 						tmpSyncChannel := syncChannel
-						fakeBbsClient.DesiredLRPsStub = func(logger lager.Logger, filter models.DesiredLRPFilter) ([]*models.DesiredLRP, error) {
+						fakeBbsClient.DesiredLRPSchedulingInfosStub = func(logger lager.Logger, filter models.DesiredLRPFilter) ([]*models.DesiredLRPSchedulingInfo, error) {
 							select {
 							case <-tmpSyncChannel:
 								logger.Info("Desired LRPs complete")
 							}
-							return []*models.DesiredLRP{desiredLRP}, nil
+							return []*models.DesiredLRPSchedulingInfo{desiredLRPSchedulingInfo}, nil
 						}
 					})
 
